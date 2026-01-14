@@ -1,0 +1,19 @@
+<Configuration>
+  <VGpu>Disable</VGpu>
+  <Networking>Disable</Networking>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>C:\TransportTest\SharedClient</HostFolder>
+      <SandboxFolder>C:\Client</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>C:\TransportTest\Shared</HostFolder>
+      <SandboxFolder>C:\Shared</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>C:\Client\launch.cmd</Command>
+  </LogonCommand>
+</Configuration>

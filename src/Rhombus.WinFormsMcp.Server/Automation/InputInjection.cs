@@ -526,186 +526,73 @@ public static class InputInjection
 
     #endregion
 
-    #region Mouse Input (Direct SendInput - bypasses FlaUI's slow interpolation)
+    #region Mouse Input (via FlaUI with fast settings)
 
     // ===================================================================================
-    // WHY WE USE DIRECT SendInput INSTEAD OF FlaUI's Mouse CLASS
+    // MOUSE INPUT USING FlaUI WITH OPTIMIZED SETTINGS
     // ===================================================================================
     //
-    // FlaUI's Mouse.MoveTo() has built-in animation that interpolates the mouse path.
-    // With 1000 waypoints, FlaUI took 1m48s vs our direct SendInput taking <1 second.
-    //
-    // THE ROOT CAUSE: DOUBLE INTERPOLATION
-    // Our original code was calling Mouse.MoveTo in a loop for each intermediate point:
-    //   for (int i = 0; i < steps; i++) { Mouse.MoveTo(intermediatePoint); }
-    //
-    // But FlaUI ALREADY interpolates each MoveTo call! So we were:
-    //   1. Calculating our own intermediate points (the `steps` loop)
-    //   2. FlaUI then animated EACH of those with its own interpolation
-    //
-    // FOR SIMPLE DRAGS (A to B): Could call Mouse.MoveTo(endPoint) ONCE and let FlaUI
-    // handle all interpolation at its configured speed. No loop needed.
-    //
-    // FOR WAYPOINT PATHS: FlaUI can only go straight to each point, so multiple calls
-    // are unavoidable. But we could skip our own interpolation and just call MoveTo
-    // once per waypoint, letting FlaUI animate between them.
-    //
-    // FlaUI HAS configurable speed settings (in FlaUI.Core.Input.Mouse):
+    // FlaUI's Mouse.MoveTo() has built-in animation. Key settings:
     //   - Mouse.MovePixelsPerMillisecond (default 0.5) - pixels moved per ms
     //   - Mouse.MovePixelsPerStep (default 10) - pixels per interpolation step
     //
-    // FUTURE FIX: Instead of direct SendInput, try:
-    //   1. For MouseDrag: Single Mouse.MoveTo(endPoint) call, let FlaUI animate
-    //   2. For MouseDragPath: One Mouse.MoveTo per waypoint, no extra interpolation
-    //   3. Adjust Mouse.MovePixelsPerMillisecond for desired animation speed
+    // We set these to high values for near-instant movement while still using FlaUI's
+    // battle-tested input injection. This avoids maintaining custom P/Invoke code.
+    //
+    // IMPORTANT: Use single MoveTo calls, not loops! FlaUI handles interpolation.
+    //   - MouseDrag: MoveTo(start), Down, MoveTo(end), Up - FlaUI animates the path
+    //   - MouseDragPath: MoveTo each waypoint - FlaUI animates between them
     //
     // FlaUI source: https://github.com/FlaUI/FlaUI/blob/master/src/FlaUI.Core/Input/Mouse.cs
-    // The MoveTo method (lines 117-138) calculates duration and steps, then interpolates
-    //
-    // Our current solution: Direct P/Invoke to user32.dll SendInput for instant positioning
-    // This bypasses FlaUI entirely, giving us full control over timing via our delayMs param
     // ===================================================================================
 
-    // P/Invoke for direct mouse input
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
-
-    private const int INPUT_MOUSE = 0;
-    private const uint MOUSEEVENTF_MOVE = 0x0001;
-    private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
-    private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
-    private const uint MOUSEEVENTF_LEFTUP = 0x0004;
-    private const uint MOUSEEVENTF_VIRTUALDESK = 0x4000;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct INPUT
-    {
-        public int type;
-        public MOUSEINPUT mi;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MOUSEINPUT
-    {
-        public int dx;
-        public int dy;
-        public uint mouseData;
-        public uint dwFlags;
-        public uint time;
-        public IntPtr dwExtraInfo;
-    }
-
-    // Cache screen dimensions for coordinate conversion
-    [DllImport("user32.dll")]
-    private static extern int GetSystemMetrics(int nIndex);
-    private const int SM_CXSCREEN = 0;
-    private const int SM_CYSCREEN = 1;
+    private static bool _mouseSpeedInitialized;
 
     /// <summary>
-    /// Move mouse to absolute screen coordinates using direct SendInput (instant, no FlaUI overhead)
+    /// Ensure FlaUI mouse speed is set to fast (near-instant) movement
     /// </summary>
-    private static void DirectMouseMoveTo(int x, int y)
+    private static void EnsureFastMouseSpeed()
     {
-        // Convert screen coordinates to normalized absolute coordinates (0-65535)
-        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-        int absoluteX = (x * 65536) / screenWidth;
-        int absoluteY = (y * 65536) / screenHeight;
+        if (_mouseSpeedInitialized) return;
 
-        var input = new INPUT
-        {
-            type = INPUT_MOUSE,
-            mi = new MOUSEINPUT
-            {
-                dx = absoluteX,
-                dy = absoluteY,
-                mouseData = 0,
-                dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-                time = 0,
-                dwExtraInfo = IntPtr.Zero
-            }
-        };
-
-        SendInput(1, new[] { input }, Marshal.SizeOf<INPUT>());
-    }
-
-    /// <summary>
-    /// Send mouse button down using direct SendInput
-    /// </summary>
-    private static void DirectMouseDown()
-    {
-        var input = new INPUT
-        {
-            type = INPUT_MOUSE,
-            mi = new MOUSEINPUT
-            {
-                dx = 0,
-                dy = 0,
-                mouseData = 0,
-                dwFlags = MOUSEEVENTF_LEFTDOWN,
-                time = 0,
-                dwExtraInfo = IntPtr.Zero
-            }
-        };
-
-        SendInput(1, new[] { input }, Marshal.SizeOf<INPUT>());
-    }
-
-    /// <summary>
-    /// Send mouse button up using direct SendInput
-    /// </summary>
-    private static void DirectMouseUp()
-    {
-        var input = new INPUT
-        {
-            type = INPUT_MOUSE,
-            mi = new MOUSEINPUT
-            {
-                dx = 0,
-                dy = 0,
-                mouseData = 0,
-                dwFlags = MOUSEEVENTF_LEFTUP,
-                time = 0,
-                dwExtraInfo = IntPtr.Zero
-            }
-        };
-
-        SendInput(1, new[] { input }, Marshal.SizeOf<INPUT>());
+        // Set very high values for near-instant mouse movement
+        Mouse.MovePixelsPerMillisecond = 10000;  // Default is 0.5
+        Mouse.MovePixelsPerStep = 10000;          // Default is 10
+        _mouseSpeedInitialized = true;
     }
 
     /// <summary>
     /// Simulate mouse drag from one point to another (works for InkCanvas drawing)
-    /// Uses direct SendInput for instant mouse movement without FlaUI overhead.
+    /// Uses FlaUI with fast settings - single MoveTo call, FlaUI handles animation.
     /// </summary>
     /// <param name="x1">Start X coordinate</param>
     /// <param name="y1">Start Y coordinate</param>
     /// <param name="x2">End X coordinate</param>
     /// <param name="y2">End Y coordinate</param>
-    /// <param name="steps">Number of intermediate points (default 10)</param>
-    /// <param name="delayMs">Delay in milliseconds between each step (default 0)</param>
+    /// <param name="steps">Ignored - kept for API compatibility. FlaUI handles interpolation.</param>
+    /// <param name="delayMs">Delay in milliseconds after drag completes (default 0)</param>
     /// <param name="targetWindow">Optional window to target (not used currently)</param>
     public static bool MouseDrag(int x1, int y1, int x2, int y2, int steps = 10, int delayMs = 0, string? targetWindow = null)
     {
         try
         {
-            // Move to start using direct SendInput (instant, no FlaUI overhead)
-            DirectMouseMoveTo(x1, y1);
+            EnsureFastMouseSpeed();
+
+            // Move to start
+            Mouse.MoveTo(new System.Drawing.Point(x1, y1));
 
             // Press left button
-            DirectMouseDown();
+            Mouse.Down(MouseButton.Left);
 
-            // Move in steps
-            for (int i = 1; i <= steps; i++)
-            {
-                int x = x1 + (x2 - x1) * i / steps;
-                int y = y1 + (y2 - y1) * i / steps;
-                DirectMouseMoveTo(x, y);
-                if (delayMs > 0)
-                    System.Threading.Thread.Sleep(delayMs);
-            }
+            // Single MoveTo to end - FlaUI handles all interpolation
+            Mouse.MoveTo(new System.Drawing.Point(x2, y2));
 
             // Release
-            DirectMouseUp();
+            Mouse.Up(MouseButton.Left);
+
+            if (delayMs > 0)
+                System.Threading.Thread.Sleep(delayMs);
+
             return true;
         }
         catch
@@ -716,11 +603,11 @@ public static class InputInjection
 
     /// <summary>
     /// Simulate mouse drag through multiple waypoints (for drawing shapes, curves, complex gestures)
-    /// Uses direct SendInput for instant mouse movement without FlaUI overhead.
+    /// Uses FlaUI with fast settings - one MoveTo per waypoint, FlaUI handles animation between.
     /// </summary>
     /// <param name="waypoints">Array of (x, y) coordinates to drag through (minimum 2 points)</param>
-    /// <param name="stepsPerSegment">Number of interpolation steps between each waypoint (default 1 - no extra interpolation since waypoints define the path)</param>
-    /// <param name="delayMs">Delay in milliseconds between steps (default 0)</param>
+    /// <param name="stepsPerSegment">Ignored - kept for API compatibility. FlaUI handles interpolation.</param>
+    /// <param name="delayMs">Delay in milliseconds between waypoints (default 0)</param>
     /// <returns>Tuple of (success, pointsProcessed, totalSteps) or (false, 0, 0) on error</returns>
     public static (bool success, int pointsProcessed, int totalSteps) MouseDragPath(
         (int x, int y)[] waypoints,
@@ -741,54 +628,40 @@ public static class InputInjection
                 return (false, 0, 0);
         }
 
-        if (stepsPerSegment < 1)
-            stepsPerSegment = 1;
-
         if (delayMs < 0)
             delayMs = 0;
 
-        int totalSteps = 0;
-
         try
         {
+            EnsureFastMouseSpeed();
+
             var startPoint = waypoints[0];
 
-            // Move to first point using direct SendInput (instant, no FlaUI overhead)
-            DirectMouseMoveTo(startPoint.x, startPoint.y);
+            // Move to first point
+            Mouse.MoveTo(new System.Drawing.Point(startPoint.x, startPoint.y));
 
             // Press left button
-            DirectMouseDown();
+            Mouse.Down(MouseButton.Left);
 
-            // Iterate through segments
-            for (int i = 0; i < waypoints.Length - 1; i++)
+            // One MoveTo per waypoint - FlaUI handles interpolation between them
+            for (int i = 1; i < waypoints.Length; i++)
             {
-                var start = waypoints[i];
-                var end = waypoints[i + 1];
+                var point = waypoints[i];
+                Mouse.MoveTo(new System.Drawing.Point(point.x, point.y));
 
-                // Interpolate this segment
-                for (int step = 1; step <= stepsPerSegment; step++)
-                {
-                    float t = (float)step / stepsPerSegment;
-                    int x = (int)(start.x + (end.x - start.x) * t);
-                    int y = (int)(start.y + (end.y - start.y) * t);
-
-                    DirectMouseMoveTo(x, y);
-                    totalSteps++;
-
-                    if (delayMs > 0)
-                        System.Threading.Thread.Sleep(delayMs);
-                }
+                if (delayMs > 0)
+                    System.Threading.Thread.Sleep(delayMs);
             }
 
             // Release mouse button
-            DirectMouseUp();
+            Mouse.Up(MouseButton.Left);
 
-            return (true, waypoints.Length, totalSteps);
+            return (true, waypoints.Length, waypoints.Length - 1);
         }
         catch
         {
             // Ensure mouse is released on error
-            try { DirectMouseUp(); } catch { }
+            try { Mouse.Up(MouseButton.Left); } catch { }
             return (false, 0, 0);
         }
     }

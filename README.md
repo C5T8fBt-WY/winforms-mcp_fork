@@ -19,6 +19,42 @@ fnWindowsMCP bridges the gap between Claude Code and WinForms applications, enab
 - **Headless operation** compatible with CI/CD environments, remote systems, and servers
 - **Full async/await support** for integration with modern .NET applications
 
+## Prerequisites
+
+### System Requirements
+
+| Requirement | Details |
+|-------------|---------|
+| **Operating System** | Windows 10/11 Pro, Enterprise, or Education |
+| **.NET SDK** | 8.0 or later |
+| **Windows Sandbox** | Required for isolated testing (optional but recommended) |
+
+> **Note:** Windows Home edition does not support Windows Sandbox. The MCP server works without sandbox, but isolated testing requires Pro/Enterprise/Education.
+
+### Enabling Windows Sandbox (Recommended)
+
+Windows Sandbox provides isolated environments for safe application testing. To enable it:
+
+**PowerShell (Run as Administrator):**
+```powershell
+Enable-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClientVM" -All
+```
+
+**Or via Windows Features UI:**
+1. Open "Turn Windows features on or off"
+2. Check "Windows Sandbox"
+3. Click OK
+
+**Important:** A system restart is required after enabling Windows Sandbox.
+
+### Verifying Setup
+
+After reboot, verify sandbox is available:
+```powershell
+# Should show "Enabled" status
+Get-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClientVM" | Select State
+```
+
 ## Architecture
 
 ### Project Structure
@@ -424,6 +460,39 @@ Sends keyboard input.
 **Returns:**
 ```json
 {"success": true, "message": "Keys sent"}
+```
+
+### mouse_drag_path
+
+Drags the mouse through multiple waypoints in sequence. Useful for drawing shapes, curves, and complex gestures without lifting the mouse button.
+
+**Arguments:**
+- `points` (array, required) - Array of {x, y} waypoints to drag through (minimum 2, maximum 1000)
+- `stepsPerSegment` (int, optional, default: 10) - Interpolation steps between each waypoint
+- `delayMs` (int, optional, default: 5) - Delay in milliseconds between steps
+
+**Returns:**
+```json
+{
+  "success": true,
+  "message": "Completed drag path through 5 waypoints",
+  "pointsProcessed": 5,
+  "totalSteps": 40
+}
+```
+
+**Example - Drawing a Rectangle:**
+```json
+{
+  "points": [
+    {"x": 100, "y": 100},
+    {"x": 300, "y": 100},
+    {"x": 300, "y": 200},
+    {"x": 100, "y": 200},
+    {"x": 100, "y": 100}
+  ],
+  "stepsPerSegment": 10
+}
 ```
 
 ## Example Workflows

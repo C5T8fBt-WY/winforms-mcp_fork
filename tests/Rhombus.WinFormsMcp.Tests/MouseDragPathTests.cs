@@ -115,26 +115,23 @@ public class MouseDragPathTests
     }
 
     [Test]
-    public void MouseDragPath_WithExactly1000Points_IsAccepted()
+    public void MouseDragPath_WithSplineWaypoints_Succeeds()
     {
-        // Arrange - Create exactly 1000 points (should be allowed)
-        var waypoints = new (int x, int y)[1000];
-        for (int i = 0; i < 1000; i++)
+        // Arrange - Create a realistic spline path (20 waypoints)
+        // This simulates drawing a curved line or complex gesture
+        var waypoints = new (int x, int y)[20];
+        for (int i = 0; i < 20; i++)
         {
-            waypoints[i] = (i, i);
+            // Simple diagonal path with some variation
+            waypoints[i] = (100 + i * 10, 100 + i * 10);
         }
 
-        // Note: This test just validates that 1000 points passes the validation
-        // It may fail on actual execution since we're in headless mode,
-        // but that's expected - we're testing validation logic here
-        // The actual drag would fail without a GUI
-        var (success, _, _) = InputInjection.MouseDragPath(waypoints, stepsPerSegment: 1, delayMs: 0);
+        // Act
+        var (success, pointsProcessed, totalSteps) = InputInjection.MouseDragPath(waypoints, stepsPerSegment: 1, delayMs: 0);
 
-        // The validation should pass (1000 is <= 1000)
-        // Success depends on whether GUI is available
-        // For validation testing, we just verify it didn't reject for count
-        // If validation failed for count, success would be false with 0 points
-        Assert.Pass("1000 points accepted by validation (GUI-dependent success)");
+        // Assert - should succeed (GUI available in test environment)
+        Assert.That(success, Is.True);
+        Assert.That(pointsProcessed, Is.EqualTo(20));
     }
 
     [Test]

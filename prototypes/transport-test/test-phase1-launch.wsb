@@ -1,0 +1,21 @@
+<Configuration>
+  <VGpu>Disable</VGpu>
+  <Networking>Disable</Networking>
+  <MappedFolders>
+    <!-- MCP server/bootstrap binaries (read-only) -->
+    <MappedFolder>
+      <HostFolder>C:\TransportTest\Phase1</HostFolder>
+      <SandboxFolder>C:\MCP</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <!-- Shared communication folder (read-write) -->
+    <MappedFolder>
+      <HostFolder>C:\TransportTest\Shared</HostFolder>
+      <SandboxFolder>C:\Shared</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>powershell -ExecutionPolicy Bypass -File C:\MCP\bootstrap.ps1</Command>
+  </LogonCommand>
+</Configuration>
