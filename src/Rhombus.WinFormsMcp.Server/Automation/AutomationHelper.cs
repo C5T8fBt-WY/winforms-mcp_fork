@@ -2,12 +2,14 @@ using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Conditions;
 using FlaUI.Core.Definitions;
+using FlaUI.Core.Input;
 using FlaUI.UIA2;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -176,7 +178,7 @@ public class AutomationHelper : IAutomationHelper
     }
 
     /// <summary>
-    /// Find element with retry/timeout
+    /// Find element with retry/timeout - searches entire descendant tree
     /// </summary>
     private AutomationElement? FindElement(ConditionBase condition, AutomationElement? parent, int timeoutMs)
     {
@@ -190,7 +192,8 @@ public class AutomationHelper : IAutomationHelper
         {
             try
             {
-                var element = root.FindFirstChild(condition);
+                // Use FindFirstDescendant to search the entire tree, not just immediate children
+                var element = root.FindFirstDescendant(condition);
                 if (element != null)
                     return element;
             }
@@ -200,6 +203,108 @@ public class AutomationHelper : IAutomationHelper
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Get element tree for debugging - returns list of elements with their properties
+    /// </summary>
+    public List<Dictionary<string, string>> GetElementTree(AutomationElement? parent = null, int maxDepth = 3)
+    {
+        if (_automation == null)
+            throw new ObjectDisposedException(nameof(AutomationHelper));
+
+        var root = parent ?? _automation.GetDesktop();
+        var result = new List<Dictionary<string, string>>();
+        CollectElements(root, result, 0, maxDepth);
+        return result;
+    }
+
+    private void CollectElements(AutomationElement element, List<Dictionary<string, string>> result, int depth, int maxDepth)
+    {
+        if (depth > maxDepth) return;
+
+        try
+        {
+            var info = new Dictionary<string, string>
+            {
+                ["depth"] = depth.ToString(),
+                ["name"] = element.Name ?? "",
+                ["automationId"] = element.AutomationId ?? "",
+                ["className"] = element.ClassName ?? "",
+                ["controlType"] = element.ControlType.ToString()
+            };
+
+            // Include bounding rectangle for clickable elements
+            try
+            {
+                var bounds = element.BoundingRectangle;
+                info["bounds"] = $"{bounds.X},{bounds.Y},{bounds.Width},{bounds.Height}";
+            }
+            catch { }
+
+            result.Add(info);
+
+            // Recurse into children
+            var children = element.FindAllChildren();
+            foreach (var child in children)
+            {
+                CollectElements(child, result, depth + 1, maxDepth);
+            }
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Find element by AutomationId and click it in one operation
+    /// </summary>
+    public bool ClickByAutomationId(string automationId, bool doubleClick = false, int timeoutMs = 5000)
+    {
+        var element = FindByAutomationId(automationId, null, timeoutMs);
+        if (element == null)
+            return false;
+
+        Click(element, doubleClick);
+        return true;
+    }
+
+    /// <summary>
+    /// Get window by title (partial match) as automation element
+    /// </summary>
+    public AutomationElement? GetWindowByTitle(string titleContains, int timeoutMs = 5000)
+    {
+        if (_automation == null)
+            throw new ObjectDisposedException(nameof(AutomationHelper));
+
+        var stopwatch = Stopwatch.StartNew();
+        while (stopwatch.ElapsedMilliseconds < timeoutMs)
+        {
+            try
+            {
+                var desktop = _automation.GetDesktop();
+                var windows = desktop.FindAllChildren();
+                foreach (var window in windows)
+                {
+                    if (window.Name?.Contains(titleContains, StringComparison.OrdinalIgnoreCase) == true)
+                        return window;
+                }
+            }
+            catch { }
+
+            Thread.Sleep(100);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Get the desktop root element.
+    /// </summary>
+    public AutomationElement GetDesktop()
+    {
+        if (_automation == null)
+            throw new ObjectDisposedException(nameof(AutomationHelper));
+
+        return _automation.GetDesktop();
     }
 
     /// <summary>
@@ -402,6 +507,282 @@ public class AutomationHelper : IAutomationHelper
         catch
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Build XML UI tree using TreeBuilder
+    /// </summary>
+    public TreeBuildResult BuildUiTree(AutomationElement? root = null, TreeBuilderOptions? options = null)
+    {
+        if (_automation == null)
+            throw new ObjectDisposedException(nameof(AutomationHelper));
+
+        var actualRoot = root ?? _automation.GetDesktop();
+        var builder = new TreeBuilder(options);
+        return builder.BuildTree(actualRoot);
+    }
+
+    /// <summary>
+    /// Expand or collapse an element that supports ExpandCollapse pattern
+    /// </summary>
+    public ExpandCollapseResult ExpandCollapse(AutomationElement element, bool expand)
+    {
+        try
+        {
+            var patterns = element.Patterns;
+            var expandCollapsePattern = patterns.ExpandCollapse.PatternOrDefault;
+
+            if (expandCollapsePattern == null)
+            {
+                return new ExpandCollapseResult
+                {
+                    Success = false,
+                    ErrorMessage = "Element does not support ExpandCollapse pattern",
+                    CurrentState = null
+                };
+            }
+
+            var previousState = expandCollapsePattern.ExpandCollapseState;
+
+            if (expand)
+            {
+                expandCollapsePattern.Expand();
+            }
+            else
+            {
+                expandCollapsePattern.Collapse();
+            }
+
+            // Wait a moment for UI to update
+            Thread.Sleep(100);
+
+            var newState = expandCollapsePattern.ExpandCollapseState;
+
+            return new ExpandCollapseResult
+            {
+                Success = true,
+                PreviousState = previousState.ToString(),
+                CurrentState = newState.ToString()
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ExpandCollapseResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                CurrentState = null
+            };
+        }
+    }
+
+    /// <summary>
+    /// Get the expand/collapse state of an element
+    /// </summary>
+    public string? GetExpandCollapseState(AutomationElement element)
+    {
+        try
+        {
+            var pattern = element.Patterns.ExpandCollapse.PatternOrDefault;
+            return pattern?.ExpandCollapseState.ToString();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Scroll an element that supports ScrollPattern
+    /// </summary>
+    public ScrollResult Scroll(AutomationElement element, ScrollDirection direction, ScrollAmount amount)
+    {
+        try
+        {
+            var pattern = element.Patterns.Scroll.PatternOrDefault;
+
+            if (pattern == null)
+            {
+                return new ScrollResult
+                {
+                    Success = false,
+                    ErrorMessage = "Element does not support Scroll pattern"
+                };
+            }
+
+            // Get scroll info before
+            var horizontalBefore = pattern.HorizontalScrollPercent;
+            var verticalBefore = pattern.VerticalScrollPercent;
+
+            // Perform scroll
+            switch (direction)
+            {
+                case ScrollDirection.Up:
+                    pattern.Scroll(FlaUI.Core.Definitions.ScrollAmount.NoAmount, ToFlaUIAmount(amount));
+                    break;
+                case ScrollDirection.Down:
+                    pattern.Scroll(FlaUI.Core.Definitions.ScrollAmount.NoAmount, ToFlaUIAmountReverse(amount));
+                    break;
+                case ScrollDirection.Left:
+                    pattern.Scroll(ToFlaUIAmount(amount), FlaUI.Core.Definitions.ScrollAmount.NoAmount);
+                    break;
+                case ScrollDirection.Right:
+                    pattern.Scroll(ToFlaUIAmountReverse(amount), FlaUI.Core.Definitions.ScrollAmount.NoAmount);
+                    break;
+            }
+
+            // Wait for UI update
+            Thread.Sleep(100);
+
+            // Get scroll info after
+            var horizontalAfter = pattern.HorizontalScrollPercent;
+            var verticalAfter = pattern.VerticalScrollPercent;
+
+            return new ScrollResult
+            {
+                Success = true,
+                HorizontalScrollPercent = horizontalAfter,
+                VerticalScrollPercent = verticalAfter,
+                HorizontalChanged = Math.Abs(horizontalAfter - horizontalBefore) > 0.01,
+                VerticalChanged = Math.Abs(verticalAfter - verticalBefore) > 0.01
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ScrollResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+
+    private static FlaUI.Core.Definitions.ScrollAmount ToFlaUIAmount(ScrollAmount amount)
+    {
+        return amount switch
+        {
+            ScrollAmount.SmallDecrement => FlaUI.Core.Definitions.ScrollAmount.SmallDecrement,
+            ScrollAmount.LargeDecrement => FlaUI.Core.Definitions.ScrollAmount.LargeDecrement,
+            _ => FlaUI.Core.Definitions.ScrollAmount.SmallDecrement
+        };
+    }
+
+    private static FlaUI.Core.Definitions.ScrollAmount ToFlaUIAmountReverse(ScrollAmount amount)
+    {
+        return amount switch
+        {
+            ScrollAmount.SmallDecrement => FlaUI.Core.Definitions.ScrollAmount.SmallIncrement,
+            ScrollAmount.LargeDecrement => FlaUI.Core.Definitions.ScrollAmount.LargeIncrement,
+            _ => FlaUI.Core.Definitions.ScrollAmount.SmallIncrement
+        };
+    }
+
+    /// <summary>
+    /// Get detailed state of an element including patterns
+    /// </summary>
+    public ElementStateResult GetElementState(AutomationElement element)
+    {
+        try
+        {
+            var result = new ElementStateResult
+            {
+                Success = true,
+                AutomationId = SafeGet(() => element.AutomationId),
+                Name = SafeGet(() => element.Name),
+                ClassName = SafeGet(() => element.ClassName),
+                ControlType = SafeGet(() => element.ControlType.ToString()),
+                IsEnabled = SafeGet(() => element.IsEnabled, false),
+                IsOffscreen = SafeGet(() => element.IsOffscreen, true),
+                IsKeyboardFocusable = SafeGet(() => element.Properties.IsKeyboardFocusable.ValueOrDefault, false),
+                HasKeyboardFocus = SafeGet(() => element.Properties.HasKeyboardFocus.ValueOrDefault, false)
+            };
+
+            // Get bounding rectangle
+            try
+            {
+                var bounds = element.BoundingRectangle;
+                result.BoundingRect = new BoundingRectInfo
+                {
+                    X = (int)bounds.X,
+                    Y = (int)bounds.Y,
+                    Width = (int)bounds.Width,
+                    Height = (int)bounds.Height
+                };
+            }
+            catch { }
+
+            // Try to get value from ValuePattern
+            try
+            {
+                var valuePattern = element.Patterns.Value.PatternOrDefault;
+                if (valuePattern != null)
+                {
+                    result.Value = valuePattern.Value;
+                    result.IsReadOnly = valuePattern.IsReadOnly;
+                }
+            }
+            catch { }
+
+            // Try to get toggle state
+            try
+            {
+                var togglePattern = element.Patterns.Toggle.PatternOrDefault;
+                if (togglePattern != null)
+                {
+                    result.ToggleState = togglePattern.ToggleState.ToString();
+                }
+            }
+            catch { }
+
+            // Try to get selection state
+            try
+            {
+                var selectionItemPattern = element.Patterns.SelectionItem.PatternOrDefault;
+                if (selectionItemPattern != null)
+                {
+                    result.IsSelected = selectionItemPattern.IsSelected;
+                }
+            }
+            catch { }
+
+            // Try to get range value (slider, progress bar)
+            try
+            {
+                var rangePattern = element.Patterns.RangeValue.PatternOrDefault;
+                if (rangePattern != null)
+                {
+                    result.RangeValue = rangePattern.Value;
+                    result.RangeMinimum = rangePattern.Minimum;
+                    result.RangeMaximum = rangePattern.Maximum;
+                }
+            }
+            catch { }
+
+            // Get DPI scale factor
+            result.DpiScaleFactor = TreeBuilder.GetDpiScaleFactor();
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            return new ElementStateResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+
+    private static T SafeGet<T>(Func<T> getter, T defaultValue = default!)
+    {
+        try
+        {
+            return getter();
+        }
+        catch
+        {
+            return defaultValue;
         }
     }
 
