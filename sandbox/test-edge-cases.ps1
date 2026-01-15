@@ -5,8 +5,8 @@
 # Run this AFTER the sandbox is running and stable
 
 param(
-    [string]$SharedPath = "C:\TransportTest\Shared",
-    [string]$ServerPath = "C:\TransportTest\Server",
+    [string]$SharedPath = "C:\WinFormsMcpSandboxWorkspace\Shared",
+    [string]$ServerPath = "C:\WinFormsMcpSandboxWorkspace\Server",
     [switch]$All,           # Run all tests
     [switch]$BurstTest,     # Test rapid file changes
     [switch]$SlowWriteTest, # Test incomplete write handling
@@ -281,5 +281,5 @@ Test-AtomicRename
 Write-Host ""
 Write-Host "=== Tests Complete ===" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Check C:\TransportTest\Shared\bootstrap.log for detailed sandbox-side logs"
+Write-Host "Check C:\WinFormsMcpSandboxWorkspace\Shared\bootstrap.log for detailed sandbox-side logs"
 #endregion

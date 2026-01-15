@@ -1,9 +1,9 @@
 # setup-dotnet.ps1
 # One-time .NET runtime download for Windows Sandbox development
-# Downloads .NET 8 runtime to C:\TransportTest\DotNet for mapping into sandbox
+# Downloads .NET 8 runtime to C:\WinFormsMcpSandboxWorkspace\DotNet for mapping into sandbox
 
 param(
-    [string]$DotNetPath = "C:\TransportTest\DotNet",
+    [string]$DotNetPath = "C:\WinFormsMcpSandboxWorkspace\DotNet",
     [string]$DotNetVersion = "8.0",
     [switch]$Force  # Force re-download even if already exists
 )

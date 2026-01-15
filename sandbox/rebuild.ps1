@@ -3,16 +3,16 @@
 # Run this from Windows after making code changes
 
 param(
-    [string]$TransportTestPath = "C:\TransportTest",
+    [string]$WinFormsMcpSandboxWorkspacePath = "C:\WinFormsMcpSandboxWorkspace",
     [switch]$ServerOnly,
     [switch]$AppOnly
 )
 
 $ErrorActionPreference = "Stop"
 
-$ServerPath = Join-Path $TransportTestPath "Server"
-$AppPath = Join-Path $TransportTestPath "App"
-$SharedPath = Join-Path $TransportTestPath "Shared"
+$ServerPath = Join-Path $WinFormsMcpSandboxWorkspacePath "Server"
+$AppPath = Join-Path $WinFormsMcpSandboxWorkspacePath "App"
+$SharedPath = Join-Path $WinFormsMcpSandboxWorkspacePath "Shared"
 
 $RepoRoot = Split-Path $PSScriptRoot -Parent
 $ServerProject = Join-Path $RepoRoot "src\Rhombus.WinFormsMcp.Server\Rhombus.WinFormsMcp.Server.csproj"

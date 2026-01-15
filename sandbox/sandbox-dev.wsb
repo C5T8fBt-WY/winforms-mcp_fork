@@ -1,33 +1,33 @@
 <Configuration>
   <VGpu>Disable</VGpu>
-  <Networking>Disable</Networking>
+  <Networking>Default</Networking>
   <MappedFolders>
     <!-- MCP Server binaries (read-only) -->
     <MappedFolder>
-      <HostFolder>C:\TransportTest\Server</HostFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\Server</HostFolder>
       <SandboxFolder>C:\Server</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
     <!-- Test Application binaries (read-only) -->
     <MappedFolder>
-      <HostFolder>C:\TransportTest\App</HostFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\App</HostFolder>
       <SandboxFolder>C:\App</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
     <!-- Pre-downloaded .NET runtime (read-only) -->
     <MappedFolder>
-      <HostFolder>C:\TransportTest\DotNet</HostFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\DotNet</HostFolder>
       <SandboxFolder>C:\DotNet</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
     <!-- Shared communication folder (read-write) -->
     <MappedFolder>
-      <HostFolder>C:\TransportTest\Shared</HostFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\Shared</HostFolder>
       <SandboxFolder>C:\Shared</SandboxFolder>
       <ReadOnly>false</ReadOnly>
     </MappedFolder>
   </MappedFolders>
   <LogonCommand>
-    <Command>powershell -ExecutionPolicy Bypass -Command "$env:DOTNET_ROOT = 'C:\DotNet'; $env:PATH = 'C:\DotNet;' + $env:PATH; C:\Server\bootstrap.ps1 -EnableTcp -TcpPort 9999"</Command>
+    <Command>powershell -ExecutionPolicy Bypass -Command "$env:DOTNET_ROOT = 'C:\DotNet'; $env:PATH = 'C:\DotNet;' + $env:PATH; C:\Server\bootstrap.ps1 -EnableTcp -TcpPort 9999 -LazyStart"</Command>
   </LogonCommand>
 </Configuration>

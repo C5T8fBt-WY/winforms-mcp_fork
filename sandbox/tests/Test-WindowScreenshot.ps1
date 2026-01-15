@@ -11,7 +11,7 @@
 param(
     [string]$ServerIP = "",  # Auto-detect from mcp-ready.signal if not specified
     [int]$Port = 9999,
-    [string]$SharedFolder = "C:\TransportTest\Shared"
+    [string]$SharedFolder = "C:\WinFormsMcpSandboxWorkspace\Shared"
 )
 
 $ErrorActionPreference = "Stop"
@@ -197,7 +197,7 @@ try {
     Write-Host "=== Tests Complete ===" -ForegroundColor Green
     Write-Host ""
     Write-Host "Manual verification required:" -ForegroundColor Yellow
-    Write-Host "  Open $($SharedFolder.Replace('C:\TransportTest', '')) and check:"
+    Write-Host "  Open $($SharedFolder.Replace('C:\WinFormsMcpSandboxWorkspace', '')) and check:"
     Write-Host "  - window-test.png: Shows only the test app window with RED target"
     Write-Host "  - window-verify.png: Shows test app window with GREEN target"
     Write-Host "  - desktop-test.png: Shows full desktop"

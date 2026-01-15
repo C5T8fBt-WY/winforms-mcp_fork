@@ -3,7 +3,7 @@
 #
 # This script:
 # 1. Checks/enables Windows Sandbox feature (requires admin + reboot)
-# 2. Creates directory structure at C:\TransportTest
+# 2. Creates directory structure at C:\WinFormsMcpSandboxWorkspace
 # 3. Downloads .NET 8 runtime for sandbox
 # 4. Builds and deploys MCP server and test app
 # 5. Creates MCP bridge script for Claude Code
@@ -19,7 +19,8 @@
 #   .\install.ps1 -Force               # Force re-download/rebuild everything
 
 param(
-    [string]$TransportTestPath = "C:\TransportTest",
+    # Path can be overridden via parameter or WINFORMS_MCP_SANDBOX_PATH environment variable
+    [string]$WorkspacePath = $(if ($env:WINFORMS_MCP_SANDBOX_PATH) { $env:WINFORMS_MCP_SANDBOX_PATH } else { "C:\WinFormsMcpSandboxWorkspace" }),
     [switch]$SkipSandboxCheck,
     [switch]$SkipClaudeConfig,
     [switch]$Force
@@ -133,7 +134,7 @@ if (Test-Path $setupScript) {
     Write-Host "  Running sandbox\setup.ps1..."
     Write-Host ""
 
-    $setupArgs = @("-TransportTestPath", $TransportTestPath)
+    $setupArgs = @("-WinFormsMcpSandboxWorkspacePath", $WorkspacePath)
     if ($Force) { $setupArgs += "-Force" }
 
     & $setupScript @setupArgs
@@ -152,8 +153,8 @@ Write-Host ""
 #region Step 3: Create MCP Bridge Script
 Write-Host "Step 3: Creating MCP bridge script..." -ForegroundColor Yellow
 
-$bridgeScript = Join-Path $TransportTestPath "mcp-bridge.ps1"
-$SharedPath = Join-Path $TransportTestPath "Shared"
+$bridgeScript = Join-Path $WorkspacePath "mcp-bridge.ps1"
+$SharedPath = Join-Path $WorkspacePath "Shared"
 
 $bridgeContent = @'
 # MCP Sandbox Bridge
@@ -170,7 +171,7 @@ param(
 $ErrorActionPreference = "SilentlyContinue"
 
 # Read TCP IP from ready signal
-$readySignal = "C:\TransportTest\Shared\mcp-ready.signal"
+$readySignal = "C:\WinFormsMcpSandboxWorkspace\Shared\mcp-ready.signal"
 $ServerIP = $null
 
 if (Test-Path $readySignal) {
@@ -325,7 +326,7 @@ Write-Host "  Installation Complete!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Directory structure:"
-Write-Host "  $TransportTestPath"
+Write-Host "  $WorkspacePath"
 Write-Host "  +-- Server/          (MCP server binaries)"
 Write-Host "  +-- App/             (Test app binaries)"
 Write-Host "  +-- DotNet/          (.NET runtime)"
@@ -336,10 +337,10 @@ Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  1. Launch the sandbox (run as admin due to coreclr bug):"
-Write-Host "     Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'Start-Process ''$TransportTestPath\sandbox-dev.wsb''; exit'"
+Write-Host "     Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'Start-Process ''$WorkspacePath\sandbox-dev.wsb''; exit'"
 Write-Host ""
 Write-Host "  2. Wait for sandbox to boot (~10-20 seconds)"
-Write-Host "     Check: Get-Content $TransportTestPath\Shared\bootstrap.log -Tail 10"
+Write-Host "     Check: Get-Content $WorkspacePath\Shared\bootstrap.log -Tail 10"
 Write-Host ""
 Write-Host "  3. Restart Claude Code and run /mcp to reconnect"
 Write-Host "     The winforms-mcp tools should show 43+ tools"

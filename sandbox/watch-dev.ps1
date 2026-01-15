@@ -9,8 +9,8 @@
 
 param(
     [string]$ProjectPath = "$PSScriptRoot\..\src\Rhombus.WinFormsMcp.Server\Rhombus.WinFormsMcp.Server.csproj",
-    [string]$DeployPath = "C:\TransportTest\Server",
-    [string]$SharedPath = "C:\TransportTest\Shared",
+    [string]$DeployPath = "C:\WinFormsMcpSandboxWorkspace\Server",
+    [string]$SharedPath = "C:\WinFormsMcpSandboxWorkspace\Shared",
     [int]$DebounceMs = 100
 )
 
@@ -60,7 +60,7 @@ function Invoke-BuildAndDeploy {
         if (Test-Path $tempBuildDir) { Remove-Item $tempBuildDir -Recurse -Force }
 
         # Build/Publish - framework-dependent (not self-contained)
-        # Requires .NET runtime in sandbox (mapped from C:\TransportTest\DotNet)
+        # Requires .NET runtime in sandbox (mapped from C:\WinFormsMcpSandboxWorkspace\DotNet)
         dotnet publish $ProjectPath -c Release -r win-x64 --no-self-contained -o $tempBuildDir --nologo -v q
 
         if ($LASTEXITCODE -ne 0) {

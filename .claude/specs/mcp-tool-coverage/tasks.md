@@ -59,13 +59,13 @@ Determine the MCP transport mechanism for host ↔ sandbox communication.
    - Workaround: `Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'WindowsSandbox.exe config.wsb'`
 2. **Self-contained publish required**: Windows Sandbox does NOT have .NET runtime. Must publish with `--self-contained true` (~180 files).
 3. **Unblock files**: Files copied from WSL paths are marked as "from internet". Run `Get-ChildItem -Recurse | Unblock-File`.
-4. **Avoid UNC paths in PowerShell cd**: Copy binaries to Windows-native paths (e.g., `C:\TransportTest\`) to avoid path issues.
+4. **Avoid UNC paths in PowerShell cd**: Copy binaries to Windows-native paths (e.g., `C:\WinFormsMcpSandboxWorkspace\`) to avoid path issues.
 
 **Test Procedure** (see `prototypes/transport-test/README.md` for details):
-1. Build with `dotnet publish ... --self-contained true -o C:\TransportTest\...`
-2. Run host: `C:\TransportTest\Host\SharedFolderHost.exe C:\TransportTest\Shared`
-3. Launch sandbox from admin PowerShell: `WindowsSandbox.exe C:\TransportTest\test-shared-folder.wsb`
-4. Check `C:\TransportTest\Shared\client-ready.signal` appears
+1. Build with `dotnet publish ... --self-contained true -o C:\WinFormsMcpSandboxWorkspace\...`
+2. Run host: `C:\WinFormsMcpSandboxWorkspace\Host\SharedFolderHost.exe C:\WinFormsMcpSandboxWorkspace\Shared`
+3. Launch sandbox from admin PowerShell: `WindowsSandbox.exe C:\WinFormsMcpSandboxWorkspace\test-shared-folder.wsb`
+4. Check `C:\WinFormsMcpSandboxWorkspace\Shared\client-ready.signal` appears
 
 ---
 

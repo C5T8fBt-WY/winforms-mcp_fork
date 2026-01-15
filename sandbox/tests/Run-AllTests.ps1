@@ -41,7 +41,7 @@ if (!(Test-Path $Config.SandboxConfig)) {
 Write-Host "  Setup complete: Yes" -ForegroundColor Green
 
 # Check .NET runtime
-$dotnetExe = "C:\TransportTest\DotNet\dotnet.exe"
+$dotnetExe = "C:\WinFormsMcpSandboxWorkspace\DotNet\dotnet.exe"
 if (!(Test-Path $dotnetExe)) {
     Write-Host "ERROR: .NET runtime not found!" -ForegroundColor Red
     Write-Host "Run: ..\setup-dotnet.ps1"

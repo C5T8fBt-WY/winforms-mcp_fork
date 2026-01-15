@@ -14,7 +14,8 @@ $ErrorActionPreference = "SilentlyContinue"
 
 # Read TCP IP from ready signal if not provided
 if ([string]::IsNullOrEmpty($ServerIP)) {
-    $readySignal = "C:\TransportTest\Shared\mcp-ready.signal"
+    $workspacePath = if ($env:WINFORMS_MCP_SANDBOX_PATH) { $env:WINFORMS_MCP_SANDBOX_PATH } else { "C:\WinFormsMcpSandboxWorkspace" }
+    $readySignal = Join-Path $workspacePath "Shared\mcp-ready.signal"
     if (Test-Path $readySignal) {
         try {
             $signal = Get-Content $readySignal -Raw | ConvertFrom-Json

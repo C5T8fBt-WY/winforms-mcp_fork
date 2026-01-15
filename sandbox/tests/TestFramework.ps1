@@ -6,16 +6,16 @@ $script:CurrentTest = $null
 
 # Configuration
 $script:Config = @{
-    TransportTestPath = "C:\TransportTest"
-    SharedPath = "C:\TransportTest\Shared"
-    ServerPath = "C:\TransportTest\Server"
-    AppPath = "C:\TransportTest\App"
-    SandboxConfig = "C:\TransportTest\sandbox-dev.wsb"
-    ReadySignal = "C:\TransportTest\Shared\mcp-ready.signal"
-    ShutdownSignal = "C:\TransportTest\Shared\shutdown.signal"
-    ServerTrigger = "C:\TransportTest\Shared\server.trigger"
-    AppTrigger = "C:\TransportTest\Shared\app.trigger"
-    BootstrapLog = "C:\TransportTest\Shared\bootstrap.log"
+    WinFormsMcpSandboxWorkspacePath = "C:\WinFormsMcpSandboxWorkspace"
+    SharedPath = "C:\WinFormsMcpSandboxWorkspace\Shared"
+    ServerPath = "C:\WinFormsMcpSandboxWorkspace\Server"
+    AppPath = "C:\WinFormsMcpSandboxWorkspace\App"
+    SandboxConfig = "C:\WinFormsMcpSandboxWorkspace\sandbox-dev.wsb"
+    ReadySignal = "C:\WinFormsMcpSandboxWorkspace\Shared\mcp-ready.signal"
+    ShutdownSignal = "C:\WinFormsMcpSandboxWorkspace\Shared\shutdown.signal"
+    ServerTrigger = "C:\WinFormsMcpSandboxWorkspace\Shared\server.trigger"
+    AppTrigger = "C:\WinFormsMcpSandboxWorkspace\Shared\app.trigger"
+    BootstrapLog = "C:\WinFormsMcpSandboxWorkspace\Shared\bootstrap.log"
     DefaultTimeout = 60
 }
 

@@ -78,13 +78,13 @@ Complete documentation of all 43 MCP tools for WinForms automation.
 
 **Sandbox Mode:** ⚠️ Agent must use sandbox paths:
 - Pass: `path: "C:\\App\\MyApp.exe"` (sandbox path)
-- App binaries must be in mapped folder (`C:\TransportTest\App\` → `C:\App\`)
+- App binaries must be in mapped folder (`C:\WinFormsMcpSandboxWorkspace\App\` → `C:\App\`)
 
 **Direct Mode:** Path is on host filesystem, no translation needed.
 
 **Example (Sandbox):**
 ```
-Host: C:\TransportTest\App\MyApp.exe
+Host: C:\WinFormsMcpSandboxWorkspace\App\MyApp.exe
 Agent calls: launch_app { path: "C:\\App\\MyApp.exe" }
 ```
 
@@ -484,7 +484,7 @@ Agent calls: launch_app { path: "C:\\App\\MyApp.exe" }
 
 **Sandbox Mode:** ⚠️ Agent must use shared folder path explicitly:
 - Pass: `outputPath: "C:\\Shared\\screenshot.png"` (sandbox path)
-- Read from host: `C:\TransportTest\Shared\screenshot.png`
+- Read from host: `C:\WinFormsMcpSandboxWorkspace\Shared\screenshot.png`
 - Agent is responsible for path translation
 
 **Direct Mode:** Path is on host filesystem, no translation needed.
@@ -493,7 +493,7 @@ Agent calls: launch_app { path: "C:\\App\\MyApp.exe" }
 ```
 Agent calls:  take_screenshot { outputPath: "C:\\Shared\\screen.png" }
 Server saves: C:\Shared\screen.png (inside sandbox)
-Agent reads:  C:\TransportTest\Shared\screen.png (on host)
+Agent reads:  C:\WinFormsMcpSandboxWorkspace\Shared\screen.png (on host)
 ```
 
 ---
@@ -733,13 +733,13 @@ Host Agent                    Sandbox MCP Server
 ```
 
 **Discovery:**
-1. Read `C:\TransportTest\Shared\mcp-ready.signal`
+1. Read `C:\WinFormsMcpSandboxWorkspace\Shared\mcp-ready.signal`
 2. Parse JSON for `tcp_ip` and `tcp_port`
 3. If `server_pid: null`, create `server.trigger` and wait
 
 **Hot Reload:**
-1. Copy new binaries to `C:\TransportTest\Server\`
-2. Create `C:\TransportTest\Shared\server.trigger`
+1. Copy new binaries to `C:\WinFormsMcpSandboxWorkspace\Server\`
+2. Create `C:\WinFormsMcpSandboxWorkspace\Shared\server.trigger`
 3. Wait for `mcp-ready.signal` update
 4. Reconnect TCP with new endpoint
 
@@ -781,9 +781,9 @@ $client = New-Object System.Net.Sockets.TcpClient("localhost", 9999)
 
 | Host Path | Sandbox Path |
 |-----------|--------------|
-| `C:\TransportTest\Server\` | `C:\Server\` (read-only) |
-| `C:\TransportTest\App\` | `C:\App\` (read-only) |
-| `C:\TransportTest\Shared\` | `C:\Shared\` (read-write) |
-| `C:\TransportTest\DotNet\` | `C:\DotNet\` (read-only) |
+| `C:\WinFormsMcpSandboxWorkspace\Server\` | `C:\Server\` (read-only) |
+| `C:\WinFormsMcpSandboxWorkspace\App\` | `C:\App\` (read-only) |
+| `C:\WinFormsMcpSandboxWorkspace\Shared\` | `C:\Shared\` (read-write) |
+| `C:\WinFormsMcpSandboxWorkspace\DotNet\` | `C:\DotNet\` (read-only) |
 
 **Screenshots:** Save to `C:\Shared\` to retrieve on host.

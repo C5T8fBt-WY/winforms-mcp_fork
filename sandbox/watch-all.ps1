@@ -4,9 +4,9 @@
 # Handles Ctrl+C to stop both
 
 param(
-    [string]$DeployPath = "C:\TransportTest\Server",
-    [string]$AppPath = "C:\TransportTest\App",
-    [string]$SharedPath = "C:\TransportTest\Shared"
+    [string]$DeployPath = "C:\WinFormsMcpSandboxWorkspace\Server",
+    [string]$AppPath = "C:\WinFormsMcpSandboxWorkspace\App",
+    [string]$SharedPath = "C:\WinFormsMcpSandboxWorkspace\Shared"
 )
 
 $ErrorActionPreference = "Stop"

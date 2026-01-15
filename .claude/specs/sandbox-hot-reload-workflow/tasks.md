@@ -9,7 +9,7 @@
   - Implements requirement 2.2
 
 - [x] 2. Create `sandbox/setup-dotnet.ps1` - one-time .NET download
-  - Download .NET 8 runtime to `C:\TransportTest\DotNet`
+  - Download .NET 8 runtime to `C:\WinFormsMcpSandboxWorkspace\DotNet`
   - Use official dotnet-install.ps1 script
   - Verify dotnet.exe exists after install
   - Implements design decision 1 (pre-downloaded .NET)
@@ -43,7 +43,7 @@
 - [x] 7. Create `sandbox/watch-app.ps1` for test application
   - Copy structure from watch-dev.ps1
   - Change project path to TestApp.csproj
-  - Change deploy path to `C:\TransportTest\App`
+  - Change deploy path to `C:\WinFormsMcpSandboxWorkspace\App`
   - Change trigger to `app.trigger`
   - Implements requirement 2.1 (hot-reload for app)
 
@@ -97,11 +97,11 @@
 ## Phase 4: Setup and Test Scripts
 
 - [x] 15. Create `sandbox/setup.ps1` - full initial setup
-  - Create `C:\TransportTest\` directory structure (Server, App, DotNet, Shared)
+  - Create `C:\WinFormsMcpSandboxWorkspace\` directory structure (Server, App, DotNet, Shared)
   - Call `setup-dotnet.ps1` if DotNet folder doesn't exist
   - Initial build and deploy of server and app
   - Copy bootstrap.ps1 to Server folder
-  - Copy sandbox-dev.wsb to TransportTest folder
+  - Copy sandbox-dev.wsb to WinFormsMcpSandboxWorkspace folder
   - Implements requirement 2.2
 
 - [x] 16. Create `sandbox/test.ps1` - integration test

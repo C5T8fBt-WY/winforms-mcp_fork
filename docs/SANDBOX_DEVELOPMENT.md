@@ -24,14 +24,14 @@ Windows Sandbox 0.5.3.0 has a known bug that causes coreclr.dll crashes when lau
 **Quick launch from WSL or non-admin terminal:**
 ```bash
 # From WSL - elevates to admin and launches sandbox
-powershell.exe -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'Start-Process ''C:\TransportTest\sandbox-dev.wsb''; exit'"
+powershell.exe -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'Start-Process ''C:\WinFormsMcpSandboxWorkspace\sandbox-dev.wsb''; exit'"
 ```
 
 **From an already-admin PowerShell:**
 ```powershell
 # Just run directly
-C:\TransportTest\sandbox-dev.wsb
-# Or: WindowsSandbox.exe C:\TransportTest\sandbox-dev.wsb
+C:\WinFormsMcpSandboxWorkspace\sandbox-dev.wsb
+# Or: WindowsSandbox.exe C:\WinFormsMcpSandboxWorkspace\sandbox-dev.wsb
 ```
 
 ## Quick Start
@@ -46,11 +46,11 @@ cd \\wsl.localhost\Ubuntu\home\jhedin\workspace\magpie-craft\winforms-mcp\sandbo
 ```
 
 This creates:
-- `C:\TransportTest\Server\` - MCP server binaries (mapped read-only into sandbox)
-- `C:\TransportTest\App\` - Test app binaries (mapped read-only into sandbox)
-- `C:\TransportTest\DotNet\` - .NET 8 runtime (mapped read-only into sandbox)
-- `C:\TransportTest\Shared\` - Communication folder (mapped read-write)
-- `C:\TransportTest\sandbox-dev.wsb` - Sandbox configuration
+- `C:\WinFormsMcpSandboxWorkspace\Server\` - MCP server binaries (mapped read-only into sandbox)
+- `C:\WinFormsMcpSandboxWorkspace\App\` - Test app binaries (mapped read-only into sandbox)
+- `C:\WinFormsMcpSandboxWorkspace\DotNet\` - .NET 8 runtime (mapped read-only into sandbox)
+- `C:\WinFormsMcpSandboxWorkspace\Shared\` - Communication folder (mapped read-write)
+- `C:\WinFormsMcpSandboxWorkspace\sandbox-dev.wsb` - Sandbox configuration
 
 ### 2. Launch Sandbox and Watchers
 
@@ -69,10 +69,10 @@ Or run them individually:
 **Terminal 2 - Launch sandbox (must be admin PowerShell):**
 ```powershell
 # From admin PowerShell
-C:\TransportTest\sandbox-dev.wsb
+C:\WinFormsMcpSandboxWorkspace\sandbox-dev.wsb
 
 # Or from WSL/non-admin terminal (elevates automatically)
-powershell.exe -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'Start-Process ''C:\TransportTest\sandbox-dev.wsb''; exit'"
+powershell.exe -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'Start-Process ''C:\WinFormsMcpSandboxWorkspace\sandbox-dev.wsb''; exit'"
 ```
 
 **Note**: Due to a coreclr.dll bug in Windows Sandbox 0.5.3.0, the sandbox must be launched from an admin PowerShell session. See Prerequisites section above.
@@ -91,7 +91,7 @@ powershell.exe -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Co
 │ Host (Windows)                                                       │
 │                                                                      │
 │  ┌─────────────────┐      ┌───────────────────────────────────────┐ │
-│  │ watch-dev.ps1   │      │ C:\TransportTest\                     │ │
+│  │ watch-dev.ps1   │      │ C:\WinFormsMcpSandboxWorkspace\                     │ │
 │  │ watch-app.ps1   │      │ ├── Server\ (server binaries)         │ │
 │  │ (100ms debounce │─────▶│ ├── App\ (test app binaries)          │ │
 │  │  + build lock)  │      │ ├── DotNet\ (.NET runtime)            │ │
@@ -120,7 +120,7 @@ powershell.exe -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Co
 | Script | Purpose |
 |--------|---------|
 | `setup.ps1` | One-time setup (creates folders, downloads .NET, initial build) |
-| `setup-dotnet.ps1` | Download .NET 8 runtime to `C:\TransportTest\DotNet` |
+| `setup-dotnet.ps1` | Download .NET 8 runtime to `C:\WinFormsMcpSandboxWorkspace\DotNet` |
 | `watch-dev.ps1` | Watch MCP server code, build, deploy, trigger |
 | `watch-app.ps1` | Watch test app code, build, deploy, trigger |
 | `watch-all.ps1` | Run both watchers as background jobs |
@@ -164,28 +164,28 @@ Close sandbox and run it again.
 
 | Location | Description |
 |----------|-------------|
-| `C:\TransportTest\Shared\bootstrap.log` | Sandbox-side: process starts/stops, trigger handling, crashes |
+| `C:\WinFormsMcpSandboxWorkspace\Shared\bootstrap.log` | Sandbox-side: process starts/stops, trigger handling, crashes |
 | Watch script console output | Host-side: build results, deploy status, trigger writes |
-| `C:\TransportTest\Shared\mcp-ready.signal` | Current PIDs, TCP endpoint, timestamps |
+| `C:\WinFormsMcpSandboxWorkspace\Shared\mcp-ready.signal` | Current PIDs, TCP endpoint, timestamps |
 
 ### Checking Sandbox Logs
 
 ```powershell
 # Full log
-Get-Content C:\TransportTest\Shared\bootstrap.log
+Get-Content C:\WinFormsMcpSandboxWorkspace\Shared\bootstrap.log
 
 # Last 50 lines (recent activity)
-Get-Content C:\TransportTest\Shared\bootstrap.log -Tail 50
+Get-Content C:\WinFormsMcpSandboxWorkspace\Shared\bootstrap.log -Tail 50
 
 # Follow in real-time
-Get-Content C:\TransportTest\Shared\bootstrap.log -Wait -Tail 20
+Get-Content C:\WinFormsMcpSandboxWorkspace\Shared\bootstrap.log -Wait -Tail 20
 ```
 
 ### Checking Current State
 
 ```powershell
 # Current PIDs and TCP info
-Get-Content C:\TransportTest\Shared\mcp-ready.signal | ConvertFrom-Json
+Get-Content C:\WinFormsMcpSandboxWorkspace\Shared\mcp-ready.signal | ConvertFrom-Json
 
 # Example output:
 # server_pid : 1348
@@ -263,7 +263,7 @@ $request = @{
 ### Check Bootstrap Log
 
 ```powershell
-Get-Content C:\TransportTest\Shared\bootstrap.log -Tail 50
+Get-Content C:\WinFormsMcpSandboxWorkspace\Shared\bootstrap.log -Tail 50
 ```
 
 ### Sandbox Won't Start
@@ -279,7 +279,7 @@ Get-Content C:\TransportTest\Shared\bootstrap.log -Tail 50
 
 Check that binaries were properly published:
 ```powershell
-dir C:\TransportTest\Server\*.exe
+dir C:\WinFormsMcpSandboxWorkspace\Server\*.exe
 ```
 
 Should show `Rhombus.WinFormsMcp.Server.exe`.
@@ -287,7 +287,7 @@ Should show `Rhombus.WinFormsMcp.Server.exe`.
 ### Hot-Reload Not Working
 
 1. Ensure watchers are running (`watch-all.ps1` or individual watchers)
-2. Check that `C:\TransportTest\Shared\server.trigger` is being created
+2. Check that `C:\WinFormsMcpSandboxWorkspace\Shared\server.trigger` is being created
 3. Check bootstrap.log for errors during restart
 4. FileSystemWatcher might miss events - wait 20s for fallback poll
 
@@ -327,20 +327,20 @@ $request = @{
     params = @{ maxDepth = 2 }
 } | ConvertTo-Json
 
-$request | Out-File "C:\TransportTest\Shared\request-1.json"
+$request | Out-File "C:\WinFormsMcpSandboxWorkspace\Shared\request-1.json"
 
 # Wait for response
-while (!(Test-Path "C:\TransportTest\Shared\response-1.json")) {
+while (!(Test-Path "C:\WinFormsMcpSandboxWorkspace\Shared\response-1.json")) {
     Start-Sleep -Milliseconds 100
 }
 
-Get-Content "C:\TransportTest\Shared\response-1.json"
+Get-Content "C:\WinFormsMcpSandboxWorkspace\Shared\response-1.json"
 ```
 
 ### Clean Shutdown
 
 ```powershell
-"shutdown" | Out-File "C:\TransportTest\Shared\shutdown.signal"
+"shutdown" | Out-File "C:\WinFormsMcpSandboxWorkspace\Shared\shutdown.signal"
 ```
 
 Or just close the sandbox window.

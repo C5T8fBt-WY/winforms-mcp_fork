@@ -13,7 +13,7 @@ User asks: "Test the calculator app - open it, enter 5+3, click equals, and scre
 Agent reads the signal file to see if sandbox is ready:
 
 ```
-Agent reads: C:\TransportTest\Shared\mcp-ready.signal
+Agent reads: C:\WinFormsMcpSandboxWorkspace\Shared\mcp-ready.signal
 ```
 
 ```json
@@ -336,7 +336,7 @@ Agent checks the display to confirm "8" is shown:
 }
 ```
 
-**Agent reads screenshot from host:** `C:\TransportTest\Shared\calculator-result.png`
+**Agent reads screenshot from host:** `C:\WinFormsMcpSandboxWorkspace\Shared\calculator-result.png`
 
 ---
 
@@ -486,7 +486,7 @@ case "*": result = a * b; break;
 
 Developer rebuilds the app:
 ```powershell
-dotnet build -c Release -o C:\TransportTest\App\
+dotnet build -c Release -o C:\WinFormsMcpSandboxWorkspace\App\
 ```
 
 ---
@@ -603,12 +603,12 @@ If the *MCP server itself* is updated (not just the app), the agent must trigger
 
 **Step 1: Agent creates trigger file (from host)**
 ```powershell
-"$(Get-Date -Format 'o')" | Out-File "C:\TransportTest\Shared\server.trigger"
+"$(Get-Date -Format 'o')" | Out-File "C:\WinFormsMcpSandboxWorkspace\Shared\server.trigger"
 ```
 
 **Step 2: Agent monitors signal file for new server_pid**
 ```
-Agent reads: C:\TransportTest\Shared\mcp-ready.signal
+Agent reads: C:\WinFormsMcpSandboxWorkspace\Shared\mcp-ready.signal
 ```
 
 Wait for `server_pid` to change:

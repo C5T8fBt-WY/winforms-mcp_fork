@@ -17,7 +17,7 @@ Describe "Smoke Tests" {
     }
 
     It ".NET runtime is available" {
-        $dotnetExe = "C:\TransportTest\DotNet\dotnet.exe"
+        $dotnetExe = "C:\WinFormsMcpSandboxWorkspace\DotNet\dotnet.exe"
         Assert-FileExists $dotnetExe ".NET runtime not found"
     }
 

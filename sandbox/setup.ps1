@@ -3,13 +3,14 @@
 # Run this once before using the sandbox workflow
 #
 # Creates:
-# - C:\TransportTest\Server - MCP server binaries (read-only in sandbox)
-# - C:\TransportTest\App - Test app binaries (read-only in sandbox)
-# - C:\TransportTest\DotNet - .NET runtime (read-only in sandbox)
-# - C:\TransportTest\Shared - Communication folder (read-write in sandbox)
+# - C:\WinFormsMcpSandboxWorkspace\Server - MCP server binaries (read-only in sandbox)
+# - C:\WinFormsMcpSandboxWorkspace\App - Test app binaries (read-only in sandbox)
+# - C:\WinFormsMcpSandboxWorkspace\DotNet - .NET runtime (read-only in sandbox)
+# - C:\WinFormsMcpSandboxWorkspace\Shared - Communication folder (read-write in sandbox)
 
 param(
-    [string]$TransportTestPath = "C:\TransportTest",
+    # Path can be overridden via parameter or WINFORMS_MCP_SANDBOX_PATH environment variable
+    [string]$WorkspacePath = $(if ($env:WINFORMS_MCP_SANDBOX_PATH) { $env:WINFORMS_MCP_SANDBOX_PATH } else { "C:\WinFormsMcpSandboxWorkspace" }),
     [switch]$SkipDotNet,    # Skip .NET download (if already installed)
     [switch]$SkipBuild,     # Skip initial build (if already built)
     [switch]$Force          # Force re-download/rebuild
@@ -18,14 +19,14 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "=== Sandbox Development Setup ===" -ForegroundColor Cyan
-Write-Host "Base path: $TransportTestPath"
+Write-Host "Base path: $WorkspacePath"
 Write-Host ""
 
 # Define paths
-$ServerPath = Join-Path $TransportTestPath "Server"
-$AppPath = Join-Path $TransportTestPath "App"
-$DotNetPath = Join-Path $TransportTestPath "DotNet"
-$SharedPath = Join-Path $TransportTestPath "Shared"
+$ServerPath = Join-Path $WorkspacePath "Server"
+$AppPath = Join-Path $WorkspacePath "App"
+$DotNetPath = Join-Path $WorkspacePath "DotNet"
+$SharedPath = Join-Path $WorkspacePath "Shared"
 
 # Project paths (relative to this script)
 $ScriptDir = $PSScriptRoot
@@ -145,11 +146,11 @@ if (!$SkipBuild) {
 Write-Host "Copying sandbox configuration..." -ForegroundColor Yellow
 
 $wsbSrc = Join-Path $ScriptDir "sandbox-dev.wsb"
-$wsbDest = Join-Path $TransportTestPath "sandbox-dev.wsb"
+$wsbDest = Join-Path $WorkspacePath "sandbox-dev.wsb"
 
 if (Test-Path $wsbSrc) {
     Copy-Item $wsbSrc $wsbDest -Force
-    Write-Host "  Copied sandbox-dev.wsb to $TransportTestPath"
+    Write-Host "  Copied sandbox-dev.wsb to $WorkspacePath"
 } else {
     Write-Host "  WARNING: sandbox-dev.wsb not found in $ScriptDir" -ForegroundColor Yellow
 }
@@ -160,7 +161,7 @@ Write-Host ""
 Write-Host "=== Setup Complete ===" -ForegroundColor Green
 Write-Host ""
 Write-Host "Directory structure:"
-Write-Host "  $TransportTestPath"
+Write-Host "  $WorkspacePath"
 Write-Host "  +-- Server/        (MCP server binaries)"
 Write-Host "  +-- App/           (Test app binaries)"
 Write-Host "  +-- DotNet/        (.NET runtime)"

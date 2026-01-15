@@ -17,7 +17,7 @@ This design adds window-relative coordinate support and window context responses
 │ Host (WSL/Windows)                                              │
 │                                                                 │
 │  ┌─────────────┐     ┌──────────────────────────────────────┐  │
-│  │ Claude Code │     │ C:\TransportTest\                    │  │
+│  │ Claude Code │     │ C:\WinFormsMcpSandboxWorkspace\                    │  │
 │  │   Agent     │     │   ├── Server\  (MCP binaries)        │  │
 │  │             │     │   ├── App\     (WinForms app)        │  │
 │  │ TCP Client  │────▶│   ├── Shared\  (signals, screenshots)│  │

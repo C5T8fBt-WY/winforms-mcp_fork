@@ -42,7 +42,7 @@ This directory contains integration tests for the Windows Sandbox hot-reload wor
 Tests write results to:
 - `test-results.json` - Machine-readable results
 - `test-results.log` - Human-readable log
-- `C:\TransportTest\Shared\bootstrap.log` - Sandbox-side logs
+- `C:\WinFormsMcpSandboxWorkspace\Shared\bootstrap.log` - Sandbox-side logs
 
 ## CI/CD Notes
 

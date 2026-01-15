@@ -8,7 +8,7 @@
 #   .\test.ps1 -KeepAlive         # Don't shutdown at end (for manual testing)
 
 param(
-    [string]$TransportTestPath = "C:\TransportTest",
+    [string]$WinFormsMcpSandboxWorkspacePath = "C:\WinFormsMcpSandboxWorkspace",
     [int]$TimeoutSeconds = 60,
     [switch]$TestHotReload,
     [switch]$KeepAlive
@@ -17,8 +17,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Paths
-$SharedPath = Join-Path $TransportTestPath "Shared"
-$SandboxConfig = Join-Path $TransportTestPath "sandbox-dev.wsb"
+$SharedPath = Join-Path $WinFormsMcpSandboxWorkspacePath "Shared"
+$SandboxConfig = Join-Path $WinFormsMcpSandboxWorkspacePath "sandbox-dev.wsb"
 $ReadySignal = Join-Path $SharedPath "mcp-ready.signal"
 $ShutdownSignal = Join-Path $SharedPath "shutdown.signal"
 $ServerTrigger = Join-Path $SharedPath "server.trigger"

@@ -256,14 +256,14 @@ cd winforms-mcp
 
 The install script will:
 1. Check/enable Windows Sandbox (reboot required if enabling)
-2. Create `C:\TransportTest` with server binaries, .NET runtime, and sandbox config
+2. Create `C:\WinFormsMcpSandboxWorkspace` with server binaries, .NET runtime, and sandbox config
 3. Create the MCP bridge script for Claude Code
 4. Configure Claude Code's MCP settings
 
 After installation, launch the sandbox and restart Claude Code:
 ```powershell
 # Launch sandbox (must be admin due to coreclr bug in Windows Sandbox 0.5.3.0)
-Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'Start-Process ''C:\TransportTest\sandbox-dev.wsb''; exit'
+Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'Start-Process ''C:\WinFormsMcpSandboxWorkspace\sandbox-dev.wsb''; exit'
 
 # In Claude Code, reconnect MCP
 /mcp

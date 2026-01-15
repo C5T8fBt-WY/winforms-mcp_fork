@@ -40,7 +40,7 @@ This design formalizes the hot-reload architecture for developing the WinForms M
 │            │                           │                                │
 │            ▼                           ▼                                │
 │  ┌──────────────────────────────────────────────────────────────┐      │
-│  │ C:\TransportTest\                                             │      │
+│  │ C:\WinFormsMcpSandboxWorkspace\                                             │      │
 │  │                                                               │      │
 │  │  Server\          App\            DotNet\        Shared\        │      │
 │  │  ├── Server.exe   ├── TestApp.exe ├── dotnet.exe ├── mcp-ready  │      │
@@ -94,8 +94,8 @@ Both watchers share the same structure but target different projects:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `$ProjectPath` | `..\..\src\...\Server.csproj` | Server project to build |
-| `$DeployPath` | `C:\TransportTest\Server` | Server deployment target |
-| `$SharedPath` | `C:\TransportTest\Shared` | Communication folder |
+| `$DeployPath` | `C:\WinFormsMcpSandboxWorkspace\Server` | Server deployment target |
+| `$SharedPath` | `C:\WinFormsMcpSandboxWorkspace\Shared` | Communication folder |
 | `$TriggerName` | `server.trigger` | Trigger file name |
 
 #### 3.1.2 watch-app.ps1 (Test Application)
@@ -106,8 +106,8 @@ Both watchers share the same structure but target different projects:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `$ProjectPath` | `..\..\src\...\TestApp.csproj` | App project to build |
-| `$DeployPath` | `C:\TransportTest\App` | App deployment target |
-| `$SharedPath` | `C:\TransportTest\Shared` | Communication folder |
+| `$DeployPath` | `C:\WinFormsMcpSandboxWorkspace\App` | App deployment target |
+| `$SharedPath` | `C:\WinFormsMcpSandboxWorkspace\Shared` | Communication folder |
 | `$TriggerName` | `app.trigger` | Trigger file name |
 
 #### 3.1.3 Shared Watcher Logic
@@ -278,10 +278,10 @@ while (-not (Test-Path "$SharedFolder\shutdown.signal")) {
 **Mapped Folders**:
 | Host Path | Sandbox Path | Mode | Purpose |
 |-----------|--------------|------|---------|
-| `C:\TransportTest\Server` | `C:\Server` | read-only | MCP Server binaries |
-| `C:\TransportTest\App` | `C:\App` | read-only | Test Application binaries |
-| `C:\TransportTest\DotNet` | `C:\DotNet` | read-only | Pre-downloaded .NET runtime |
-| `C:\TransportTest\Shared` | `C:\Shared` | read-write | Communication & triggers |
+| `C:\WinFormsMcpSandboxWorkspace\Server` | `C:\Server` | read-only | MCP Server binaries |
+| `C:\WinFormsMcpSandboxWorkspace\App` | `C:\App` | read-only | Test Application binaries |
+| `C:\WinFormsMcpSandboxWorkspace\DotNet` | `C:\DotNet` | read-only | Pre-downloaded .NET runtime |
+| `C:\WinFormsMcpSandboxWorkspace\Shared` | `C:\Shared` | read-write | Communication & triggers |
 
 **LogonCommand**: Sets `DOTNET_ROOT` and `PATH` to include .NET, then runs bootstrap.
 
@@ -296,22 +296,22 @@ while (-not (Test-Path "$SharedFolder\shutdown.signal")) {
   <Networking>Disable</Networking>
   <MappedFolders>
     <MappedFolder>
-      <HostFolder>C:\TransportTest\Server</HostFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\Server</HostFolder>
       <SandboxFolder>C:\Server</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
     <MappedFolder>
-      <HostFolder>C:\TransportTest\App</HostFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\App</HostFolder>
       <SandboxFolder>C:\App</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
     <MappedFolder>
-      <HostFolder>C:\TransportTest\DotNet</HostFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\DotNet</HostFolder>
       <SandboxFolder>C:\DotNet</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
     <MappedFolder>
-      <HostFolder>C:\TransportTest\Shared</HostFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\Shared</HostFolder>
       <SandboxFolder>C:\Shared</SandboxFolder>
       <ReadOnly>false</ReadOnly>
     </MappedFolder>
@@ -326,10 +326,10 @@ while (-not (Test-Path "$SharedFolder\shutdown.signal")) {
 
 **Request/Response** (JSON-RPC 2.0 over files):
 ```
-Host writes:  C:\TransportTest\Shared\request-{id}.json
+Host writes:  C:\WinFormsMcpSandboxWorkspace\Shared\request-{id}.json
 Server reads: C:\Shared\request-{id}.json
 Server writes: C:\Shared\response-{id}.json
-Host reads:   C:\TransportTest\Shared\response-{id}.json
+Host reads:   C:\WinFormsMcpSandboxWorkspace\Shared\response-{id}.json
 ```
 
 **Health Check Request**:
@@ -486,7 +486,7 @@ winforms-mcp/
 └── docs/
     └── SANDBOX_DEVELOPMENT.md     # User documentation
 
-Host File System (C:\TransportTest\):
+Host File System (C:\WinFormsMcpSandboxWorkspace\):
 ├── Server/                        # MCP Server binaries (mapped read-only)
 │   ├── Rhombus.WinFormsMcp.Server.exe
 │   ├── *.dll
