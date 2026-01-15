@@ -148,6 +148,47 @@ partial class Form1
         this.listBox.Items.AddRange(new object[] { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" });
         mainPanel.Controls.Add(this.listBox);
 
+        // Section 8: Coordinate Test Target - small clickable panel at known location
+        // This is for testing screenshot/click offset calculations
+        // Located at exactly (700, 350) client coords, 10x10 pixels
+        var coordTestLabel = new System.Windows.Forms.Label
+        {
+            Name = "coordTestLabel",
+            Text = "Click target →",
+            Location = new System.Drawing.Point(610, 352),
+            Size = new System.Drawing.Size(85, 15),
+            TextAlign = System.Drawing.ContentAlignment.MiddleRight,
+            Font = new System.Drawing.Font("Arial", 8)
+        };
+        mainPanel.Controls.Add(coordTestLabel);
+
+        this.coordTestTarget = new System.Windows.Forms.Panel
+        {
+            Name = "coordTestTarget",
+            Location = new System.Drawing.Point(700, 350),
+            Size = new System.Drawing.Size(1, 1),
+            BackColor = System.Drawing.Color.Red,
+            Cursor = System.Windows.Forms.Cursors.Hand
+        };
+        this.coordTestTarget.Click += (s, e) => {
+            this.coordTestTarget.BackColor = System.Drawing.Color.Green;
+            this.coordTestTarget.Size = new System.Drawing.Size(20, 20); // Expand so we can see it turned green
+            this.statusLabel.Text = "Status: Coordinate test target clicked!";
+            this.statusLabel.ForeColor = System.Drawing.Color.Blue;
+        };
+        mainPanel.Controls.Add(this.coordTestTarget);
+
+        var coordInfoLabel = new System.Windows.Forms.Label
+        {
+            Name = "coordInfoLabel",
+            Text = "Target at client (700, 350), 1x1px. Click turns green.",
+            Location = new System.Drawing.Point(520, 370),
+            Size = new System.Drawing.Size(270, 15),
+            Font = new System.Drawing.Font("Arial", 7),
+            ForeColor = System.Drawing.Color.Gray
+        };
+        mainPanel.Controls.Add(coordInfoLabel);
+
         // Form configuration
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
         this.ClientSize = new System.Drawing.Size(800, 400);
@@ -165,4 +206,5 @@ partial class Form1
     private System.Windows.Forms.DataGridView dataGridView;
     private System.Windows.Forms.Label statusLabel;
     private System.Windows.Forms.ListBox listBox;
+    private System.Windows.Forms.Panel coordTestTarget;
 }

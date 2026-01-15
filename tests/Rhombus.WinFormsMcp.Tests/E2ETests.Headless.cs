@@ -22,7 +22,7 @@ public class E2ETestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.LaunchApp("notepad.exe", null, null))
+            .Setup(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -32,12 +32,12 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByAutomationId("RichEditBox", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByAutomationId("RichEditBox", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Hello World E2E Test", false))
+            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Hello World E2E Test", false, It.IsAny<int>()))
             .Verifiable();
 
         _mockAutomation
@@ -52,7 +52,7 @@ public class E2ETestsHeadless
         _mockAutomation.Object.SendKeys("^s");
 
         // Assert
-        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null), Times.Once);
+        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()), Times.Once);
         _mockAutomation.Verify(a => a.GetMainWindow(It.IsAny<int>()), Times.Once);
     }
 
@@ -61,12 +61,12 @@ public class E2ETestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.LaunchApp("notepad.exe", null, null))
+            .Setup(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.LaunchApp("calc.exe", null, null))
+            .Setup(a => a.LaunchApp("calc.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -87,8 +87,8 @@ public class E2ETestsHeadless
         _mockAutomation.Object.AttachToProcessByName("calc");
 
         // Assert
-        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null), Times.Once);
-        _mockAutomation.Verify(a => a.LaunchApp("calc.exe", null, null), Times.Once);
+        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()), Times.Once);
+        _mockAutomation.Verify(a => a.LaunchApp("calc.exe", null, null, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -101,7 +101,7 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByName("Open Dialog", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByName("Open Dialog", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
@@ -110,7 +110,7 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByName("Dialog Box", null, 5000))
+            .Setup(a => a.FindByName("Dialog Box", null, 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
@@ -135,12 +135,12 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByAutomationId(It.IsAny<string>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByAutomationId(It.IsAny<string>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<string>(), true))
+            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<string>(), true, It.IsAny<int>()))
             .Verifiable();
 
         _mockAutomation
@@ -158,7 +158,7 @@ public class E2ETestsHeadless
         _mockAutomation.Object.Click(submit!);
 
         // Assert
-        _mockAutomation.Verify(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<string>(), true), Times.Exactly(2));
+        _mockAutomation.Verify(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<string>(), true, It.IsAny<int>()), Times.Exactly(2));
         _mockAutomation.Verify(a => a.Click(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), false), Times.Once);
     }
 
@@ -167,12 +167,12 @@ public class E2ETestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.WaitForElementAsync("LoadingSpinner", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 10000))
+            .Setup(a => a.WaitForElementAsync("LoadingSpinner", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 10000, It.IsAny<int>()))
             .ReturnsAsync(true)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByName("Success Message", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByName("Success Message", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
@@ -182,7 +182,7 @@ public class E2ETestsHeadless
 
         // Assert
         Assert.That(elementFound, Is.True);
-        _mockAutomation.Verify(a => a.WaitForElementAsync("LoadingSpinner", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 10000), Times.Once);
+        _mockAutomation.Verify(a => a.WaitForElementAsync("LoadingSpinner", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 10000, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -193,7 +193,7 @@ public class E2ETestsHeadless
         var screenshotPath2 = Path.Combine(Path.GetTempPath(), $"after_{Guid.NewGuid()}.png");
 
         _mockAutomation!
-            .Setup(a => a.LaunchApp("notepad.exe", null, null))
+            .Setup(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -207,12 +207,12 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByName("TextBox", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByName("TextBox", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Test Content", false))
+            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Test Content", false, It.IsAny<int>()))
             .Verifiable();
 
         // Act
@@ -233,7 +233,7 @@ public class E2ETestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.LaunchApp("app.exe", null, null))
+            .Setup(a => a.LaunchApp("app.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -243,12 +243,12 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByAutomationId(It.IsAny<string>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByAutomationId(It.IsAny<string>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<string>(), true))
+            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<string>(), true, It.IsAny<int>()))
             .Verifiable();
 
         _mockAutomation
@@ -256,7 +256,7 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.WaitForElementAsync("SuccessMsg", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.WaitForElementAsync("SuccessMsg", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .ReturnsAsync(true)
             .Verifiable();
 
@@ -284,7 +284,7 @@ public class E2ETestsHeadless
         _mockAutomation.Object.TakeScreenshot(screenshotPath, form);
 
         // Assert
-        _mockAutomation.Verify(a => a.LaunchApp("app.exe", null, null), Times.Once);
+        _mockAutomation.Verify(a => a.LaunchApp("app.exe", null, null, It.IsAny<int>()), Times.Once);
         _mockAutomation.Verify(a => a.Click(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), false), Times.Once);
     }
 
@@ -298,12 +298,12 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByAutomationId(It.IsAny<string>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByAutomationId(It.IsAny<string>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.DragDrop(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>()))
+            .Setup(a => a.DragDrop(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<int>(), It.IsAny<int>()))
             .Verifiable();
 
         // Act
@@ -313,7 +313,7 @@ public class E2ETestsHeadless
         _mockAutomation.Object.DragDrop(src!, tgt!);
 
         // Assert
-        _mockAutomation.Verify(a => a.DragDrop(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>()), Times.Once);
+        _mockAutomation.Verify(a => a.DragDrop(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<int>(), It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -326,7 +326,7 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.LaunchApp("notepad.exe", null, null))
+            .Setup(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -337,7 +337,7 @@ public class E2ETestsHeadless
 
         // Recovery: launch app instead
         _mockAutomation.Object.LaunchApp("notepad.exe");
-        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null), Times.Once);
+        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -389,7 +389,7 @@ public class E2ETestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Username", true))
+            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Username", true, It.IsAny<int>()))
             .Verifiable();
 
         _mockAutomation
@@ -397,7 +397,7 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Password", true))
+            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Password", true, It.IsAny<int>()))
             .Verifiable();
 
         // Act
@@ -406,9 +406,9 @@ public class E2ETestsHeadless
         _mockAutomation.Object.TypeText(null!, "Password", true);
 
         // Assert
-        _mockAutomation.Verify(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Username", true), Times.Once);
+        _mockAutomation.Verify(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Username", true, It.IsAny<int>()), Times.Once);
         _mockAutomation.Verify(a => a.SendKeys("{TAB}"), Times.Once);
-        _mockAutomation.Verify(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Password", true), Times.Once);
+        _mockAutomation.Verify(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Password", true, It.IsAny<int>()), Times.Once);
     }
 
     // ===== NEGATIVE TESTS =====
@@ -418,12 +418,12 @@ public class E2ETestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.LaunchApp("badapp.exe", null, null))
+            .Setup(a => a.LaunchApp("badapp.exe", null, null, It.IsAny<int>()))
             .Throws<InvalidOperationException>()
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.LaunchApp("notepad.exe", null, null))
+            .Setup(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -434,7 +434,7 @@ public class E2ETestsHeadless
 
         // Recovery: fallback to alternate app
         _mockAutomation.Object.LaunchApp("notepad.exe");
-        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null), Times.Once);
+        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -447,22 +447,22 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByAutomationId("NameField", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByAutomationId("NameField", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByAutomationId("EmailField", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByAutomationId("EmailField", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByAutomationId("SubmitButton", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByAutomationId("SubmitButton", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<string>(), true))
+            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<string>(), true, It.IsAny<int>()))
             .Verifiable();
 
         _mockAutomation
@@ -490,7 +490,7 @@ public class E2ETestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.LaunchApp("slowapp.exe", null, null))
+            .Setup(a => a.LaunchApp("slowapp.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -500,7 +500,7 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.WaitForElementAsync("LoadingSpinner", null, 1000))
+            .Setup(a => a.WaitForElementAsync("LoadingSpinner", null, 1000, It.IsAny<int>()))
             .ReturnsAsync(false) // Timeout - element never appeared
             .Verifiable();
 
@@ -512,7 +512,7 @@ public class E2ETestsHeadless
 
         // Assert
         Assert.That(spinnerFound, Is.False);
-        _mockAutomation.Verify(a => a.WaitForElementAsync("LoadingSpinner", null, 1000), Times.Once);
+        _mockAutomation.Verify(a => a.WaitForElementAsync("LoadingSpinner", null, 1000, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -525,21 +525,21 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByAutomationId("Field1", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByAutomationId("Field1", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByAutomationId("Field2", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByAutomationId("Field2", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Value1", true))
+            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Value1", true, It.IsAny<int>()))
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Value2", true))
+            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Value2", true, It.IsAny<int>()))
             .Throws<InvalidOperationException>() // Second field is read-only
             .Verifiable();
 
@@ -563,7 +563,7 @@ public class E2ETestsHeadless
         var invalidPath = "/invalid/path/screenshot.png";
 
         _mockAutomation!
-            .Setup(a => a.LaunchApp("app.exe", null, null))
+            .Setup(a => a.LaunchApp("app.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -600,12 +600,12 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByName("NextButton", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByName("NextButton", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!) // Element not found
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByName("AlternateButton", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByName("AlternateButton", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
@@ -626,17 +626,17 @@ public class E2ETestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.LaunchApp("app1.exe", null, null))
+            .Setup(a => a.LaunchApp("app1.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.LaunchApp("app2.exe", null, null))
+            .Setup(a => a.LaunchApp("app2.exe", null, null, It.IsAny<int>()))
             .Throws<InvalidOperationException>() // Second launch fails due to resource conflict
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.LaunchApp("app3.exe", null, null))
+            .Setup(a => a.LaunchApp("app3.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -649,8 +649,8 @@ public class E2ETestsHeadless
 
         // Recovery: retry with different app
         _mockAutomation.Object.LaunchApp("app3.exe");
-        _mockAutomation.Verify(a => a.LaunchApp("app1.exe", null, null), Times.Once);
-        _mockAutomation.Verify(a => a.LaunchApp("app3.exe", null, null), Times.Once);
+        _mockAutomation.Verify(a => a.LaunchApp("app1.exe", null, null, It.IsAny<int>()), Times.Once);
+        _mockAutomation.Verify(a => a.LaunchApp("app3.exe", null, null, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -658,7 +658,7 @@ public class E2ETestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.LaunchApp("app.exe", null, null))
+            .Setup(a => a.LaunchApp("app.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -668,7 +668,7 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByAutomationId("Button1", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000))
+            .Setup(a => a.FindByAutomationId("Button1", It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
@@ -678,7 +678,7 @@ public class E2ETestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.CloseApp(1234, false))
+            .Setup(a => a.CloseApp(1234, false, It.IsAny<int>()))
             .Verifiable();
 
         // Act
@@ -693,6 +693,6 @@ public class E2ETestsHeadless
 
         // Recovery: cleanup
         _mockAutomation.Object.CloseApp(1234);
-        _mockAutomation.Verify(a => a.CloseApp(1234, false), Times.Once);
+        _mockAutomation.Verify(a => a.CloseApp(1234, false, It.IsAny<int>()), Times.Once);
     }
 }

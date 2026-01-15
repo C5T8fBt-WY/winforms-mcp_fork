@@ -96,3 +96,70 @@ public class BoundingRectInfo
     public int Width { get; init; }
     public int Height { get; init; }
 }
+
+/// <summary>
+/// Search criteria used to find an element. Used for self-healing element relocation.
+/// </summary>
+public class ElementSearchCriteria
+{
+    /// <summary>
+    /// AutomationId used to find the element (most stable identifier).
+    /// </summary>
+    public string? AutomationId { get; init; }
+
+    /// <summary>
+    /// Name used to find the element.
+    /// </summary>
+    public string? Name { get; init; }
+
+    /// <summary>
+    /// ClassName used to find the element.
+    /// </summary>
+    public string? ClassName { get; init; }
+
+    /// <summary>
+    /// ControlType of the element.
+    /// </summary>
+    public string? ControlType { get; init; }
+
+    /// <summary>
+    /// Last known bounding rectangle (for heuristic matching).
+    /// </summary>
+    public System.Drawing.Rectangle? LastKnownBounds { get; init; }
+
+    /// <summary>
+    /// Original element ID in the cache (for reference).
+    /// </summary>
+    public string? OriginalElementId { get; init; }
+}
+
+/// <summary>
+/// Result of attempting to relocate a stale element.
+/// </summary>
+public class RelocateResult
+{
+    /// <summary>
+    /// Whether relocation was successful.
+    /// </summary>
+    public bool Success { get; set; }
+
+    /// <summary>
+    /// The relocated element if successful.
+    /// </summary>
+    public FlaUI.Core.AutomationElements.AutomationElement? RelocatedElement { get; set; }
+
+    /// <summary>
+    /// Which criteria matched the relocated element.
+    /// </summary>
+    public string? MatchedBy { get; set; }
+
+    /// <summary>
+    /// Human-readable message about the relocation attempt.
+    /// </summary>
+    public string? Message { get; set; }
+
+    /// <summary>
+    /// Suggestions for recovery if relocation failed.
+    /// </summary>
+    public string[]? Suggestions { get; set; }
+}

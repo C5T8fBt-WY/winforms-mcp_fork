@@ -333,7 +333,7 @@ public class TreeBuilderOptions
 /// <summary>
 /// Result of building a UI tree.
 /// </summary>
-public class TreeBuildResult
+public record TreeBuildResult
 {
     /// <summary>
     /// The XML representation of the tree.
@@ -364,4 +364,14 @@ public class TreeBuildResult
     /// Whether the tree was truncated due to token budget.
     /// </summary>
     public bool Truncated { get; init; }
+
+    /// <summary>
+    /// Whether this result was served from cache.
+    /// </summary>
+    public bool CacheHit { get; init; }
+
+    /// <summary>
+    /// Age of the cached result in milliseconds (if cache hit).
+    /// </summary>
+    public int CacheAgeMs { get; init; }
 }

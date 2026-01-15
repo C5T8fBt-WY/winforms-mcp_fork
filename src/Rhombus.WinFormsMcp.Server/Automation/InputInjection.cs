@@ -162,18 +162,19 @@ public static class InputInjection
 
     #region Helper Methods
 
-    private static bool _touchInitialized;
+    private static IntPtr _touchDevice = IntPtr.Zero;
     private static IntPtr _penDevice = IntPtr.Zero;
     private static uint _nextPointerId = 1;
 
     /// <summary>
-    /// Initialize touch injection (call once before injecting touch)
+    /// Initialize touch injection using Synthetic Pointer API (Windows 10 1809+).
+    /// This works without touch hardware - creates a virtual touch device.
     /// </summary>
     public static bool EnsureTouchInitialized(uint maxContacts = 10)
     {
-        if (_touchInitialized) return true;
-        _touchInitialized = InitializeTouchInjection(maxContacts, TOUCH_FEEDBACK_DEFAULT);
-        return _touchInitialized;
+        if (_touchDevice != IntPtr.Zero) return true;
+        _touchDevice = CreateSyntheticPointerDevice(PT_TOUCH, maxContacts, POINTER_FEEDBACK_DEFAULT);
+        return _touchDevice != IntPtr.Zero;
     }
 
     /// <summary>
@@ -184,6 +185,18 @@ public static class InputInjection
         if (_penDevice != IntPtr.Zero) return true;
         _penDevice = CreateSyntheticPointerDevice(PT_PEN, 1, POINTER_FEEDBACK_DEFAULT);
         return _penDevice != IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// Cleanup touch device
+    /// </summary>
+    public static void CleanupTouchDevice()
+    {
+        if (_touchDevice != IntPtr.Zero)
+        {
+            DestroySyntheticPointerDevice(_touchDevice);
+            _touchDevice = IntPtr.Zero;
+        }
     }
 
     /// <summary>
@@ -199,29 +212,33 @@ public static class InputInjection
     }
 
     /// <summary>
-    /// Inject a single touch point (down, move, or up)
+    /// Inject a single touch point using Synthetic Pointer API (down, move, or up)
     /// </summary>
     public static bool InjectTouch(int x, int y, uint pointerId, uint flags)
     {
         if (!EnsureTouchInitialized()) return false;
 
-        var contact = new POINTER_TOUCH_INFO
+        var typeInfo = new POINTER_TYPE_INFO
         {
-            pointerInfo = new POINTER_INFO
+            type = PT_TOUCH,
+            touchInfo = new POINTER_TOUCH_INFO
             {
-                pointerType = PT_TOUCH,
-                pointerId = pointerId,
-                pointerFlags = flags | POINTER_FLAG_CONFIDENCE,
-                ptPixelLocation = new POINT { x = x, y = y }
-            },
-            touchFlags = 0,
-            touchMask = 0,
-            rcContact = new RECT { left = x - 2, top = y - 2, right = x + 2, bottom = y + 2 },
-            orientation = 0,
-            pressure = 512
+                pointerInfo = new POINTER_INFO
+                {
+                    pointerType = PT_TOUCH,
+                    pointerId = pointerId,
+                    pointerFlags = flags | POINTER_FLAG_CONFIDENCE,
+                    ptPixelLocation = new POINT { x = x, y = y }
+                },
+                touchFlags = 0,
+                touchMask = 0,
+                rcContact = new RECT { left = x - 2, top = y - 2, right = x + 2, bottom = y + 2 },
+                orientation = 0,
+                pressure = 512
+            }
         };
 
-        return InjectTouchInput(1, new[] { contact });
+        return InjectSyntheticPointerInput(_touchDevice, new[] { typeInfo }, 1);
     }
 
     /// <summary>
@@ -349,13 +366,13 @@ public static class InputInjection
     }
 
     /// <summary>
-    /// Inject multiple touch contacts simultaneously
+    /// Inject multiple touch contacts simultaneously using Synthetic Pointer API
     /// </summary>
     public static bool InjectMultiTouch(params (int x, int y, uint pointerId, uint flags)[] contacts)
     {
         if (!EnsureTouchInitialized()) return false;
 
-        var touchInfos = new POINTER_TOUCH_INFO[contacts.Length];
+        var typeInfos = new POINTER_TYPE_INFO[contacts.Length];
         for (int i = 0; i < contacts.Length; i++)
         {
             var (x, y, pointerId, flags) = contacts[i];
@@ -363,24 +380,28 @@ public static class InputInjection
             var ptrFlags = flags | POINTER_FLAG_CONFIDENCE;
             if (i == 0) ptrFlags |= POINTER_FLAG_PRIMARY;
 
-            touchInfos[i] = new POINTER_TOUCH_INFO
+            typeInfos[i] = new POINTER_TYPE_INFO
             {
-                pointerInfo = new POINTER_INFO
+                type = PT_TOUCH,
+                touchInfo = new POINTER_TOUCH_INFO
                 {
-                    pointerType = PT_TOUCH,
-                    pointerId = pointerId,
-                    pointerFlags = ptrFlags,
-                    ptPixelLocation = new POINT { x = x, y = y }
-                },
-                touchFlags = 0,
-                touchMask = 0,
-                rcContact = new RECT { left = x - 2, top = y - 2, right = x + 2, bottom = y + 2 },
-                orientation = 0,
-                pressure = 512
+                    pointerInfo = new POINTER_INFO
+                    {
+                        pointerType = PT_TOUCH,
+                        pointerId = pointerId,
+                        pointerFlags = ptrFlags,
+                        ptPixelLocation = new POINT { x = x, y = y }
+                    },
+                    touchFlags = 0,
+                    touchMask = 0,
+                    rcContact = new RECT { left = x - 2, top = y - 2, right = x + 2, bottom = y + 2 },
+                    orientation = 0,
+                    pressure = 512
+                }
             };
         }
 
-        return InjectTouchInput((uint)contacts.Length, touchInfos);
+        return InjectSyntheticPointerInput(_touchDevice, typeInfos, (uint)contacts.Length);
     }
 
     /// <summary>
@@ -430,6 +451,197 @@ public static class InputInjection
         return InjectMultiTouch(
             (centerX - halfEnd, centerY, id1, POINTER_FLAG_UP),
             (centerX + halfEnd, centerY, id2, POINTER_FLAG_UP));
+    }
+
+    /// <summary>
+    /// Simulate two-finger rotate gesture around a center point
+    /// </summary>
+    /// <param name="centerX">Center X of the rotation</param>
+    /// <param name="centerY">Center Y of the rotation</param>
+    /// <param name="radius">Distance from center to each finger (pixels)</param>
+    /// <param name="startAngle">Starting angle in degrees (0 = right, 90 = down)</param>
+    /// <param name="endAngle">Ending angle in degrees</param>
+    /// <param name="steps">Number of animation steps (default 20)</param>
+    /// <param name="delayMs">Delay between steps in milliseconds (default 0)</param>
+    /// <returns>True if successful</returns>
+    public static bool Rotate(int centerX, int centerY, int radius, double startAngle, double endAngle, int steps = 20, int delayMs = 0)
+    {
+        var id1 = _nextPointerId++;
+        var id2 = _nextPointerId++;
+
+        // Convert to radians
+        double startRad = startAngle * Math.PI / 180.0;
+        double endRad = endAngle * Math.PI / 180.0;
+
+        // Calculate start positions (two fingers opposite each other)
+        int x1Start = centerX + (int)(radius * Math.Cos(startRad));
+        int y1Start = centerY + (int)(radius * Math.Sin(startRad));
+        int x2Start = centerX + (int)(radius * Math.Cos(startRad + Math.PI));
+        int y2Start = centerY + (int)(radius * Math.Sin(startRad + Math.PI));
+
+        // Down - both fingers
+        if (!InjectMultiTouch(
+            (x1Start, y1Start, id1, POINTER_FLAG_DOWN | POINTER_FLAG_NEW),
+            (x2Start, y2Start, id2, POINTER_FLAG_DOWN | POINTER_FLAG_NEW)))
+            return false;
+
+        // Move - animate the rotation
+        for (int i = 1; i <= steps; i++)
+        {
+            double angle = startRad + (endRad - startRad) * i / steps;
+            int x1 = centerX + (int)(radius * Math.Cos(angle));
+            int y1 = centerY + (int)(radius * Math.Sin(angle));
+            int x2 = centerX + (int)(radius * Math.Cos(angle + Math.PI));
+            int y2 = centerY + (int)(radius * Math.Sin(angle + Math.PI));
+
+            if (!InjectMultiTouch(
+                (x1, y1, id1, POINTER_FLAG_UPDATE),
+                (x2, y2, id2, POINTER_FLAG_UPDATE)))
+                return false;
+
+            if (delayMs > 0)
+                System.Threading.Thread.Sleep(delayMs);
+        }
+
+        // Up - both fingers at final positions
+        int x1End = centerX + (int)(radius * Math.Cos(endRad));
+        int y1End = centerY + (int)(radius * Math.Sin(endRad));
+        int x2End = centerX + (int)(radius * Math.Cos(endRad + Math.PI));
+        int y2End = centerY + (int)(radius * Math.Sin(endRad + Math.PI));
+
+        return InjectMultiTouch(
+            (x1End, y1End, id1, POINTER_FLAG_UP),
+            (x2End, y2End, id2, POINTER_FLAG_UP));
+    }
+
+    /// <summary>
+    /// Execute a multi-finger gesture with time-synchronized waypoints.
+    /// Each finger follows its own path, interpolated by timestamp.
+    /// </summary>
+    /// <param name="fingers">Array of finger paths. Each finger has an array of waypoints [x, y, timeMs]</param>
+    /// <param name="interpolationSteps">Steps between waypoints for smooth movement (default 5)</param>
+    /// <returns>Tuple of (success, fingersProcessed, totalSteps)</returns>
+    public static (bool success, int fingersProcessed, int totalSteps) MultiTouchGesture(
+        (int x, int y, int timeMs)[][] fingers,
+        int interpolationSteps = 5)
+    {
+        if (fingers == null || fingers.Length == 0 || fingers.Length > 10)
+            return (false, 0, 0);
+
+        // Validate all fingers have at least 2 waypoints
+        foreach (var finger in fingers)
+        {
+            if (finger == null || finger.Length < 2)
+                return (false, 0, 0);
+        }
+
+        // Assign pointer IDs
+        var fingerIds = new uint[fingers.Length];
+        for (int i = 0; i < fingers.Length; i++)
+            fingerIds[i] = _nextPointerId++;
+
+        // Find total duration (max end time across all fingers)
+        int totalDuration = 0;
+        foreach (var finger in fingers)
+        {
+            int endTime = finger[finger.Length - 1].timeMs;
+            if (endTime > totalDuration) totalDuration = endTime;
+        }
+
+        if (totalDuration <= 0)
+            return (false, 0, 0);
+
+        int stepCount = 0;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        try
+        {
+            // Down - all fingers at their first position
+            var downContacts = new (int x, int y, uint pointerId, uint flags)[fingers.Length];
+            for (int f = 0; f < fingers.Length; f++)
+            {
+                var wp = fingers[f][0];
+                downContacts[f] = (wp.x, wp.y, fingerIds[f], POINTER_FLAG_DOWN | POINTER_FLAG_NEW);
+            }
+            if (!InjectMultiTouch(downContacts))
+                return (false, 0, 0);
+
+            // Move - interpolate all fingers using real elapsed time
+            // Inject at ~100Hz (10ms intervals) but use actual elapsed time for interpolation
+            int lastInjectedTime = 0;
+            while (lastInjectedTime < totalDuration)
+            {
+                int currentTime = (int)stopwatch.ElapsedMilliseconds;
+                if (currentTime > totalDuration) currentTime = totalDuration;
+
+                // Only inject if we've moved forward in time (avoid duplicate positions)
+                if (currentTime > lastInjectedTime)
+                {
+                    var updateContacts = new (int x, int y, uint pointerId, uint flags)[fingers.Length];
+                    for (int f = 0; f < fingers.Length; f++)
+                    {
+                        var (x, y) = InterpolatePosition(fingers[f], currentTime);
+                        updateContacts[f] = (x, y, fingerIds[f], POINTER_FLAG_UPDATE);
+                    }
+
+                    if (!InjectMultiTouch(updateContacts))
+                        return (false, fingers.Length, stepCount);
+
+                    stepCount++;
+                    lastInjectedTime = currentTime;
+                }
+
+                // Small sleep to avoid spinning CPU, but keep injection rate high
+                if (lastInjectedTime < totalDuration)
+                    System.Threading.Thread.Sleep(5);
+            }
+
+            // Up - all fingers at their final positions
+            var upContacts = new (int x, int y, uint pointerId, uint flags)[fingers.Length];
+            for (int f = 0; f < fingers.Length; f++)
+            {
+                var lastWp = fingers[f][fingers[f].Length - 1];
+                upContacts[f] = (lastWp.x, lastWp.y, fingerIds[f], POINTER_FLAG_UP);
+            }
+            if (!InjectMultiTouch(upContacts))
+                return (false, fingers.Length, stepCount);
+
+            return (true, fingers.Length, stepCount);
+        }
+        catch
+        {
+            return (false, 0, stepCount);
+        }
+    }
+
+    /// <summary>
+    /// Interpolate position along waypoints at a given time
+    /// </summary>
+    private static (int x, int y) InterpolatePosition((int x, int y, int timeMs)[] waypoints, int currentTime)
+    {
+        // Find the two waypoints we're between
+        for (int i = 0; i < waypoints.Length - 1; i++)
+        {
+            var wp1 = waypoints[i];
+            var wp2 = waypoints[i + 1];
+
+            if (currentTime >= wp1.timeMs && currentTime <= wp2.timeMs)
+            {
+                // Interpolate between wp1 and wp2
+                int duration = wp2.timeMs - wp1.timeMs;
+                if (duration == 0)
+                    return (wp2.x, wp2.y);
+
+                double t = (double)(currentTime - wp1.timeMs) / duration;
+                int x = wp1.x + (int)((wp2.x - wp1.x) * t);
+                int y = wp1.y + (int)((wp2.y - wp1.y) * t);
+                return (x, y);
+            }
+        }
+
+        // If past all waypoints, return last position
+        var last = waypoints[waypoints.Length - 1];
+        return (last.x, last.y);
     }
 
     #endregion
@@ -602,10 +814,21 @@ public static class InputInjection
     }
 
     /// <summary>
-    /// Simulate mouse drag through multiple waypoints (for drawing shapes, curves, complex gestures)
+    /// Simulate mouse drag through multiple waypoints (for drawing shapes, curves, complex gestures).
     /// Uses FlaUI with fast settings - one MoveTo per waypoint, FlaUI handles animation between.
+    ///
+    /// PERFORMANCE NOTE: Keep waypoint count low (2-50 points typically). Each waypoint has
+    /// framework overhead (~100ms per point). For straight line drags, use just start and end
+    /// points (2 points) - FlaUI will interpolate the path smoothly. Only add intermediate
+    /// waypoints when you need actual curve control points (splines, complex shapes).
+    ///
+    /// RECOMMENDED USAGE:
+    /// - Simple drag: 2 points (start, end) - FlaUI interpolates
+    /// - Rectangle: 5 points (4 corners + return to start)
+    /// - Curved path: 10-20 waypoints along the spline
+    /// - Max supported: 1000 points (but expect ~2 minutes execution time)
     /// </summary>
-    /// <param name="waypoints">Array of (x, y) coordinates to drag through (minimum 2 points)</param>
+    /// <param name="waypoints">Array of (x, y) coordinates to drag through (minimum 2, max 1000)</param>
     /// <param name="stepsPerSegment">Ignored - kept for API compatibility. FlaUI handles interpolation.</param>
     /// <param name="delayMs">Delay in milliseconds between waypoints (default 0)</param>
     /// <returns>Tuple of (success, pointsProcessed, totalSteps) or (false, 0, 0) on error</returns>

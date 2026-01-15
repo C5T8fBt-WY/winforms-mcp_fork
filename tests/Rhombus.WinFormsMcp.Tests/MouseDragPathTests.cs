@@ -115,6 +115,7 @@ public class MouseDragPathTests
     }
 
     [Test]
+    [Ignore("Requires Sandbox - moves real mouse cursor")]
     public void MouseDragPath_WithSplineWaypoints_Succeeds()
     {
         // Arrange - Create a realistic spline path (20 waypoints)
@@ -135,6 +136,7 @@ public class MouseDragPathTests
     }
 
     [Test]
+    [Ignore("Requires Sandbox - moves real mouse cursor")]
     public void MouseDragPath_WithZeroStepsPerSegment_ClampsToMinimum()
     {
         // Arrange
@@ -150,6 +152,7 @@ public class MouseDragPathTests
     }
 
     [Test]
+    [Ignore("Requires Sandbox - moves real mouse cursor")]
     public void MouseDragPath_WithNegativeDelayMs_ClampsToZero()
     {
         // Arrange

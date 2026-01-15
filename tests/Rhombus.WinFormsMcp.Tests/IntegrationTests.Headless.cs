@@ -22,7 +22,7 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.LaunchApp("notepad.exe", null, null))
+            .Setup(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!) // Returns dummy value
             .Verifiable();
 
@@ -35,7 +35,7 @@ public class IntegrationTestsHeadless
         _mockAutomation.Object.LaunchApp("notepad.exe");
         _mockAutomation.Object.GetMainWindow(1234);
 
-        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null), Times.Once);
+        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()), Times.Once);
         _mockAutomation.Verify(a => a.GetMainWindow(It.IsAny<int>()), Times.Once);
     }
 
@@ -44,7 +44,7 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.FindByName("OK", null, 5000))
+            .Setup(a => a.FindByName("OK", null, 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
@@ -52,7 +52,7 @@ public class IntegrationTestsHeadless
         var element = _mockAutomation.Object.FindByName("OK", null);
 
         // Assert
-        _mockAutomation.Verify(a => a.FindByName("OK", null, 5000), Times.Once);
+        _mockAutomation.Verify(a => a.FindByName("OK", null, 5000, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -75,14 +75,14 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Hello World", false))
+            .Setup(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Hello World", false, It.IsAny<int>()))
             .Verifiable();
 
         // Act
         _mockAutomation.Object.TypeText(null!, "Hello World", false);
 
         // Assert
-        _mockAutomation.Verify(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Hello World", false), Times.Once);
+        _mockAutomation.Verify(a => a.TypeText(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "Hello World", false, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -155,7 +155,7 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.WaitForElementAsync("loadingSpinner", null, 10000))
+            .Setup(a => a.WaitForElementAsync("loadingSpinner", null, 10000, It.IsAny<int>()))
             .ReturnsAsync(true)
             .Verifiable();
 
@@ -164,7 +164,7 @@ public class IntegrationTestsHeadless
 
         // Assert
         Assert.That(found, Is.True);
-        _mockAutomation.Verify(a => a.WaitForElementAsync("loadingSpinner", null, 10000), Times.Once);
+        _mockAutomation.Verify(a => a.WaitForElementAsync("loadingSpinner", null, 10000, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -204,14 +204,14 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.CloseApp(1234, false))
+            .Setup(a => a.CloseApp(1234, false, It.IsAny<int>()))
             .Verifiable();
 
         // Act
         _mockAutomation.Object.CloseApp(1234, force: false);
 
         // Assert
-        _mockAutomation.Verify(a => a.CloseApp(1234, false), Times.Once);
+        _mockAutomation.Verify(a => a.CloseApp(1234, false, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -223,7 +223,7 @@ public class IntegrationTestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByName("Button2", null, 5000))
+            .Setup(a => a.FindByName("Button2", null, 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
@@ -234,7 +234,7 @@ public class IntegrationTestsHeadless
 
         // Assert
         _mockAutomation.Verify(a => a.Click(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), false), Times.AtLeastOnce);
-        _mockAutomation.Verify(a => a.FindByName("Button2", null, 5000), Times.Once);
+        _mockAutomation.Verify(a => a.FindByName("Button2", null, 5000, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -247,7 +247,7 @@ public class IntegrationTestsHeadless
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByName("ValidElement", null, 5000))
+            .Setup(a => a.FindByName("ValidElement", null, 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
@@ -258,7 +258,7 @@ public class IntegrationTestsHeadless
         // Assert - Verify recovery from failed find
         Assert.That(exists, Is.False);
         // Element is null, but method was called
-        _mockAutomation.Verify(a => a.FindByName("ValidElement", null, 5000), Times.Once);
+        _mockAutomation.Verify(a => a.FindByName("ValidElement", null, 5000, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -266,14 +266,14 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.DragDrop(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>()))
+            .Setup(a => a.DragDrop(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<int>(), It.IsAny<int>()))
             .Verifiable();
 
         // Act
         _mockAutomation.Object.DragDrop(null!, null!);
 
         // Assert
-        _mockAutomation.Verify(a => a.DragDrop(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>()), Times.Once);
+        _mockAutomation.Verify(a => a.DragDrop(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<int>(), It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -281,14 +281,14 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.SetValue(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "new value"))
+            .Setup(a => a.SetValue(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "new value", It.IsAny<int>()))
             .Verifiable();
 
         // Act
         _mockAutomation.Object.SetValue(null!, "new value");
 
         // Assert
-        _mockAutomation.Verify(a => a.SetValue(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "new value"), Times.Once);
+        _mockAutomation.Verify(a => a.SetValue(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), "new value", It.IsAny<int>()), Times.Once);
     }
 
     // ===== NEGATIVE TESTS =====
@@ -298,12 +298,12 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.LaunchApp("badapp.exe", null, null))
+            .Setup(a => a.LaunchApp("badapp.exe", null, null, It.IsAny<int>()))
             .Throws<InvalidOperationException>()
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.LaunchApp("notepad.exe", null, null))
+            .Setup(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()))
             .Returns((System.Diagnostics.Process)null!)
             .Verifiable();
 
@@ -314,7 +314,7 @@ public class IntegrationTestsHeadless
 
         // Recovery
         _mockAutomation.Object.LaunchApp("notepad.exe");
-        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null), Times.Once);
+        _mockAutomation.Verify(a => a.LaunchApp("notepad.exe", null, null, It.IsAny<int>()), Times.Once);
     }
 
     [Test]
@@ -322,7 +322,7 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.FindByName("NonExistentButton", null, 5000))
+            .Setup(a => a.FindByName("NonExistentButton", null, 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
@@ -366,17 +366,17 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.FindByName("Button1", null, 5000))
+            .Setup(a => a.FindByName("Button1", null, 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByName("Button2", null, 5000))
+            .Setup(a => a.FindByName("Button2", null, 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
         _mockAutomation
-            .Setup(a => a.FindByName("Button3", null, 5000))
+            .Setup(a => a.FindByName("Button3", null, 5000, It.IsAny<int>()))
             .Returns((FlaUI.Core.AutomationElements.AutomationElement)null!)
             .Verifiable();
 
@@ -411,7 +411,7 @@ public class IntegrationTestsHeadless
     {
         // Arrange
         _mockAutomation!
-            .Setup(a => a.DragDrop(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>()))
+            .Setup(a => a.DragDrop(It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<FlaUI.Core.AutomationElements.AutomationElement>(), It.IsAny<int>(), It.IsAny<int>()))
             .Throws<InvalidOperationException>()
             .Verifiable();
 

@@ -56,6 +56,12 @@ public class SandboxManager : IDisposable
     public string? SharedFolderPath => _sharedFolderPath;
 
     /// <summary>
+    /// Check if Windows Sandbox is available on this system.
+    /// Requires Windows 10/11 Pro, Enterprise, or Education with sandbox feature enabled.
+    /// </summary>
+    public bool IsSandboxAvailable() => FindWindowsSandboxExe() != null;
+
+    /// <summary>
     /// Launch Windows Sandbox with the given configuration.
     /// </summary>
     /// <param name="wsbConfigPath">Path to the .wsb configuration file</param>
