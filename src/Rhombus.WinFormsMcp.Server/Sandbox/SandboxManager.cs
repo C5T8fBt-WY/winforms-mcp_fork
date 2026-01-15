@@ -100,12 +100,13 @@ public class SandboxManager : IDisposable
         // Clean up any old signal files
         CleanupSignalFiles(sharedFolderPath);
 
-        // Launch sandbox
+        // Launch sandbox - requires elevation (admin privileges)
         var startInfo = new ProcessStartInfo
         {
             FileName = sandboxExe,
             Arguments = $"\"{wsbConfigPath}\"",
-            UseShellExecute = true, // Required for WindowsSandbox.exe
+            UseShellExecute = true, // Required for WindowsSandbox.exe and elevation
+            Verb = "runas", // Elevate to administrator - required for Windows Sandbox
             WindowStyle = ProcessWindowStyle.Normal
         };
 
