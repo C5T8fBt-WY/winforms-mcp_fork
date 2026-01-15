@@ -1,13 +1,31 @@
 # MCP Sandbox Bridge
 # Bridges stdio (Claude Code MCP) to TCP (sandbox server)
 # Handles JSON-RPC 2.0: requests (with id) expect responses, notifications (no id) don't
+#
+# Usage: Called automatically by Claude Code via MCP configuration
+# The sandbox must be running with the MCP server listening on TCP
 
 param(
-    [string]$ServerIP = "172.29.16.229",
+    [string]$ServerIP,
     [int]$Port = 9999
 )
 
 $ErrorActionPreference = "SilentlyContinue"
+
+# Read TCP IP from ready signal if not provided
+if ([string]::IsNullOrEmpty($ServerIP)) {
+    $readySignal = "C:\TransportTest\Shared\mcp-ready.signal"
+    if (Test-Path $readySignal) {
+        try {
+            $signal = Get-Content $readySignal -Raw | ConvertFrom-Json
+            $ServerIP = $signal.tcp_ip
+        } catch {}
+    }
+    # Fallback to common sandbox IP
+    if ([string]::IsNullOrEmpty($ServerIP)) {
+        $ServerIP = "172.29.16.229"
+    }
+}
 
 try {
     $tcpClient = New-Object System.Net.Sockets.TcpClient

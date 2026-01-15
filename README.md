@@ -241,6 +241,38 @@ Then use in Claude Code:
 
 ### Installation
 
+#### Quick Install (with Windows Sandbox)
+
+For isolated testing in Windows Sandbox with hot-reload support:
+
+```powershell
+# Clone the repository
+git clone https://github.com/rhom6us/winforms-mcp.git
+cd winforms-mcp
+
+# Run as Administrator (required to enable Windows Sandbox)
+.\install.ps1
+```
+
+The install script will:
+1. Check/enable Windows Sandbox (reboot required if enabling)
+2. Create `C:\TransportTest` with server binaries, .NET runtime, and sandbox config
+3. Create the MCP bridge script for Claude Code
+4. Configure Claude Code's MCP settings
+
+After installation, launch the sandbox and restart Claude Code:
+```powershell
+# Launch sandbox (must be admin due to coreclr bug in Windows Sandbox 0.5.3.0)
+Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'Start-Process ''C:\TransportTest\sandbox-dev.wsb''; exit'
+
+# In Claude Code, reconnect MCP
+/mcp
+```
+
+See [Sandbox Development Guide](docs/SANDBOX_DEVELOPMENT.md) for hot-reload workflow details.
+
+#### Manual Installation
+
 ```bash
 cd C:\dev
 git clone <repo-url> fnWindowsMCP
