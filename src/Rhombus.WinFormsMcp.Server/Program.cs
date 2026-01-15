@@ -2357,15 +2357,16 @@ class AutomationServer
             var eraser = GetBoolArg(args, "eraser", false);
             var delayMs = GetIntArg(args, "delayMs", 0);
 
-            var (resolved1, screenX1, screenY1, err1) = ResolveWindowCoordinates(windowHandle, windowTitle, x1, y1);
+            // Use the handle-returning version to get hwnd for pen targeting
+            var (resolved1, screenX1, screenY1, hwnd, err1) = ResolveWindowCoordinatesWithHandle(windowHandle, windowTitle, x1, y1);
             if (!resolved1)
                 return Task.FromResult(err1!.Value);
 
-            var (resolved2, screenX2, screenY2, err2) = ResolveWindowCoordinates(windowHandle, windowTitle, x2, y2);
+            var (resolved2, screenX2, screenY2, _, err2) = ResolveWindowCoordinatesWithHandle(windowHandle, windowTitle, x2, y2, focusWindow: false);
             if (!resolved2)
                 return Task.FromResult(err2!.Value);
 
-            var success = InputInjection.PenStroke(screenX1, screenY1, screenX2, screenY2, steps, pressure, eraser, delayMs);
+            var success = InputInjection.PenStroke(screenX1, screenY1, screenX2, screenY2, steps, pressure, eraser, delayMs, hwnd);
 
             if (success)
                 return Task.FromResult(ToolResponse.Ok(_windowManager,
@@ -2390,11 +2391,12 @@ class AutomationServer
             var pressure = (uint)GetIntArg(args, "pressure", 512);
             var holdMs = GetIntArg(args, "holdMs", 0);
 
-            var (resolved, screenX, screenY, errorResponse) = ResolveWindowCoordinates(windowHandle, windowTitle, x, y);
+            // Use the handle-returning version to get hwnd for pen targeting
+            var (resolved, screenX, screenY, hwnd, errorResponse) = ResolveWindowCoordinatesWithHandle(windowHandle, windowTitle, x, y);
             if (!resolved)
                 return Task.FromResult(errorResponse!.Value);
 
-            var success = InputInjection.PenTap(screenX, screenY, pressure, holdMs);
+            var success = InputInjection.PenTap(screenX, screenY, pressure, holdMs, hwnd);
 
             if (success)
                 return Task.FromResult(ToolResponse.Ok(_windowManager,
@@ -4044,5 +4046,71 @@ class AutomationServer
         }
 
         return (true, translated.Value.screenX, translated.Value.screenY, null);
+    }
+
+    /// <summary>
+    /// Resolve window and translate coordinates, also returning the window handle for input targeting.
+    /// </summary>
+    private (bool success, int screenX, int screenY, IntPtr hwnd, JsonElement? errorResponse) ResolveWindowCoordinatesWithHandle(
+        string? windowHandle, string? windowTitle, int x, int y, bool focusWindow = true)
+    {
+        if (string.IsNullOrEmpty(windowHandle) && string.IsNullOrEmpty(windowTitle))
+        {
+            return (true, x, y, IntPtr.Zero, null); // No window targeting, use screen coords
+        }
+
+        var window = _windowManager.FindWindow(windowHandle, windowTitle);
+        if (window == null)
+        {
+            if (!string.IsNullOrEmpty(windowTitle))
+            {
+                var matches = _windowManager.FindWindowsByTitle(windowTitle);
+                if (matches.Count > 1)
+                {
+                    return (false, 0, 0, IntPtr.Zero, ToolResponse.FailWithMultipleMatches(
+                        $"Multiple windows match title '{windowTitle}'",
+                        matches,
+                        _windowManager).ToJsonElement());
+                }
+            }
+            return (false, 0, 0, IntPtr.Zero, ToolResponse.Fail(
+                $"Window not found: {windowHandle ?? windowTitle}",
+                _windowManager).ToJsonElement());
+        }
+
+        if (_windowManager.IsWindowMinimized(windowHandle, windowTitle))
+        {
+            return (false, 0, 0, IntPtr.Zero, ToolResponse.Fail(
+                "Window is minimized. Use focus_window first.",
+                _windowManager).ToJsonElement());
+        }
+
+        // Focus the window to ensure it's in front for input
+        if (focusWindow)
+        {
+            _windowManager.FocusWindowByHandle(window.Handle);
+            System.Threading.Thread.Sleep(50); // Brief delay for window to come to front
+        }
+
+        // Translate client coordinates to screen coordinates
+        var translated = _windowManager.TranslateClientToScreen(window.Handle, x, y);
+        if (translated == null)
+        {
+            return (false, 0, 0, IntPtr.Zero, ToolResponse.Fail(
+                "Could not translate coordinates to screen coordinates.",
+                _windowManager).ToJsonElement());
+        }
+
+        // Convert string handle to IntPtr
+        IntPtr hwnd = IntPtr.Zero;
+        if (!string.IsNullOrEmpty(window.Handle))
+        {
+            try
+            {
+                hwnd = new IntPtr(Convert.ToInt64(window.Handle, 16));
+            }
+            catch { }
+        }
+        return (true, translated.Value.screenX, translated.Value.screenY, hwnd, null);
     }
 }

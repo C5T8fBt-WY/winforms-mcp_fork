@@ -32,41 +32,50 @@ public static class InputInjection
     public const uint TOUCH_FEEDBACK_INDIRECT = 0x2;
     public const uint TOUCH_FEEDBACK_NONE = 0x3;
 
+    // POINTER_FLAG constants - from https://learn.microsoft.com/en-us/windows/win32/inputmsg/pointer-flags-contants
     public const uint POINTER_FLAG_NONE = 0x00000000;
     public const uint POINTER_FLAG_NEW = 0x00000001;
     public const uint POINTER_FLAG_INRANGE = 0x00000002;
     public const uint POINTER_FLAG_INCONTACT = 0x00000004;
     public const uint POINTER_FLAG_FIRSTBUTTON = 0x00000010;
     public const uint POINTER_FLAG_SECONDBUTTON = 0x00000020;
+    public const uint POINTER_FLAG_THIRDBUTTON = 0x00000040;
+    public const uint POINTER_FLAG_FOURTHBUTTON = 0x00000080;
+    public const uint POINTER_FLAG_FIFTHBUTTON = 0x00000100;
     public const uint POINTER_FLAG_PRIMARY = 0x00002000;
     public const uint POINTER_FLAG_CONFIDENCE = 0x00004000;
     public const uint POINTER_FLAG_CANCELED = 0x00008000;
-    public const uint POINTER_FLAG_DOWN = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_PRIMARY;
-    public const uint POINTER_FLAG_UPDATE = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT;
-    public const uint POINTER_FLAG_UP = POINTER_FLAG_NONE;
+    public const uint POINTER_FLAG_DOWN = 0x00010000;
+    public const uint POINTER_FLAG_UPDATE = 0x00020000;
+    public const uint POINTER_FLAG_UP = 0x00040000;
+    public const uint POINTER_FLAG_WHEEL = 0x00080000;
+    public const uint POINTER_FLAG_HWHEEL = 0x00100000;
+    public const uint POINTER_FLAG_CAPTURECHANGED = 0x00200000;
+    public const uint POINTER_FLAG_HASTRANSFORM = 0x00400000;
 
     public const uint PT_TOUCH = 0x00000002;
     public const uint PT_PEN = 0x00000003;
 
+    // POINTER_INFO - Sequential layout, let marshaler handle alignment naturally
     [StructLayout(LayoutKind.Sequential)]
     public struct POINTER_INFO
     {
-        public uint pointerType;
-        public uint pointerId;
-        public uint frameId;
-        public uint pointerFlags;
-        public IntPtr sourceDevice;
-        public IntPtr hwndTarget;
-        public POINT ptPixelLocation;
-        public POINT ptHimetricLocation;
-        public POINT ptPixelLocationRaw;
-        public POINT ptHimetricLocationRaw;
-        public uint dwTime;
-        public uint historyCount;
-        public int inputData;
-        public uint dwKeyStates;
-        public ulong PerformanceCount;
-        public uint ButtonChangeType;
+        public int pointerType;         // 0-4
+        public uint pointerId;          // 4-8
+        public uint frameId;            // 8-12
+        public int pointerFlags;        // 12-16
+        public IntPtr sourceDevice;     // 16-24 (8 bytes on x64)
+        public IntPtr hwndTarget;       // 24-32 (8 bytes on x64)
+        public POINT ptPixelLocation;   // 32-40 (OS reads coordinates from here)
+        public POINT ptHimetricLocation;// 40-48
+        public POINT ptPixelLocationRaw;// 48-56
+        public POINT ptHimetricLocationRaw; // 56-64
+        public uint dwTime;             // 64-68
+        public uint historyCount;       // 68-72
+        public int inputData;           // 72-76
+        public uint dwKeyStates;        // 76-80
+        public ulong performanceCount;  // 80-88
+        public int buttonChangeType;    // 88-92
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -99,6 +108,9 @@ public static class InputInjection
 
     #endregion
 
+    // Version for deployment verification - increment when making changes
+    public const string PEN_INJECTION_VERSION = "v2.0-gemini-fixes";
+
     #region Pen Injection (Windows 10 1809+ Synthetic Pointer API)
 
     // CreateSyntheticPointerDevice - creates pen/touch injection device
@@ -106,8 +118,12 @@ public static class InputInjection
     public static extern IntPtr CreateSyntheticPointerDevice(uint pointerType, uint maxCount, uint mode);
 
     // InjectSyntheticPointerInput - injects pen/touch input
+    // Separate overloads for pen and touch since they use different struct types
     [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool InjectSyntheticPointerInput(IntPtr device, [MarshalAs(UnmanagedType.LPArray)] POINTER_TYPE_INFO[] pointerInfo, uint count);
+    public static extern bool InjectSyntheticPointerInput(IntPtr device, [MarshalAs(UnmanagedType.LPArray)] POINTER_TYPE_INFO_PEN[] pointerInfo, uint count);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool InjectSyntheticPointerInput(IntPtr device, [MarshalAs(UnmanagedType.LPArray)] POINTER_TYPE_INFO_TOUCH[] pointerInfo, uint count);
 
     // DestroySyntheticPointerDevice - cleanup
     [DllImport("user32.dll", SetLastError = false)]
@@ -135,26 +151,26 @@ public static class InputInjection
     public struct POINTER_PEN_INFO
     {
         public POINTER_INFO pointerInfo;
-        public uint penFlags;
-        public uint penMask;
+        public int penFlags;
+        public int penMask;
         public uint pressure;      // 0-1024
         public uint rotation;      // 0-359
         public int tiltX;          // -90 to +90
         public int tiltY;          // -90 to +90
     }
 
-    // POINTER_TYPE_INFO - union structure for pen/touch injection
-    [StructLayout(LayoutKind.Explicit)]
-    public struct POINTER_TYPE_INFO
+    // POINTER_TYPE_INFO - Sequential layout matching Pencast reference
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINTER_TYPE_INFO_PEN
     {
-        [FieldOffset(0)]
-        public uint type;  // PT_TOUCH or PT_PEN
-
-        // Union - penInfo starts at offset 4 (after type field)
-        [FieldOffset(4)]
+        public uint type;  // PT_PEN = 3
         public POINTER_PEN_INFO penInfo;
+    }
 
-        [FieldOffset(4)]
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINTER_TYPE_INFO_TOUCH
+    {
+        public uint type;  // PT_TOUCH = 2
         public POINTER_TOUCH_INFO touchInfo;
     }
 
@@ -165,6 +181,7 @@ public static class InputInjection
     private static IntPtr _touchDevice = IntPtr.Zero;
     private static IntPtr _penDevice = IntPtr.Zero;
     private static uint _nextPointerId = 1;
+    private static uint _frameId = 0;  // Increment with each injection
 
     /// <summary>
     /// Initialize touch injection using Synthetic Pointer API (Windows 10 1809+).
@@ -184,6 +201,11 @@ public static class InputInjection
     {
         if (_penDevice != IntPtr.Zero) return true;
         _penDevice = CreateSyntheticPointerDevice(PT_PEN, 1, POINTER_FEEDBACK_DEFAULT);
+        var error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+        var logMsg = _penDevice != IntPtr.Zero
+            ? $"[PEN {PEN_INJECTION_VERSION}] Device created: 0x{_penDevice:X}"
+            : $"[PEN {PEN_INJECTION_VERSION}] CreateSyntheticPointerDevice failed, error={error}";
+        System.IO.File.AppendAllText(@"C:\Shared\pen-debug.log", logMsg + "\n");
         return _penDevice != IntPtr.Zero;
     }
 
@@ -218,21 +240,26 @@ public static class InputInjection
     {
         if (!EnsureTouchInitialized()) return false;
 
-        var typeInfo = new POINTER_TYPE_INFO
+        // Both ptPixelLocation and ptPixelLocationRaw should be set to the screen coordinates
+        var pixelPoint = new POINT { x = x, y = y };
+
+        var typeInfo = new POINTER_TYPE_INFO_TOUCH
         {
             type = PT_TOUCH,
             touchInfo = new POINTER_TOUCH_INFO
             {
                 pointerInfo = new POINTER_INFO
                 {
-                    pointerType = PT_TOUCH,
+                    pointerType = (int)PT_TOUCH,
                     pointerId = pointerId,
-                    pointerFlags = flags | POINTER_FLAG_CONFIDENCE,
-                    ptPixelLocation = new POINT { x = x, y = y }
+                    pointerFlags = (int)(flags | POINTER_FLAG_CONFIDENCE),
+                    ptPixelLocation = pixelPoint,
+                    ptPixelLocationRaw = pixelPoint
                 },
                 touchFlags = 0,
                 touchMask = 0,
                 rcContact = new RECT { left = x - 2, top = y - 2, right = x + 2, bottom = y + 2 },
+                rcContactRaw = new RECT { left = x - 2, top = y - 2, right = x + 2, bottom = y + 2 },
                 orientation = 0,
                 pressure = 512
             }
@@ -251,15 +278,42 @@ public static class InputInjection
     {
         var id = _nextPointerId++;
 
-        // Down
-        if (!InjectTouch(x, y, id, POINTER_FLAG_DOWN | POINTER_FLAG_NEW))
+        // IMPORTANT: Windows has a "press and hold to right-click" gesture.
+        // To prevent this, we must complete the full gesture quickly:
+        // DOWN -> immediate UPDATE (wiggle) -> immediate UP
+
+        uint downFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_DOWN | POINTER_FLAG_PRIMARY;
+        uint updateFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_UPDATE;
+        uint upFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_UP;
+
+        // Down - finger makes contact with 1px offset
+        if (!InjectTouch(x - 1, y, id, downFlags))
+            return false;
+
+        // Brief pause for event processing
+        System.Threading.Thread.Sleep(1);
+
+        // Update to actual position (the movement cancels hold gesture)
+        if (!InjectTouch(x, y, id, updateFlags))
             return false;
 
         if (holdMs > 0)
-            System.Threading.Thread.Sleep(holdMs);
+        {
+            // If holding, continue to wiggle to prevent right-click
+            for (int i = 0; i < holdMs / 50; i++)
+            {
+                System.Threading.Thread.Sleep(50);
+                int wiggleX = x + (i % 2);
+                if (!InjectTouch(wiggleX, y, id, updateFlags))
+                    return false;
+            }
+        }
 
-        // Up
-        return InjectTouch(x, y, id, POINTER_FLAG_UP);
+        // Brief pause before UP
+        System.Threading.Thread.Sleep(1);
+
+        // Up - finger lifts (completes the gesture before hold timer)
+        return InjectTouch(x, y, id, upFlags);
     }
 
     /// <summary>
@@ -269,46 +323,72 @@ public static class InputInjection
     {
         var id = _nextPointerId++;
 
-        // Down
-        if (!InjectTouch(x1, y1, id, POINTER_FLAG_DOWN | POINTER_FLAG_NEW))
+        // IMPORTANT: Windows has a "press and hold to right-click" gesture.
+        // To prevent this, we start with a 1px offset and immediately move to actual position.
+
+        // Down - finger makes contact with 1px offset
+        uint downFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_DOWN | POINTER_FLAG_PRIMARY;
+        if (!InjectTouch(x1 - 1, y1, id, downFlags))
             return false;
 
-        // Move
+        // Immediately update to actual position (cancels hold gesture)
+        uint updateFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_UPDATE;
+        if (!InjectTouch(x1, y1, id, updateFlags))
+            return false;
+
+        // Move - finger in contact, updating position
         for (int i = 1; i <= steps; i++)
         {
             int x = x1 + (x2 - x1) * i / steps;
             int y = y1 + (y2 - y1) * i / steps;
-            if (!InjectTouch(x, y, id, POINTER_FLAG_UPDATE))
+            if (!InjectTouch(x, y, id, updateFlags))
                 return false;
             if (delayMs > 0)
                 System.Threading.Thread.Sleep(delayMs);
         }
 
-        // Up
-        return InjectTouch(x2, y2, id, POINTER_FLAG_UP);
+        // Up - finger lifts
+        uint upFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_UP;
+        return InjectTouch(x2, y2, id, upFlags);
     }
 
     /// <summary>
     /// Inject a pen stroke with pressure using Synthetic Pointer API
     /// </summary>
-    public static bool InjectPen(int x, int y, uint flags, uint penFlags = PEN_FLAG_NONE, uint pressure = 512, int tiltX = 0, int tiltY = 0)
+    /// <param name="x">Screen X coordinate</param>
+    /// <param name="y">Screen Y coordinate</param>
+    /// <param name="flags">Pointer flags (DOWN, UPDATE, UP)</param>
+    /// <param name="penFlags">Pen-specific flags (ERASER, etc.)</param>
+    /// <param name="pressure">Pen pressure 0-1024</param>
+    /// <param name="tiltX">Pen tilt X (-90 to +90)</param>
+    /// <param name="tiltY">Pen tilt Y (-90 to +90)</param>
+    /// <param name="hwndTarget">Target window handle (if IntPtr.Zero, uses window at coordinates)</param>
+    public static bool InjectPen(int x, int y, uint flags, uint penFlags = PEN_FLAG_NONE, uint pressure = 512, int tiltX = 0, int tiltY = 0, IntPtr hwndTarget = default)
     {
         if (!EnsurePenInitialized()) return false;
 
-        var typeInfo = new POINTER_TYPE_INFO
+        // Increment frame ID for each injection (required by some implementations)
+        _frameId++;
+
+        // Both ptPixelLocation and ptPixelLocationRaw should be set to the screen coordinates
+        // ptPixelLocation = predicted position, ptPixelLocationRaw = actual device position
+        var pixelPoint = new POINT { x = x, y = y };
+
+        // Match Pencast exactly - don't set hwndTarget, pointerId, frameId, ptPixelLocationRaw
+        var typeInfo = new POINTER_TYPE_INFO_PEN
         {
             type = PT_PEN,
             penInfo = new POINTER_PEN_INFO
             {
                 pointerInfo = new POINTER_INFO
                 {
-                    pointerType = PT_PEN,
-                    pointerId = 1,
-                    pointerFlags = flags | POINTER_FLAG_CONFIDENCE,
-                    ptPixelLocation = new POINT { x = x, y = y }
+                    pointerType = (int)PT_PEN,
+                    pointerFlags = (int)flags,  // No CONFIDENCE flag per Pencast
+                    ptPixelLocation = pixelPoint
+                    // hwndTarget, pointerId, frameId, ptPixelLocationRaw left as default (0)
                 },
-                penFlags = penFlags,
-                penMask = PEN_MASK_PRESSURE | PEN_MASK_TILT_X | PEN_MASK_TILT_Y,
+                penFlags = (int)penFlags,
+                penMask = (int)(PEN_MASK_PRESSURE | PEN_MASK_TILT_X | PEN_MASK_TILT_Y),  // Match Pencast
                 pressure = pressure,
                 rotation = 0,
                 tiltX = tiltX,
@@ -316,33 +396,65 @@ public static class InputInjection
             }
         };
 
-        return InjectSyntheticPointerInput(_penDevice, new[] { typeInfo }, 1);
+        var result = InjectSyntheticPointerInput(_penDevice, new[] { typeInfo }, 1);
+        var error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+        try
+        {
+            var logMsg = result
+                ? $"[PEN] OK at ({x},{y}) flags=0x{flags:X} hwnd=0x{hwndTarget:X}"
+                : $"[PEN] FAIL at ({x},{y}) flags=0x{flags:X} hwnd=0x{hwndTarget:X} error={error}";
+            System.IO.File.AppendAllText(@"C:\Shared\pen-debug.log", logMsg + "\n");
+        }
+        catch (Exception ex)
+        {
+            System.IO.File.AppendAllText(@"C:\Users\WDAGUtilityAccount\pen-debug.log", $"Log error: {ex.Message}\n");
+        }
+        return result;
     }
 
     /// <summary>
     /// Simulate a pen stroke from one point to another
     /// </summary>
-    public static bool PenStroke(int x1, int y1, int x2, int y2, int steps = 20, uint pressure = 512, bool eraser = false, int delayMs = 2)
+    /// <param name="x1">Start X screen coordinate</param>
+    /// <param name="y1">Start Y screen coordinate</param>
+    /// <param name="x2">End X screen coordinate</param>
+    /// <param name="y2">End Y screen coordinate</param>
+    /// <param name="steps">Number of interpolation steps</param>
+    /// <param name="pressure">Pen pressure 0-1024</param>
+    /// <param name="eraser">Use eraser end of pen</param>
+    /// <param name="delayMs">Delay between steps in ms</param>
+    /// <param name="hwndTarget">Target window handle (if IntPtr.Zero, uses window at coordinates)</param>
+    public static bool PenStroke(int x1, int y1, int x2, int y2, int steps = 20, uint pressure = 512, bool eraser = false, int delayMs = 2, IntPtr hwndTarget = default)
     {
         uint penFlags = eraser ? PEN_FLAG_INVERTED : PEN_FLAG_NONE;
 
-        // Down
-        if (!InjectPen(x1, y1, POINTER_FLAG_DOWN | POINTER_FLAG_NEW, penFlags, pressure))
+        // Flag combinations per Gemini suggestions for WPF InkCanvas:
+        // - INCONTACT on DOWN is critical for WPF to start a stroke
+        // - PRIMARY flag marks this as the main pointer
+        // DOWN: INRANGE | INCONTACT | DOWN | PRIMARY
+        // MOVE: INRANGE | INCONTACT | UPDATE | PRIMARY
+        // UP: INRANGE | UP
+
+        // Down - pen makes initial contact (INCONTACT is required for WPF!)
+        uint downFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_DOWN | POINTER_FLAG_PRIMARY;
+        if (!InjectPen(x1, y1, downFlags, penFlags, pressure, 0, 0, hwndTarget))
             return false;
 
-        // Move
+        // Contact - pen in contact, updating position
+        uint contactFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_UPDATE | POINTER_FLAG_PRIMARY;
         for (int i = 1; i <= steps; i++)
         {
             int x = x1 + (x2 - x1) * i / steps;
             int y = y1 + (y2 - y1) * i / steps;
-            if (!InjectPen(x, y, POINTER_FLAG_UPDATE, penFlags, pressure))
+            if (!InjectPen(x, y, contactFlags, penFlags, pressure, 0, 0, hwndTarget))
                 return false;
             if (delayMs > 0)
                 System.Threading.Thread.Sleep(delayMs);
         }
 
-        // Up
-        return InjectPen(x2, y2, POINTER_FLAG_UP, penFlags, 0);
+        // Up - pen lifts
+        uint upFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_UP;
+        return InjectPen(x2, y2, upFlags, penFlags, 0, 0, 0, hwndTarget);
     }
 
     /// <summary>
@@ -352,17 +464,46 @@ public static class InputInjection
     /// <param name="y">Screen Y coordinate</param>
     /// <param name="pressure">Pen pressure 0-1024 (default 512)</param>
     /// <param name="holdMs">Milliseconds to hold before release (default 0)</param>
-    public static bool PenTap(int x, int y, uint pressure = 512, int holdMs = 0)
+    /// <param name="hwndTarget">Target window handle (if IntPtr.Zero, uses window at coordinates)</param>
+    public static bool PenTap(int x, int y, uint pressure = 512, int holdMs = 0, IntPtr hwndTarget = default)
     {
-        // Down
-        if (!InjectPen(x, y, POINTER_FLAG_DOWN | POINTER_FLAG_NEW, PEN_FLAG_NONE, pressure))
+        // IMPORTANT: Windows has a "press and hold to right-click" gesture.
+        // To prevent this, we must complete the full gesture quickly:
+        // DOWN -> immediate UPDATE (wiggle) -> immediate UP
+        // The rapid sequence prevents the hold timer from firing.
+
+        uint downFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_DOWN | POINTER_FLAG_PRIMARY | POINTER_FLAG_FIRSTBUTTON;
+        uint updateFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_UPDATE | POINTER_FLAG_FIRSTBUTTON;
+        uint upFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_UP;
+
+        // Down - pen makes contact with 1px offset
+        if (!InjectPen(x - 1, y, downFlags, PEN_FLAG_NONE, pressure, 0, 0, hwndTarget))
+            return false;
+
+        // Brief pause for event processing
+        System.Threading.Thread.Sleep(1);
+
+        // Update to actual position (the movement cancels hold gesture)
+        if (!InjectPen(x, y, updateFlags, PEN_FLAG_NONE, pressure, 0, 0, hwndTarget))
             return false;
 
         if (holdMs > 0)
-            System.Threading.Thread.Sleep(holdMs);
+        {
+            // If holding, continue to wiggle to prevent right-click
+            for (int i = 0; i < holdMs / 50; i++)
+            {
+                System.Threading.Thread.Sleep(50);
+                int wiggleX = x + (i % 2);
+                if (!InjectPen(wiggleX, y, updateFlags, PEN_FLAG_NONE, pressure, 0, 0, hwndTarget))
+                    return false;
+            }
+        }
 
-        // Up
-        return InjectPen(x, y, POINTER_FLAG_UP, PEN_FLAG_NONE, 0);
+        // Brief pause before UP
+        System.Threading.Thread.Sleep(1);
+
+        // Up - pen lifts (completes the gesture before hold timer)
+        return InjectPen(x, y, upFlags, PEN_FLAG_NONE, 0, 0, 0, hwndTarget);
     }
 
     /// <summary>
@@ -372,7 +513,7 @@ public static class InputInjection
     {
         if (!EnsureTouchInitialized()) return false;
 
-        var typeInfos = new POINTER_TYPE_INFO[contacts.Length];
+        var typeInfos = new POINTER_TYPE_INFO_TOUCH[contacts.Length];
         for (int i = 0; i < contacts.Length; i++)
         {
             var (x, y, pointerId, flags) = contacts[i];
@@ -380,21 +521,24 @@ public static class InputInjection
             var ptrFlags = flags | POINTER_FLAG_CONFIDENCE;
             if (i == 0) ptrFlags |= POINTER_FLAG_PRIMARY;
 
-            typeInfos[i] = new POINTER_TYPE_INFO
+            var pixelPoint = new POINT { x = x, y = y };
+            typeInfos[i] = new POINTER_TYPE_INFO_TOUCH
             {
                 type = PT_TOUCH,
                 touchInfo = new POINTER_TOUCH_INFO
                 {
                     pointerInfo = new POINTER_INFO
                     {
-                        pointerType = PT_TOUCH,
+                        pointerType = (int)PT_TOUCH,
                         pointerId = pointerId,
-                        pointerFlags = ptrFlags,
-                        ptPixelLocation = new POINT { x = x, y = y }
+                        pointerFlags = (int)ptrFlags,
+                        ptPixelLocation = pixelPoint,
+                        ptPixelLocationRaw = pixelPoint
                     },
                     touchFlags = 0,
                     touchMask = 0,
                     rcContact = new RECT { left = x - 2, top = y - 2, right = x + 2, bottom = y + 2 },
+                    rcContactRaw = new RECT { left = x - 2, top = y - 2, right = x + 2, bottom = y + 2 },
                     orientation = 0,
                     pressure = 512
                 }
