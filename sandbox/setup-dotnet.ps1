@@ -51,12 +51,21 @@ Write-Host "Installing .NET $DotNetVersion runtime..." -ForegroundColor Yellow
 Write-Host "This may take a few minutes..."
 
 try {
+    # Install the base .NET runtime (includes dotnet.exe)
+    Write-Host "Installing .NET Core runtime..." -ForegroundColor Yellow
+    & $installScript -InstallDir $DotNetPath -Runtime dotnet -Channel $DotNetVersion -NoPath
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Core runtime installation failed with exit code $LASTEXITCODE" -ForegroundColor Red
+        exit 1
+    }
+
     # Install the Windows Desktop runtime (includes WinForms/WPF support)
-    # Use 'windowsdesktop' instead of 'dotnet' for WinForms apps
+    Write-Host "Installing Windows Desktop runtime..." -ForegroundColor Yellow
     & $installScript -InstallDir $DotNetPath -Runtime windowsdesktop -Channel $DotNetVersion -NoPath
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Installation failed with exit code $LASTEXITCODE" -ForegroundColor Red
+        Write-Host "Windows Desktop runtime installation failed with exit code $LASTEXITCODE" -ForegroundColor Red
         exit 1
     }
 } catch {
