@@ -1,0 +1,33 @@
+<Configuration>
+  <VGpu>Disable</VGpu>
+  <Networking>Disable</Networking>
+  <MappedFolders>
+    <!-- MCP Server binaries (read-only) -->
+    <MappedFolder>
+      <HostFolder>C:\TransportTest\Server</HostFolder>
+      <SandboxFolder>C:\Server</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <!-- Test Application binaries (read-only) -->
+    <MappedFolder>
+      <HostFolder>C:\TransportTest\App</HostFolder>
+      <SandboxFolder>C:\App</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <!-- Pre-downloaded .NET runtime (read-only) -->
+    <MappedFolder>
+      <HostFolder>C:\TransportTest\DotNet</HostFolder>
+      <SandboxFolder>C:\DotNet</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <!-- Shared communication folder (read-write) -->
+    <MappedFolder>
+      <HostFolder>C:\TransportTest\Shared</HostFolder>
+      <SandboxFolder>C:\Shared</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>powershell -ExecutionPolicy Bypass -Command "$env:DOTNET_ROOT = 'C:\DotNet'; $env:PATH = 'C:\DotNet;' + $env:PATH; C:\Server\bootstrap.ps1"</Command>
+  </LogonCommand>
+</Configuration>
