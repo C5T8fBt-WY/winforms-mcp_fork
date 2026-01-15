@@ -174,6 +174,9 @@ function Start-ServerProcess {
     Write-Output "Copying files from $ServerSource to $LocalServerDir..."
     Copy-Item "$ServerSource\*" $LocalServerDir -Recurse -Force -ErrorAction SilentlyContinue
 
+    # Unblock all files to remove Zone.Identifier ADS (prevents WDAC blocking)
+    Get-ChildItem -Path $LocalServerDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
+
     # Find executable
     $McpExe = Join-Path $LocalServerDir "Rhombus.WinFormsMcp.Server.exe"
 
@@ -199,7 +202,12 @@ function Start-ServerProcess {
     }
 
     Write-Output "Starting: $McpExe $($mcpArgs -join ' ')"
-    $proc = Start-Process $McpExe -ArgumentList $mcpArgs -PassThru
+    # Start-Process -ArgumentList fails with empty array, so conditionally include it
+    if ($mcpArgs.Count -gt 0) {
+        $proc = Start-Process $McpExe -ArgumentList $mcpArgs -PassThru
+    } else {
+        $proc = Start-Process $McpExe -PassThru
+    }
 
     # Add to Job Object
     if ($global:JobObject.AddProcess($proc.Handle)) {

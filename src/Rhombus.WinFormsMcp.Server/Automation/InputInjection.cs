@@ -56,26 +56,30 @@ public static class InputInjection
     public const uint PT_TOUCH = 0x00000002;
     public const uint PT_PEN = 0x00000003;
 
-    // POINTER_INFO - Sequential layout, let marshaler handle alignment naturally
-    [StructLayout(LayoutKind.Sequential)]
+    // POINTER_INFO - Explicit layout to match Windows SDK exactly
+    // On x64: IntPtr fields need 8-byte alignment, causing padding after pointerFlags
+    // Windows SDK defines this at: https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-pointer_info
+    [StructLayout(LayoutKind.Explicit)]
     public struct POINTER_INFO
     {
-        public int pointerType;         // 0-4
-        public uint pointerId;          // 4-8
-        public uint frameId;            // 8-12
-        public int pointerFlags;        // 12-16
-        public IntPtr sourceDevice;     // 16-24 (8 bytes on x64)
-        public IntPtr hwndTarget;       // 24-32 (8 bytes on x64)
-        public POINT ptPixelLocation;   // 32-40 (OS reads coordinates from here)
-        public POINT ptHimetricLocation;// 40-48
-        public POINT ptPixelLocationRaw;// 48-56
-        public POINT ptHimetricLocationRaw; // 56-64
-        public uint dwTime;             // 64-68
-        public uint historyCount;       // 68-72
-        public int inputData;           // 72-76
-        public uint dwKeyStates;        // 76-80
-        public ulong performanceCount;  // 80-88
-        public int buttonChangeType;    // 88-92
+        [FieldOffset(0)]  public int pointerType;
+        [FieldOffset(4)]  public uint pointerId;
+        [FieldOffset(8)]  public uint frameId;
+        [FieldOffset(12)] public int pointerFlags;
+        // 4 bytes padding here (offset 16-20) to align sourceDevice on 8-byte boundary
+        [FieldOffset(16)] public IntPtr sourceDevice;     // 8 bytes on x64
+        [FieldOffset(24)] public IntPtr hwndTarget;       // 8 bytes on x64
+        [FieldOffset(32)] public POINT ptPixelLocation;   // 8 bytes (2x LONG)
+        [FieldOffset(40)] public POINT ptHimetricLocation;// 8 bytes
+        [FieldOffset(48)] public POINT ptPixelLocationRaw;// 8 bytes
+        [FieldOffset(56)] public POINT ptHimetricLocationRaw; // 8 bytes
+        [FieldOffset(64)] public uint dwTime;             // 4 bytes
+        [FieldOffset(68)] public uint historyCount;       // 4 bytes
+        [FieldOffset(72)] public int inputData;           // 4 bytes
+        [FieldOffset(76)] public uint dwKeyStates;        // 4 bytes
+        [FieldOffset(80)] public ulong performanceCount;  // 8 bytes
+        [FieldOffset(88)] public int buttonChangeType;    // 4 bytes
+        // Total size: 92 bytes + padding = 96 bytes (aligned to 8)
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -109,7 +113,76 @@ public static class InputInjection
     #endregion
 
     // Version for deployment verification - increment when making changes
-    public const string PEN_INJECTION_VERSION = "v2.0-gemini-fixes";
+    public const string PEN_INJECTION_VERSION = "v3.5-struct-offset-fix";
+
+    /// <summary>
+    /// Get debug log path that works in both sandbox and host environments.
+    /// Sandbox: C:\Shared\pen-debug.log (if exists)
+    /// Host: temp folder
+    /// </summary>
+    private static string GetDebugLogPath()
+    {
+        // Try sandbox shared folder first
+        const string sandboxPath = @"C:\Shared";
+        if (System.IO.Directory.Exists(sandboxPath))
+            return System.IO.Path.Combine(sandboxPath, "pen-debug.log");
+
+        // Fall back to temp folder
+        return System.IO.Path.Combine(System.IO.Path.GetTempPath(), "pen-debug.log");
+    }
+
+    /// <summary>
+    /// Log key fields with byte offsets for debugging struct layout
+    /// </summary>
+    private static void LogStructLayout<T>(T obj, string label) where T : struct
+    {
+        int size = Marshal.SizeOf<T>();
+        IntPtr ptr = Marshal.AllocHGlobal(size);
+        try
+        {
+            Marshal.StructureToPtr(obj, ptr, false);
+            byte[] bytes = new byte[size];
+            Marshal.Copy(ptr, bytes, 0, size);
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"[STRUCT] {label} - Total size: {size} bytes");
+
+            // Show bytes in 16-byte rows with offsets
+            for (int i = 0; i < bytes.Length; i += 16)
+            {
+                sb.Append($"  [{i,3}] ");
+                for (int j = 0; j < 16 && i + j < bytes.Length; j++)
+                {
+                    sb.Append($"{bytes[i + j]:X2} ");
+                }
+                sb.AppendLine();
+            }
+
+            System.IO.File.AppendAllText(GetDebugLogPath(), sb.ToString());
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(ptr);
+        }
+    }
+
+    // DPI for HIMETRIC conversion (1 inch = 2540 HIMETRIC units)
+    // Formula: Himetric = (Pixel * 2540) / DPI
+    // At 96 DPI: Himetric ≈ Pixel * 26.458
+    private const int STANDARD_DPI = 96;
+    private const double HIMETRIC_PER_INCH = 2540.0;
+
+    /// <summary>
+    /// Convert pixel coordinates to HIMETRIC units for WPF EnablePointerSupport
+    /// </summary>
+    private static POINT PixelToHimetric(int x, int y, int dpi = STANDARD_DPI)
+    {
+        return new POINT
+        {
+            x = (int)((x * HIMETRIC_PER_INCH) / dpi),
+            y = (int)((y * HIMETRIC_PER_INCH) / dpi)
+        };
+    }
 
     #region Pen Injection (Windows 10 1809+ Synthetic Pointer API)
 
@@ -159,18 +232,27 @@ public static class InputInjection
         public int tiltY;          // -90 to +90
     }
 
-    // POINTER_TYPE_INFO - Sequential layout matching Pencast reference
-    [StructLayout(LayoutKind.Sequential)]
+    // POINTER_TYPE_INFO - Explicit layout to match Windows SDK union structure
+    // Windows SDK has: type (4 bytes) + 4 bytes padding + union at offset 8
+    // The union contains either touchInfo or penInfo, both starting at the same offset
+    // Using separate structs avoids union complexity but MUST maintain correct offsets!
+    [StructLayout(LayoutKind.Explicit)]
     public struct POINTER_TYPE_INFO_PEN
     {
+        [FieldOffset(0)]
         public uint type;  // PT_PEN = 3
+
+        [FieldOffset(8)]  // CRITICAL: Must be at offset 8 to match Windows SDK union layout!
         public POINTER_PEN_INFO penInfo;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Explicit)]
     public struct POINTER_TYPE_INFO_TOUCH
     {
+        [FieldOffset(0)]
         public uint type;  // PT_TOUCH = 2
+
+        [FieldOffset(8)]  // CRITICAL: Must be at offset 8 to match Windows SDK union layout!
         public POINTER_TOUCH_INFO touchInfo;
     }
 
@@ -205,7 +287,7 @@ public static class InputInjection
         var logMsg = _penDevice != IntPtr.Zero
             ? $"[PEN {PEN_INJECTION_VERSION}] Device created: 0x{_penDevice:X}"
             : $"[PEN {PEN_INJECTION_VERSION}] CreateSyntheticPointerDevice failed, error={error}";
-        System.IO.File.AppendAllText(@"C:\Shared\pen-debug.log", logMsg + "\n");
+        System.IO.File.AppendAllText(GetDebugLogPath(), logMsg + "\n");
         return _penDevice != IntPtr.Zero;
     }
 
@@ -243,6 +325,9 @@ public static class InputInjection
         // Both ptPixelLocation and ptPixelLocationRaw should be set to the screen coordinates
         var pixelPoint = new POINT { x = x, y = y };
 
+        // CRITICAL: WPF with EnablePointerSupport reads ptHimetricLocation for high-precision coordinates
+        var himetricPoint = PixelToHimetric(x, y);
+
         var typeInfo = new POINTER_TYPE_INFO_TOUCH
         {
             type = PT_TOUCH,
@@ -254,7 +339,9 @@ public static class InputInjection
                     pointerId = pointerId,
                     pointerFlags = (int)(flags | POINTER_FLAG_CONFIDENCE),
                     ptPixelLocation = pixelPoint,
-                    ptPixelLocationRaw = pixelPoint
+                    ptHimetricLocation = himetricPoint,  // Required for WPF EnablePointerSupport!
+                    ptPixelLocationRaw = pixelPoint,
+                    ptHimetricLocationRaw = himetricPoint
                 },
                 touchFlags = 0,
                 touchMask = 0,
@@ -281,10 +368,16 @@ public static class InputInjection
         // IMPORTANT: Windows has a "press and hold to right-click" gesture.
         // To prevent this, we must complete the full gesture quickly:
         // DOWN -> immediate UPDATE (wiggle) -> immediate UP
+        //
+        // Flag requirements for WPF Manipulation events (per Gemini analysis):
+        // - NEW on DOWN: Required for Direct Manipulation engine to initialize
+        // - CONFIDENCE on all: Required for WPF to treat as intentional touch
+        // - PRIMARY on all: Marks this as the main contact point
+        // Note: CONFIDENCE is added by InjectTouch automatically
 
-        uint downFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_DOWN | POINTER_FLAG_PRIMARY;
-        uint updateFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_UPDATE;
-        uint upFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_UP;
+        uint downFlags = POINTER_FLAG_NEW | POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_DOWN | POINTER_FLAG_PRIMARY;
+        uint updateFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_UPDATE | POINTER_FLAG_PRIMARY;
+        uint upFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_UP | POINTER_FLAG_PRIMARY;
 
         // Down - finger makes contact with 1px offset
         if (!InjectTouch(x - 1, y, id, downFlags))
@@ -323,16 +416,20 @@ public static class InputInjection
     {
         var id = _nextPointerId++;
 
-        // IMPORTANT: Windows has a "press and hold to right-click" gesture.
-        // To prevent this, we start with a 1px offset and immediately move to actual position.
+        // Flag requirements for WPF Manipulation events (per Gemini analysis):
+        // - NEW on DOWN: Required for Direct Manipulation engine to initialize
+        // - CONFIDENCE on all: Required for WPF to treat as intentional touch (added by InjectTouch)
+        // - PRIMARY on all: Marks this as the main contact point
+        //
+        // Also starts with 1px offset and immediate move to cancel "press and hold to right-click" gesture.
 
         // Down - finger makes contact with 1px offset
-        uint downFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_DOWN | POINTER_FLAG_PRIMARY;
+        uint downFlags = POINTER_FLAG_NEW | POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_DOWN | POINTER_FLAG_PRIMARY;
         if (!InjectTouch(x1 - 1, y1, id, downFlags))
             return false;
 
         // Immediately update to actual position (cancels hold gesture)
-        uint updateFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_UPDATE;
+        uint updateFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_UPDATE | POINTER_FLAG_PRIMARY;
         if (!InjectTouch(x1, y1, id, updateFlags))
             return false;
 
@@ -348,7 +445,7 @@ public static class InputInjection
         }
 
         // Up - finger lifts
-        uint upFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_UP;
+        uint upFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_UP | POINTER_FLAG_PRIMARY;
         return InjectTouch(x2, y2, id, upFlags);
     }
 
@@ -374,7 +471,11 @@ public static class InputInjection
         // ptPixelLocation = predicted position, ptPixelLocationRaw = actual device position
         var pixelPoint = new POINT { x = x, y = y };
 
-        // Match Pencast exactly - don't set hwndTarget, pointerId, frameId, ptPixelLocationRaw
+        // CRITICAL: WPF with EnablePointerSupport reads ptHimetricLocation for high-precision coordinates
+        // HIMETRIC = (pixel * 2540) / DPI, at 96 DPI: HIMETRIC ≈ pixel * 26.46
+        // If we send pixel values where HIMETRIC is expected, WPF converts back and gets ~1/26 of the coordinate!
+        var himetricPoint = PixelToHimetric(x, y);
+
         var typeInfo = new POINTER_TYPE_INFO_PEN
         {
             type = PT_PEN,
@@ -383,12 +484,14 @@ public static class InputInjection
                 pointerInfo = new POINTER_INFO
                 {
                     pointerType = (int)PT_PEN,
-                    pointerFlags = (int)flags,  // No CONFIDENCE flag per Pencast
-                    ptPixelLocation = pixelPoint
-                    // hwndTarget, pointerId, frameId, ptPixelLocationRaw left as default (0)
+                    pointerFlags = (int)flags,
+                    ptPixelLocation = pixelPoint,
+                    ptHimetricLocation = himetricPoint,  // TEST: same as pixel
+                    ptPixelLocationRaw = pixelPoint,
+                    ptHimetricLocationRaw = himetricPoint
                 },
                 penFlags = (int)penFlags,
-                penMask = (int)(PEN_MASK_PRESSURE | PEN_MASK_TILT_X | PEN_MASK_TILT_Y),  // Match Pencast
+                penMask = (int)(PEN_MASK_PRESSURE | PEN_MASK_TILT_X | PEN_MASK_TILT_Y),
                 pressure = pressure,
                 rotation = 0,
                 tiltX = tiltX,
@@ -396,18 +499,33 @@ public static class InputInjection
             }
         };
 
+        // Log struct layout on first DOWN event to debug coordinate issues
+        if ((flags & POINTER_FLAG_DOWN) != 0)
+        {
+            LogStructLayout(typeInfo, $"POINTER_TYPE_INFO_PEN at ({x},{y})");
+            // Also log interpreted values at key offsets
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"[FIELDS] Expected values (after v3.5 struct offset fix):");
+            sb.AppendLine($"  type (offset 0): {typeInfo.type} (should be 3 for PT_PEN)");
+            sb.AppendLine($"  penInfo starts at offset 8 (4 bytes padding after type)");
+            sb.AppendLine($"  pointerType (offset 8+0=8): {typeInfo.penInfo.pointerInfo.pointerType}");
+            sb.AppendLine($"  ptPixelLocation (offset 8+32=40): ({typeInfo.penInfo.pointerInfo.ptPixelLocation.x}, {typeInfo.penInfo.pointerInfo.ptPixelLocation.y})");
+            sb.AppendLine($"  ptHimetricLocation (offset 8+40=48): ({typeInfo.penInfo.pointerInfo.ptHimetricLocation.x}, {typeInfo.penInfo.pointerInfo.ptHimetricLocation.y})");
+            System.IO.File.AppendAllText(GetDebugLogPath(), sb.ToString());
+        }
+
         var result = InjectSyntheticPointerInput(_penDevice, new[] { typeInfo }, 1);
         var error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
         try
         {
             var logMsg = result
-                ? $"[PEN] OK at ({x},{y}) flags=0x{flags:X} hwnd=0x{hwndTarget:X}"
-                : $"[PEN] FAIL at ({x},{y}) flags=0x{flags:X} hwnd=0x{hwndTarget:X} error={error}";
-            System.IO.File.AppendAllText(@"C:\Shared\pen-debug.log", logMsg + "\n");
+                ? $"[PEN] OK at ({x},{y}) flags=0x{flags:X}"
+                : $"[PEN] FAIL at ({x},{y}) flags=0x{flags:X} error={error}";
+            System.IO.File.AppendAllText(GetDebugLogPath(), logMsg + "\n");
         }
         catch (Exception ex)
         {
-            System.IO.File.AppendAllText(@"C:\Users\WDAGUtilityAccount\pen-debug.log", $"Log error: {ex.Message}\n");
+            System.IO.File.AppendAllText(GetDebugLogPath(), $"Log error: {ex.Message}\n");
         }
         return result;
     }
@@ -522,6 +640,9 @@ public static class InputInjection
             if (i == 0) ptrFlags |= POINTER_FLAG_PRIMARY;
 
             var pixelPoint = new POINT { x = x, y = y };
+            // CRITICAL: WPF with EnablePointerSupport reads ptHimetricLocation for high-precision coordinates
+            var himetricPoint = PixelToHimetric(x, y);
+
             typeInfos[i] = new POINTER_TYPE_INFO_TOUCH
             {
                 type = PT_TOUCH,
@@ -533,7 +654,9 @@ public static class InputInjection
                         pointerId = pointerId,
                         pointerFlags = (int)ptrFlags,
                         ptPixelLocation = pixelPoint,
-                        ptPixelLocationRaw = pixelPoint
+                        ptHimetricLocation = himetricPoint,  // Required for WPF EnablePointerSupport!
+                        ptPixelLocationRaw = pixelPoint,
+                        ptHimetricLocationRaw = himetricPoint
                     },
                     touchFlags = 0,
                     touchMask = 0,

@@ -28,6 +28,6 @@
     </MappedFolder>
   </MappedFolders>
   <LogonCommand>
-    <Command>powershell -ExecutionPolicy Bypass -Command "$env:DOTNET_ROOT = 'C:\DotNet'; $env:PATH = 'C:\DotNet;' + $env:PATH; C:\Server\bootstrap.ps1"</Command>
+    <Command>powershell -ExecutionPolicy Bypass -Command "$env:DOTNET_ROOT = 'C:\DotNet'; $env:PATH = 'C:\DotNet;' + $env:PATH; C:\Server\bootstrap.ps1 -EnableTcp -TcpPort 9999"</Command>
   </LogonCommand>
 </Configuration>

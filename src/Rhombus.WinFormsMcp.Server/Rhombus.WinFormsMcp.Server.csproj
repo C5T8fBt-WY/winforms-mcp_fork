@@ -7,6 +7,9 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Rhombus.WinFormsMcp.Server</RootNamespace>
     <AssemblyName>Rhombus.WinFormsMcp.Server</AssemblyName>
+    <!-- Force 64-bit to ensure correct POINTER_INFO struct alignment -->
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
 
     <!-- NuGet Package Configuration -->
     <PackageId>Rhombus.WinFormsMcp</PackageId>

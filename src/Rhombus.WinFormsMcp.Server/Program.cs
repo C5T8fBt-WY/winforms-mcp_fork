@@ -391,10 +391,6 @@ class AutomationServer
             { "drag_drop", DragDrop },
             { "send_keys", SendKeys },
 
-            // Event Tools
-            { "raise_event", RaiseEvent },
-            { "listen_for_event", ListenForEvent },
-
             // Touch/Pen Injection Tools
             { "touch_tap", TouchTap },
             { "touch_drag", TouchDrag },
