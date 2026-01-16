@@ -437,30 +437,49 @@ function Handle-Trigger {
         "app\.trigger" {
             $wasRunning = $null -ne $global:AppProcess
             Stop-AppProcess
-            Start-Sleep -Milliseconds 500
 
-            # Determine which app to start:
-            # 1. If trigger content specifies an app name (not "restart" or timestamp), use it
-            # 2. Read from MCP server's state file (written by launch_app tool)
-            # 3. If restarting (wasRunning), use the previously running app
-            # 4. Otherwise, fall back to default (TestApp)
+            # Determine which app to start and kill any MCP-launched instance:
+            # State file format: AppName\nPID (written by MCP launch_app tool)
             $appToStart = ""
+            $mcpPidToKill = $null
             $stateFile = Join-Path $SharedFolder "current_app.state"
 
             if ($triggerContent -and $triggerContent -notmatch '^\d{4}-\d{2}-\d{2}' -and $triggerContent -ne "restart" -and $triggerContent -ne "start") {
                 $appToStart = $triggerContent
                 Write-Output "Trigger specified app: $appToStart"
             } elseif (Test-Path $stateFile) {
-                $appToStart = (Get-Content $stateFile -Raw -ErrorAction SilentlyContinue).Trim()
-                Write-Output "Using app from MCP state file: $appToStart"
+                $stateLines = Get-Content $stateFile -ErrorAction SilentlyContinue
+                if ($stateLines -and $stateLines.Count -ge 1) {
+                    $appToStart = $stateLines[0].Trim()
+                    Write-Output "Using app from MCP state file: $appToStart"
+                }
+                if ($stateLines -and $stateLines.Count -ge 2) {
+                    $mcpPidToKill = [int]$stateLines[1].Trim()
+                    Write-Output "MCP-launched PID to close: $mcpPidToKill"
+                }
             } elseif ($wasRunning -and $global:CurrentAppName) {
                 $appToStart = $global:CurrentAppName
                 Write-Output "Hot-reloading previously running app: $appToStart"
             }
 
+            # Kill the MCP-launched app instance before starting new one
+            if ($mcpPidToKill) {
+                try {
+                    $mcpProcess = Get-Process -Id $mcpPidToKill -ErrorAction SilentlyContinue
+                    if ($mcpProcess -and !$mcpProcess.HasExited) {
+                        Write-Output "Stopping MCP-launched app (PID: $mcpPidToKill)..."
+                        Stop-Process -Id $mcpPidToKill -Force -ErrorAction SilentlyContinue
+                        Start-Sleep -Milliseconds 500
+                    }
+                } catch {
+                    Write-Output "MCP app already closed or not found"
+                }
+            }
+
+            Start-Sleep -Milliseconds 500
             $proc = Start-AppProcess -AppName $appToStart
             if ($proc) {
-                $action = if ($wasRunning) { "restarted" } else { "started" }
+                $action = if ($wasRunning -or $mcpPidToKill) { "restarted" } else { "started" }
                 Write-Output "[$(Get-Date -Format 'HH:mm:ss')] App $action (PID: $($proc.Id))"
                 Update-ReadySignal
             } else {

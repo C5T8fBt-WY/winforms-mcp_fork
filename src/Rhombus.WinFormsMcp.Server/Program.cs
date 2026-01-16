@@ -1961,14 +1961,15 @@ class AutomationServer
             _session.CacheProcess(process.Id, process);
             _session.TrackLaunchedApp(path, process.Id);
 
-            // Write current app name to state file for bootstrap hot-reload
+            // Write current app name and PID to state file for bootstrap hot-reload
             try
             {
                 var appName = Path.GetFileNameWithoutExtension(path);
                 var stateFile = @"C:\Shared\current_app.state";
                 if (Directory.Exists(@"C:\Shared"))
                 {
-                    File.WriteAllText(stateFile, appName);
+                    // Format: AppName\nPID (bootstrap reads both for hot-reload)
+                    File.WriteAllText(stateFile, $"{appName}\n{process.Id}");
                 }
             }
             catch
