@@ -73,6 +73,10 @@ try {
     exit 1
 }
 
+# Unblock all files to remove Zone.Identifier (prevents WDAC blocking in sandbox)
+Write-Host "Unblocking .NET runtime files..." -ForegroundColor Yellow
+Get-ChildItem $DotNetPath -Recurse | Unblock-File -ErrorAction SilentlyContinue
+
 # Verify installation
 if (Test-Path $dotnetExe) {
     Write-Host ""
@@ -80,6 +84,7 @@ if (Test-Path $dotnetExe) {
     $version = & $dotnetExe --version 2>$null
     Write-Host "Installed: $version"
     Write-Host "Location: $DotNetPath"
+    Write-Host "Files unblocked for sandbox use"
     Write-Host ""
     Write-Host "To use in sandbox, map this folder read-only:"
     Write-Host "  Host: $DotNetPath"

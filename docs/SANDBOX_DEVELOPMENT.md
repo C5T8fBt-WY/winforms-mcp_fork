@@ -284,6 +284,37 @@ dir C:\WinFormsMcpSandboxWorkspace\Server\*.exe
 
 Should show `Rhombus.WinFormsMcp.Server.exe`.
 
+### WDAC Blocking Executables
+
+Windows Sandbox enforces **WDAC (Windows Defender Application Control)** which blocks unsigned executables with:
+```
+An Application Control policy has blocked this file.
+```
+
+**Solutions that DON'T work:**
+- `Unblock-File` (removes Zone.Identifier but WDAC uses code signing, not Zone.Identifier)
+- Developer Mode registry keys (`AllowDevelopmentWithoutDevLicense`) - these are for UWP sideloading, not WDAC
+- Self-signed certificates imported to `Cert:\LocalMachine\Root` - WDAC uses its own policy, not certificate stores
+
+**Solution that WORKS: Use `dotnet.exe` to run the DLL**
+
+Since `dotnet.exe` is Microsoft-signed and trusted by WDAC, we can use it to load and run our unsigned DLL:
+
+```powershell
+# Instead of:
+C:\LocalServer\Rhombus.WinFormsMcp.Server.exe --tcp 9999
+
+# Use:
+C:\DotNet\dotnet.exe C:\LocalServer\Rhombus.WinFormsMcp.Server.dll --tcp 9999
+```
+
+The bootstrap.ps1 (v6.0+) uses this approach automatically. The key insight is that:
+1. `.exe` files are blocked by WDAC (unsigned)
+2. `.dll` files loaded by trusted `dotnet.exe` are allowed
+3. The pre-downloaded .NET runtime in `C:\DotNet` is Microsoft-signed
+
+This is why we use **framework-dependent** builds (not self-contained) - the trusted dotnet.exe host loads our app.
+
 ### Hot-Reload Not Working
 
 1. Ensure watchers are running (`watch-all.ps1` or individual watchers)

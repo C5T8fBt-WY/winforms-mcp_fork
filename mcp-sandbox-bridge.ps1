@@ -178,9 +178,10 @@ function Get-SandboxToolList {
     }
 
     # Send tools/list request to sandbox
+    # Note: id must be numeric because server uses GetInt32()
     $request = @{
         jsonrpc = "2.0"
-        id = "bridge-tools-list"
+        id = 999999
         method = "tools/list"
         params = @{}
     } | ConvertTo-Json -Compress
@@ -189,10 +190,20 @@ function Get-SandboxToolList {
     if ($response) {
         try {
             $parsed = $response | ConvertFrom-Json
+            if ($parsed.error) {
+                Write-Log "Sandbox tools/list error: $($parsed.error.message)"
+                return @()
+            }
             if ($parsed.result -and $parsed.result.tools) {
+                Write-Log "Got $($parsed.result.tools.Count) tools from sandbox"
                 return $parsed.result.tools
             }
-        } catch {}
+            Write-Log "Unexpected tools/list response format"
+        } catch {
+            Write-Log "Failed to parse tools/list response: $_"
+        }
+    } else {
+        Write-Log "No response from sandbox for tools/list"
     }
     return @()
 }
@@ -222,11 +233,8 @@ function Invoke-StartSandbox {
         }
     }
 
-    # Clean up old signals
-    Remove-Item $ReadySignalPath -Force -ErrorAction SilentlyContinue
-    Remove-Item $ShutdownSignalPath -Force -ErrorAction SilentlyContinue
-
     # Check if sandbox might already be running (ready signal exists)
+    # Do this BEFORE cleaning up signals!
     $signal = Get-ReadySignal
     if ($signal -and $signal.tcp_ip) {
         Write-Log "Found existing ready signal, checking connection..."
@@ -243,9 +251,12 @@ function Invoke-StartSandbox {
             }
             Disconnect-Tcp
         }
-        # Stale signal, continue with launch
-        Remove-Item $ReadySignalPath -Force -ErrorAction SilentlyContinue
+        # Stale signal, will be cleaned up below
     }
+
+    # Clean up old signals before launching new sandbox
+    Remove-Item $ReadySignalPath -Force -ErrorAction SilentlyContinue
+    Remove-Item $ShutdownSignalPath -Force -ErrorAction SilentlyContinue
 
     # Launch sandbox (requires elevation due to coreclr bug)
     # Can't use -Verb RunAs directly on .wsb files, so launch elevated PowerShell
@@ -280,20 +291,30 @@ function Invoke-StartSandbox {
     }
 
     # Check if server is running (LazyStart mode means it might not be)
+    # Create ONE trigger, then wait for server to start
     if (-not $signal.server_pid) {
         Write-Log "Server not started (LazyStart mode), creating trigger..."
-        # Create server trigger
-        "start" | Out-File -FilePath $ServerTriggerPath -Encoding UTF8
-
-        # Wait for server to start
         $serverTimeout = 30
         $serverStart = Get-Date
+
+        # Create trigger once
+        "start" | Out-File -FilePath $ServerTriggerPath -Encoding UTF8
+        Write-Log "Created server.trigger, waiting for server to start..."
+
+        # Wait for server to start (check every 500ms)
         while (((Get-Date) - $serverStart).TotalSeconds -lt $serverTimeout) {
             Start-Sleep -Milliseconds 500
             $signal = Get-ReadySignal
             if ($signal -and $signal.server_pid) {
                 Write-Log "Server started (PID: $($signal.server_pid))"
                 break
+            }
+
+            # Only recreate trigger if it's been more than 5 seconds and trigger file is gone
+            $elapsed = ((Get-Date) - $serverStart).TotalSeconds
+            if ($elapsed -gt 5 -and -not (Test-Path $ServerTriggerPath)) {
+                Write-Log "Recreating trigger (elapsed: ${elapsed}s)..."
+                "start" | Out-File -FilePath $ServerTriggerPath -Encoding UTF8
             }
         }
 

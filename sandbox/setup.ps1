@@ -90,27 +90,74 @@ if (!$SkipBuild) {
     if (!(Test-Path $ServerProject)) {
         Write-Host "  ERROR: Server project not found!" -ForegroundColor Red
     } else {
-        $tempBuild = Join-Path $ServerPath "_build_temp"
-        if (Test-Path $tempBuild) { Remove-Item $tempBuild -Recurse -Force }
+        # Clean the server folder first (keep bootstrap if present)
+        if (Test-Path $ServerPath) {
+            Get-ChildItem $ServerPath -Exclude 'bootstrap.ps1' | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        }
 
-        dotnet publish $ServerProject -c Release -r win-x64 --no-self-contained -o $tempBuild --nologo
+        # Build DIRECTLY to ServerPath (not temp + copy)
+        # This avoids Zone.Identifier because files are created on Windows, not copied from WSL
+        dotnet publish $ServerProject -c Release -r win-x64 --no-self-contained -o $ServerPath --nologo
 
         if ($LASTEXITCODE -eq 0) {
-            # Copy to final location
-            Get-ChildItem $tempBuild | Copy-Item -Destination $ServerPath -Recurse -Force
-            Remove-Item $tempBuild -Recurse -Force
             Write-Host "  Server deployed to $ServerPath" -ForegroundColor Green
         } else {
             Write-Host "  Server build FAILED!" -ForegroundColor Red
         }
     }
 
+    #region Code Signing for WDAC bypass
+    # Windows Sandbox enforces WDAC (Windows Defender Application Control)
+    # Unsigned binaries are blocked. We self-sign and trust the cert in sandbox.
+    Write-Host ""
+    Write-Host "Setting up code signing..." -ForegroundColor Yellow
+
+    $CertSubject = "CN=WinFormsMcpSandboxDev"
+    $CertPath = Join-Path $ServerPath "SandboxTrust.cer"
+
+    # Check if cert already exists in store
+    $cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -eq $CertSubject } | Select-Object -First 1
+
+    if (-not $cert -or $Force) {
+        Write-Host "  Creating self-signed code signing certificate..."
+        $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $CertSubject -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(5)
+        Write-Host "  Certificate created: $($cert.Thumbprint)"
+    } else {
+        Write-Host "  Using existing certificate: $($cert.Thumbprint)"
+    }
+
+    # Export certificate (public key only) for sandbox to import
+    Export-Certificate -Cert $cert -FilePath $CertPath -Force | Out-Null
+    Write-Host "  Exported certificate to $CertPath"
+
+    # Sign all exe and dll files in ServerPath
+    Write-Host "  Signing server binaries..."
+    $filesToSign = Get-ChildItem $ServerPath -Include "*.exe","*.dll" -Recurse
+    $signedCount = 0
+    foreach ($file in $filesToSign) {
+        try {
+            Set-AuthenticodeSignature -FilePath $file.FullName -Certificate $cert -TimestampServer "http://timestamp.digicert.com" -ErrorAction Stop | Out-Null
+            $signedCount++
+        } catch {
+            # Timestamp server might fail, try without timestamp
+            try {
+                Set-AuthenticodeSignature -FilePath $file.FullName -Certificate $cert -ErrorAction Stop | Out-Null
+                $signedCount++
+            } catch {
+                Write-Host "  WARNING: Could not sign $($file.Name): $_" -ForegroundColor Yellow
+            }
+        }
+    }
+    Write-Host "  Signed $signedCount files" -ForegroundColor Green
+    #endregion
+
     # Copy bootstrap.ps1 to Server folder
     $bootstrapSrc = Join-Path $ScriptDir "bootstrap.ps1"
     $bootstrapDest = Join-Path $ServerPath "bootstrap.ps1"
     if (Test-Path $bootstrapSrc) {
         Copy-Item $bootstrapSrc $bootstrapDest -Force
-        Write-Host "  Copied bootstrap.ps1 to Server folder"
+        Unblock-File $bootstrapDest -ErrorAction SilentlyContinue
+        Write-Host "  Copied and unblocked bootstrap.ps1"
     }
 
     # Build App
@@ -121,16 +168,33 @@ if (!$SkipBuild) {
     if (!(Test-Path $AppProject)) {
         Write-Host "  WARNING: App project not found, skipping" -ForegroundColor Yellow
     } else {
-        $tempBuild = Join-Path $AppPath "_build_temp"
-        if (Test-Path $tempBuild) { Remove-Item $tempBuild -Recurse -Force }
+        # Clean the app folder first
+        if (Test-Path $AppPath) {
+            Get-ChildItem $AppPath | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        }
 
-        dotnet publish $AppProject -c Release -r win-x64 --no-self-contained -o $tempBuild --nologo
+        # Build DIRECTLY to AppPath (not temp + copy)
+        # This avoids Zone.Identifier because files are created on Windows, not copied from WSL
+        dotnet publish $AppProject -c Release -r win-x64 --no-self-contained -o $AppPath --nologo
 
         if ($LASTEXITCODE -eq 0) {
-            # Copy to final location
-            Get-ChildItem $tempBuild | Copy-Item -Destination $AppPath -Recurse -Force
-            Remove-Item $tempBuild -Recurse -Force
             Write-Host "  App deployed to $AppPath" -ForegroundColor Green
+
+            # Sign app binaries with same certificate
+            if ($cert) {
+                Write-Host "  Signing app binaries..."
+                $appFilesToSign = Get-ChildItem $AppPath -Include "*.exe","*.dll" -Recurse
+                $appSignedCount = 0
+                foreach ($file in $appFilesToSign) {
+                    try {
+                        Set-AuthenticodeSignature -FilePath $file.FullName -Certificate $cert -ErrorAction Stop | Out-Null
+                        $appSignedCount++
+                    } catch {
+                        Write-Host "  WARNING: Could not sign $($file.Name)" -ForegroundColor Yellow
+                    }
+                }
+                Write-Host "  Signed $appSignedCount app files" -ForegroundColor Green
+            }
         } else {
             Write-Host "  App build FAILED!" -ForegroundColor Red
         }

@@ -1,6 +1,7 @@
 <Configuration>
   <VGpu>Disable</VGpu>
   <Networking>Default</Networking>
+  <ProtectedClient>Disable</ProtectedClient>
   <MappedFolders>
     <!-- MCP Server binaries (read-only) -->
     <MappedFolder>
@@ -26,8 +27,14 @@
       <SandboxFolder>C:\Shared</SandboxFolder>
       <ReadOnly>false</ReadOnly>
     </MappedFolder>
+    <!-- Source code for in-sandbox compilation (read-only) -->
+    <MappedFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\Source</HostFolder>
+      <SandboxFolder>C:\Source</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
   </MappedFolders>
   <LogonCommand>
-    <Command>powershell -ExecutionPolicy Bypass -Command "$env:DOTNET_ROOT = 'C:\DotNet'; $env:PATH = 'C:\DotNet;' + $env:PATH; C:\Server\bootstrap.ps1 -EnableTcp -TcpPort 9999 -LazyStart"</Command>
+    <Command>powershell -ExecutionPolicy Bypass -NoExit -Command "reg add 'HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy' /v VerifiedAndReputablePolicyState /t REG_DWORD /d 0 /f; $env:DOTNET_ROOT = 'C:\DotNet'; $env:PATH = 'C:\DotNet;' + $env:PATH; C:\Server\bootstrap.ps1 -EnableTcp -TcpPort 9999 -LazyStart"</Command>
   </LogonCommand>
 </Configuration>

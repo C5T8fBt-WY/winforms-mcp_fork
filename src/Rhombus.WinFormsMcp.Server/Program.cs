@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
+using System.Runtime.Loader;
 using System.Text.Json;
 using System.Threading.Tasks;
 using FlaUI.Core.AutomationElements;
@@ -24,11 +26,77 @@ namespace Rhombus.WinFormsMcp.Server;
 class Program
 {
     private static AutomationServer? _server;
+    private static string? _logFile;
+
+    private static void Log(string message)
+    {
+        var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+        var line = $"[{timestamp}] {message}";
+        Console.Error.WriteLine(line);
+
+        // Also log to file if available
+        if (_logFile != null)
+        {
+            try { File.AppendAllText(_logFile, line + Environment.NewLine); }
+            catch { /* ignore file write errors */ }
+        }
+    }
 
     static async Task Main(string[] args)
     {
+        // Setup crash log file (C:\Shared exists in sandbox)
+        var sharedDir = @"C:\Shared";
+        if (Directory.Exists(sharedDir))
+        {
+            _logFile = Path.Combine(sharedDir, "server-crash.log");
+            try { File.WriteAllText(_logFile, $"=== Server starting at {DateTime.Now} ==={Environment.NewLine}"); }
+            catch { _logFile = null; }
+        }
+
+        // Global unhandled exception handlers
+        AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+        {
+            var ex = e.ExceptionObject as Exception;
+            Log($"UNHANDLED EXCEPTION (IsTerminating={e.IsTerminating}):");
+            Log($"  Type: {ex?.GetType().FullName}");
+            Log($"  Message: {ex?.Message}");
+            Log($"  StackTrace: {ex?.StackTrace}");
+            if (ex?.InnerException != null)
+            {
+                Log($"  InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}");
+                Log($"  InnerStackTrace: {ex.InnerException.StackTrace}");
+            }
+        };
+
+        TaskScheduler.UnobservedTaskException += (sender, e) =>
+        {
+            Log($"UNOBSERVED TASK EXCEPTION:");
+            Log($"  Type: {e.Exception?.GetType().FullName}");
+            Log($"  Message: {e.Exception?.Message}");
+            e.SetObserved();
+        };
+
+        // Assembly load logging
+        AssemblyLoadContext.Default.Resolving += (context, name) =>
+        {
+            Log($"ASSEMBLY RESOLVING: {name.FullName}");
+            return null; // Let default resolution continue
+        };
+
+        AppDomain.CurrentDomain.AssemblyLoad += (sender, e) =>
+        {
+            Log($"ASSEMBLY LOADED: {e.LoadedAssembly.FullName} from {e.LoadedAssembly.Location}");
+        };
+
         try
         {
+            Log("Server startup begin");
+            Log($"  Working directory: {Environment.CurrentDirectory}");
+            Log($"  Assembly location: {Assembly.GetExecutingAssembly().Location}");
+            Log($"  .NET version: {Environment.Version}");
+            Log($"  OS: {Environment.OSVersion}");
+            Log($"  Args: {string.Join(" ", args)}");
+
             int? tcpPort = null;
 
             // Parse arguments
@@ -39,28 +107,41 @@ class Program
                     if (int.TryParse(args[i + 1], out var port))
                     {
                         tcpPort = port;
+                        Log($"  TCP port: {port}");
                     }
                     else
                     {
-                        Console.Error.WriteLine($"Invalid port: {args[i + 1]}");
+                        Log($"Invalid port: {args[i + 1]}");
                         Environment.Exit(1);
                     }
                 }
             }
 
+            Log("Creating AutomationServer...");
             _server = new AutomationServer();
+            Log("AutomationServer created successfully");
 
             if (tcpPort.HasValue)
             {
+                Log($"Starting TCP server on port {tcpPort.Value}...");
                 await _server.RunTcpAsync(tcpPort.Value);
             }
             else
             {
+                Log("Starting stdio server...");
                 await _server.RunAsync();
             }
         }
         catch (Exception ex)
         {
+            Log($"FATAL ERROR in Main:");
+            Log($"  Type: {ex.GetType().FullName}");
+            Log($"  Message: {ex.Message}");
+            Log($"  StackTrace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Log($"  InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}");
+            }
             Console.Error.WriteLine($"Fatal error: {ex.Message}");
             Console.Error.WriteLine(ex.StackTrace);
             Environment.Exit(1);

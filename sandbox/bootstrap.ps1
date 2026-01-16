@@ -22,6 +22,28 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+#region WDAC Bypass via Certificate Trust
+# Windows Sandbox enforces WDAC (Windows Defender Application Control)
+# Import our self-signed code signing certificate to trusted root
+# This allows our signed binaries to run
+
+$CertPath = "C:\Server\SandboxTrust.cer"
+if (Test-Path $CertPath) {
+    try {
+        Import-Certificate -FilePath $CertPath -CertStoreLocation Cert:\LocalMachine\Root -ErrorAction Stop | Out-Null
+        Import-Certificate -FilePath $CertPath -CertStoreLocation Cert:\LocalMachine\TrustedPublisher -ErrorAction Stop | Out-Null
+        Write-Host "Certificate imported to trusted stores" -ForegroundColor Green
+    } catch {
+        Write-Host "WARNING: Could not import certificate: $_" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "WARNING: Certificate not found at $CertPath" -ForegroundColor Yellow
+}
+
+# Bypass execution policy for this process
+Set-ExecutionPolicy Bypass -Scope Process -Force
+#endregion
+
 # Path configuration
 $ServerSource = "C:\Server"           # Read-only mapped folder with server binaries
 $AppSource = "C:\App"                 # Read-only mapped folder with app binaries
@@ -40,9 +62,12 @@ $global:AppPid = $null
 $global:ServerProcess = $null
 $global:AppProcess = $null
 
+# Version for tracking deployments
+$BootstrapVersion = "v6.0-dotnet-dll-loader"
+
 # Start logging
 Start-Transcript -Path $LogPath -Append
-Write-Output "=== Bootstrap starting at $(Get-Date) ==="
+Write-Output "=== Bootstrap $BootstrapVersion starting at $(Get-Date) ==="
 Write-Output "Server source: $ServerSource"
 Write-Output "App source: $AppSource"
 Write-Output "Local server dir: $LocalServerDir"
@@ -170,44 +195,43 @@ function Start-ServerProcess {
         New-Item -ItemType Directory -Force -Path $LocalServerDir | Out-Null
     }
 
-    # Copy files from source
+    # Copy files from mapped (read-only) source to local writable folder
     Write-Output "Copying files from $ServerSource to $LocalServerDir..."
     Copy-Item "$ServerSource\*" $LocalServerDir -Recurse -Force -ErrorAction SilentlyContinue
 
     # Unblock all files to remove Zone.Identifier ADS (prevents WDAC blocking)
+    # This MUST be done inside the sandbox on the copied files
+    Write-Output "Unblocking files in $LocalServerDir..."
     Get-ChildItem -Path $LocalServerDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
 
-    # Find executable
+    # Find the DLL to run (use dotnet.exe to bypass WDAC on unsigned exe)
+    # WDAC trusts Microsoft-signed dotnet.exe, which can then load our unsigned DLL
+    $McpDll = Join-Path $LocalServerDir "Rhombus.WinFormsMcp.Server.dll"
     $McpExe = Join-Path $LocalServerDir "Rhombus.WinFormsMcp.Server.exe"
 
-    if (!(Test-Path $McpExe)) {
-        Write-Warning "Server executable not found at $McpExe"
+    if (!(Test-Path $McpDll)) {
+        Write-Warning "Server DLL not found at $McpDll"
         return $null
     }
 
-    # Build arguments
-    $mcpArgs = @()
+    # Build arguments for dotnet.exe
+    $mcpArgs = @($McpDll)
     if ($EnableTcp) {
         $mcpArgs += "--tcp"
         $mcpArgs += $TcpPort.ToString()
         Write-Output "Starting in TCP mode on port $TcpPort"
 
         # Add firewall rule to allow TCP port (avoids Windows Firewall prompt)
+        # Use netsh instead of New-NetFirewallRule because CIM isn't available in sandbox
         $ruleName = "MCP Server TCP $TcpPort"
-        $existingRule = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
-        if (-not $existingRule) {
-            Write-Output "Creating firewall rule for port $TcpPort..."
-            New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Protocol TCP -LocalPort $TcpPort -Action Allow -ErrorAction SilentlyContinue | Out-Null
-        }
+        Write-Output "Creating firewall rule for port $TcpPort..."
+        netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=tcp localport=$TcpPort 2>$null | Out-Null
     }
 
-    Write-Output "Starting: $McpExe $($mcpArgs -join ' ')"
-    # Start-Process -ArgumentList fails with empty array, so conditionally include it
-    if ($mcpArgs.Count -gt 0) {
-        $proc = Start-Process $McpExe -ArgumentList $mcpArgs -PassThru
-    } else {
-        $proc = Start-Process $McpExe -PassThru
-    }
+    # Use dotnet.exe (trusted by WDAC) to run our DLL instead of exe
+    $dotnetExe = "C:\DotNet\dotnet.exe"
+    Write-Output "Starting via dotnet: $dotnetExe $($mcpArgs -join ' ')"
+    $proc = Start-Process $dotnetExe -ArgumentList $mcpArgs -PassThru
 
     # Add to Job Object
     if ($global:JobObject.AddProcess($proc.Handle)) {
@@ -240,22 +264,22 @@ function Start-AppProcess {
     Write-Output "Copying files from $AppSource to $LocalAppDir..."
     Copy-Item "$AppSource\*" $LocalAppDir -Recurse -Force -ErrorAction SilentlyContinue
 
-    # Find executable (look for any .exe that's not the server)
-    $AppExe = Get-ChildItem $LocalAppDir -Filter "*.exe" | Where-Object { $_.Name -notmatch "WinFormsMcp" } | Select-Object -First 1
+    # Unblock all files to remove Zone.Identifier ADS (prevents WDAC blocking)
+    Write-Output "Unblocking files in $LocalAppDir..."
+    Get-ChildItem -Path $LocalAppDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
 
-    if (!$AppExe) {
-        # Try specific name
-        $AppExe = Join-Path $LocalAppDir "Rhombus.WinFormsMcp.TestApp.exe"
-        if (!(Test-Path $AppExe)) {
-            Write-Warning "No app executable found in $LocalAppDir"
-            return $null
-        }
-    } else {
-        $AppExe = $AppExe.FullName
+    # Find the DLL to run (use dotnet.exe to bypass WDAC on unsigned exe)
+    $AppDll = Join-Path $LocalAppDir "Rhombus.WinFormsMcp.TestApp.dll"
+
+    if (!(Test-Path $AppDll)) {
+        Write-Warning "App DLL not found at $AppDll"
+        return $null
     }
 
-    Write-Output "Starting: $AppExe"
-    $proc = Start-Process $AppExe -PassThru
+    # Use dotnet.exe (trusted by WDAC) to run our DLL instead of exe
+    $dotnetExe = "C:\DotNet\dotnet.exe"
+    Write-Output "Starting via dotnet: $dotnetExe $AppDll"
+    $proc = Start-Process $dotnetExe -ArgumentList $AppDll -PassThru
 
     # Add to Job Object
     if ($global:JobObject.AddProcess($proc.Handle)) {
