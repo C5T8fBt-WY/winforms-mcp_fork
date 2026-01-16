@@ -61,9 +61,10 @@ $global:ServerPid = $null
 $global:AppPid = $null
 $global:ServerProcess = $null
 $global:AppProcess = $null
+$global:CurrentAppName = $null  # Track which app is running for hot-reload
 
 # Version for tracking deployments
-$BootstrapVersion = "v6.0-dotnet-dll-loader"
+$BootstrapVersion = "v7.0-smart-app-reload"
 
 # Start logging
 Start-Transcript -Path $LogPath -Append
@@ -247,6 +248,10 @@ function Start-ServerProcess {
 }
 
 function Start-AppProcess {
+    param(
+        [string]$AppName = ""  # Optional: specific app to start (e.g., "MagpieCad")
+    )
+
     Write-Output "Starting app process..."
 
     # Check if app source exists
@@ -268,13 +273,52 @@ function Start-AppProcess {
     Write-Output "Unblocking files in $LocalAppDir..."
     Get-ChildItem -Path $LocalAppDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
 
-    # Find the DLL to run (use dotnet.exe to bypass WDAC on unsigned exe)
-    $AppDll = Join-Path $LocalAppDir "Rhombus.WinFormsMcp.TestApp.dll"
+    # Find the DLL to run
+    $AppDll = $null
+
+    if ($AppName) {
+        # Look for specific app DLL
+        Write-Output "Looking for app: $AppName"
+
+        # Try common locations: root, publish folder, bin folders
+        $searchPaths = @(
+            (Join-Path $LocalAppDir "$AppName.dll"),
+            (Join-Path $LocalAppDir "publish\$AppName.dll"),
+            (Join-Path $LocalAppDir "$AppName\bin\Release\net8.0-windows\win-x64\$AppName.dll"),
+            (Join-Path $LocalAppDir "$AppName\bin\Debug\net8.0-windows\$AppName.dll")
+        )
+
+        foreach ($path in $searchPaths) {
+            if (Test-Path $path) {
+                $AppDll = $path
+                break
+            }
+        }
+
+        if (!$AppDll) {
+            # Search recursively as last resort
+            $found = Get-ChildItem -Path $LocalAppDir -Filter "$AppName.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) {
+                $AppDll = $found.FullName
+            }
+        }
+    }
+
+    # Fall back to test app if no specific app found or requested
+    if (!$AppDll) {
+        $AppDll = Join-Path $LocalAppDir "Rhombus.WinFormsMcp.TestApp.dll"
+        if ($AppName) {
+            Write-Warning "Could not find $AppName.dll, falling back to TestApp"
+        }
+    }
 
     if (!(Test-Path $AppDll)) {
         Write-Warning "App DLL not found at $AppDll"
         return $null
     }
+
+    # Track which app we're running for hot-reload
+    $global:CurrentAppName = [System.IO.Path]::GetFileNameWithoutExtension($AppDll)
 
     # Use dotnet.exe (trusted by WDAC) to run our DLL instead of exe
     $dotnetExe = "C:\DotNet\dotnet.exe"
@@ -367,7 +411,13 @@ function Handle-Trigger {
     $triggerName = [System.IO.Path]::GetFileName($TriggerPath)
     Write-Output "[$(Get-Date -Format 'HH:mm:ss')] Handling trigger: $triggerName"
 
-    # Delete trigger file first
+    # Read trigger content before deleting (may contain app name or other params)
+    $triggerContent = ""
+    if (Test-Path $TriggerPath) {
+        $triggerContent = (Get-Content $TriggerPath -Raw -ErrorAction SilentlyContinue).Trim()
+    }
+
+    # Delete trigger file
     Remove-Item $TriggerPath -Force -ErrorAction SilentlyContinue
 
     switch -Regex ($triggerName) {
@@ -388,7 +438,27 @@ function Handle-Trigger {
             $wasRunning = $null -ne $global:AppProcess
             Stop-AppProcess
             Start-Sleep -Milliseconds 500
-            $proc = Start-AppProcess
+
+            # Determine which app to start:
+            # 1. If trigger content specifies an app name (not "restart" or timestamp), use it
+            # 2. Read from MCP server's state file (written by launch_app tool)
+            # 3. If restarting (wasRunning), use the previously running app
+            # 4. Otherwise, fall back to default (TestApp)
+            $appToStart = ""
+            $stateFile = Join-Path $SharedFolder "current_app.state"
+
+            if ($triggerContent -and $triggerContent -notmatch '^\d{4}-\d{2}-\d{2}' -and $triggerContent -ne "restart" -and $triggerContent -ne "start") {
+                $appToStart = $triggerContent
+                Write-Output "Trigger specified app: $appToStart"
+            } elseif (Test-Path $stateFile) {
+                $appToStart = (Get-Content $stateFile -Raw -ErrorAction SilentlyContinue).Trim()
+                Write-Output "Using app from MCP state file: $appToStart"
+            } elseif ($wasRunning -and $global:CurrentAppName) {
+                $appToStart = $global:CurrentAppName
+                Write-Output "Hot-reloading previously running app: $appToStart"
+            }
+
+            $proc = Start-AppProcess -AppName $appToStart
             if ($proc) {
                 $action = if ($wasRunning) { "restarted" } else { "started" }
                 Write-Output "[$(Get-Date -Format 'HH:mm:ss')] App $action (PID: $($proc.Id))"

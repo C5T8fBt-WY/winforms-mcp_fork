@@ -525,6 +525,7 @@ class AutomationServer
             // Sandbox Tools
             { "launch_app_sandboxed", LaunchAppSandboxed },
             { "close_sandbox", CloseSandbox },
+            { "list_sandbox_apps", ListSandboxApps },
 
             // Capability Detection
             { "get_capabilities", GetCapabilities },
@@ -1292,6 +1293,19 @@ class AutomationServer
                     }
                 }
             },
+            new
+            {
+                name = "list_sandbox_apps",
+                description = "List available applications in the sandbox App folder. Returns executables that can be launched with launch_app.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        appFolder = new { type = "string", description = "App folder to scan (default: C:\\App)" }
+                    }
+                }
+            },
             // Capability Detection
             new
             {
@@ -1946,6 +1960,21 @@ class AutomationServer
 
             _session.CacheProcess(process.Id, process);
             _session.TrackLaunchedApp(path, process.Id);
+
+            // Write current app name to state file for bootstrap hot-reload
+            try
+            {
+                var appName = Path.GetFileNameWithoutExtension(path);
+                var stateFile = @"C:\Shared\current_app.state";
+                if (Directory.Exists(@"C:\Shared"))
+                {
+                    File.WriteAllText(stateFile, appName);
+                }
+            }
+            catch
+            {
+                // Ignore errors writing state file - not critical
+            }
 
             var props = new List<(string, object?)>
             {
@@ -3272,6 +3301,53 @@ class AutomationServer
         catch (Exception ex)
         {
             return ToolResponse.Fail(ex.Message, _windowManager).ToJsonElement();
+        }
+    }
+
+    private Task<JsonElement> ListSandboxApps(JsonElement args)
+    {
+        try
+        {
+            var appFolder = GetStringArg(args, "appFolder") ?? @"C:\App";
+
+            if (!Directory.Exists(appFolder))
+            {
+                return Task.FromResult(ToolResponse.Fail($"App folder not found: {appFolder}", _windowManager).ToJsonElement());
+            }
+
+            var apps = new List<object>();
+
+            // Scan for executables and their associated DLLs
+            var exeFiles = Directory.GetFiles(appFolder, "*.exe", SearchOption.AllDirectories);
+            var dllFiles = Directory.GetFiles(appFolder, "*.dll", SearchOption.AllDirectories);
+
+            foreach (var exe in exeFiles)
+            {
+                var relativePath = Path.GetRelativePath(appFolder, exe);
+                var fileName = Path.GetFileNameWithoutExtension(exe);
+
+                // Check if there's a matching .dll (for dotnet.exe launch)
+                var matchingDll = dllFiles.FirstOrDefault(d =>
+                    Path.GetFileNameWithoutExtension(d).Equals(fileName, StringComparison.OrdinalIgnoreCase));
+
+                apps.Add(new
+                {
+                    name = fileName,
+                    exe_path = exe,
+                    relative_path = relativePath,
+                    dll_path = matchingDll,
+                    can_launch_with_dotnet = matchingDll != null
+                });
+            }
+
+            return Task.FromResult(ToolResponse.Ok(_windowManager,
+                ("app_folder", appFolder),
+                ("apps", apps),
+                ("count", apps.Count)).ToJsonElement());
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult(ToolResponse.Fail(ex.Message, _windowManager).ToJsonElement());
         }
     }
 

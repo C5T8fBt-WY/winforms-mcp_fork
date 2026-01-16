@@ -52,7 +52,7 @@ $BridgeTools = @(
     }
     @{
         name = "stop_sandbox"
-        description = "Stop Windows Sandbox gracefully. Signals shutdown and disconnects TCP."
+        description = "Signal the bootstrap to shut down and disconnect TCP. Note: This does NOT close the Windows Sandbox window - it only stops the MCP server and app processes inside. The sandbox remains open and can be reconnected with start_sandbox, or closed manually."
         inputSchema = @{
             type = "object"
             properties = @{}
