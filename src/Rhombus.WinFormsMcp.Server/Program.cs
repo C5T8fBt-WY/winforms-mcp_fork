@@ -27,6 +27,25 @@ class Program
 {
     private static AutomationServer? _server;
     private static string? _logFile;
+    private static int _nextId = 1;
+
+    /// <summary>
+    /// Extract request id as object to preserve type (JSON-RPC 2.0/MCP allows string or number, not null)
+    /// </summary>
+    internal static object GetRequestId(JsonElement request)
+    {
+        if (request.TryGetProperty("id", out var id))
+        {
+            return id.ValueKind switch
+            {
+                JsonValueKind.Number => id.TryGetInt64(out var l) ? l : id.GetDouble(),
+                JsonValueKind.String => id.GetString()!,
+                JsonValueKind.Null => _nextId++,
+                _ => _nextId++
+            };
+        }
+        return _nextId++;
+    }
 
     private static void Log(string message)
     {
@@ -443,7 +462,6 @@ class SessionManager
 class AutomationServer
 {
     private readonly Dictionary<string, Func<JsonElement, Task<JsonElement>>> _tools;
-    private int _nextId = 1;
     private readonly SessionManager _session = new();
     private readonly WindowManager _windowManager = new();
 
@@ -670,7 +688,7 @@ class AutomationServer
             return new
             {
                 jsonrpc = "2.0",
-                id = request.TryGetProperty("id", out var id) ? id.GetInt32() : _nextId++,
+                id = Program.GetRequestId(request),
                 result = new
                 {
                     protocolVersion = "2024-11-05",
@@ -693,7 +711,7 @@ class AutomationServer
             return new
             {
                 jsonrpc = "2.0",
-                id = request.TryGetProperty("id", out var id) ? id.GetInt32() : _nextId++,
+                id = Program.GetRequestId(request),
                 result = new
                 {
                     tools = GetToolDefinitions()
@@ -720,7 +738,7 @@ class AutomationServer
             return new
             {
                 jsonrpc = "2.0",
-                id = request.TryGetProperty("id", out var id) ? id.GetInt32() : _nextId++,
+                id = Program.GetRequestId(request),
                 result = new
                 {
                     content = new[]
