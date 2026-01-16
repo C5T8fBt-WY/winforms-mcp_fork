@@ -31,6 +31,7 @@ $global:TcpReader = $null
 $global:TcpWriter = $null
 $global:SandboxTools = @()  # Cached tool list from sandbox
 $global:ServerCapabilities = $null
+$global:ConnectedServerPid = $null  # Track which server PID we connected to
 #endregion
 
 #region Bridge Tool Definitions
@@ -113,7 +114,7 @@ function Test-TcpConnected {
 }
 
 function Connect-Tcp {
-    param([string]$ServerIP)
+    param([string]$ServerIP, [int]$ServerPid = 0)
 
     if (Test-TcpConnected) {
         return $true
@@ -128,8 +129,9 @@ function Connect-Tcp {
         $global:TcpReader = New-Object System.IO.StreamReader($stream)
         $global:TcpWriter = New-Object System.IO.StreamWriter($stream)
         $global:TcpWriter.AutoFlush = $true
+        $global:ConnectedServerPid = $ServerPid
 
-        Write-Log "TCP connected to ${ServerIP}:${Port}"
+        Write-Log "TCP connected to ${ServerIP}:${Port} (server PID: $ServerPid)"
         return $true
     } catch {
         Write-Log "TCP connection failed: $_"
@@ -143,11 +145,48 @@ function Disconnect-Tcp {
     if ($global:TcpWriter) { $global:TcpWriter.Dispose(); $global:TcpWriter = $null }
     if ($global:TcpClient) { $global:TcpClient.Close(); $global:TcpClient = $null }
     $global:SandboxTools = @()
+    $global:ConnectedServerPid = $null
     Write-Log "TCP disconnected"
+}
+
+# Check if server was hot-reloaded and reconnect if needed
+function Test-ServerReloadAndReconnect {
+    $signal = Get-ReadySignal
+    if (-not $signal -or -not $signal.tcp_ip -or -not $signal.server_pid) {
+        return $false
+    }
+
+    # Case 1: Connected to different PID - server was hot-reloaded
+    if ($global:ConnectedServerPid -and $signal.server_pid -ne $global:ConnectedServerPid) {
+        Write-Log "Server hot-reloaded: PID changed from $($global:ConnectedServerPid) to $($signal.server_pid)"
+        Disconnect-Tcp
+        Start-Sleep -Milliseconds 500  # Give new server time to initialize
+        if (Connect-Tcp $signal.tcp_ip $signal.server_pid) {
+            $global:SandboxTools = Get-SandboxToolList
+            Write-Log "Reconnected to hot-reloaded server ($($global:SandboxTools.Count) tools)"
+            return $true
+        }
+        return $false
+    }
+
+    # Case 2: Not connected but server is running - reconnect
+    if (-not (Test-TcpConnected) -and $signal.server_pid) {
+        Write-Log "Not connected but server running (PID: $($signal.server_pid)), reconnecting..."
+        if (Connect-Tcp $signal.tcp_ip $signal.server_pid) {
+            $global:SandboxTools = Get-SandboxToolList
+            Write-Log "Reconnected to server ($($global:SandboxTools.Count) tools)"
+            return $true
+        }
+    }
+
+    return $false
 }
 
 function Forward-ToSandbox {
     param([string]$JsonLine)
+
+    # Check if server was hot-reloaded and reconnect if needed
+    Test-ServerReloadAndReconnect | Out-Null
 
     if (-not (Test-TcpConnected)) {
         return $null
@@ -168,6 +207,8 @@ function Forward-ToSandbox {
         return $response
     } catch {
         Write-Log "Forward error: $_"
+        # Connection might be dead - check for hot-reload on next call
+        Disconnect-Tcp
         return $null
     }
 }
@@ -238,7 +279,7 @@ function Invoke-StartSandbox {
     $signal = Get-ReadySignal
     if ($signal -and $signal.tcp_ip) {
         Write-Log "Found existing ready signal, checking connection..."
-        if (Connect-Tcp $signal.tcp_ip) {
+        if (Connect-Tcp $signal.tcp_ip $signal.server_pid) {
             # Try to get tool list to verify connection works
             $global:SandboxTools = Get-SandboxToolList
             if ($global:SandboxTools.Count -gt 0) {
@@ -332,7 +373,7 @@ function Invoke-StartSandbox {
 
     # Connect TCP
     Write-Log "Connecting to MCP server at $($signal.tcp_ip):$Port..."
-    if (-not (Connect-Tcp $signal.tcp_ip)) {
+    if (-not (Connect-Tcp $signal.tcp_ip $signal.server_pid)) {
         return @{
             success = $false
             error = "Failed to connect to MCP server TCP"
@@ -499,7 +540,7 @@ Write-Log "Workspace: $WorkspacePath"
 $signal = Get-ReadySignal
 if ($signal -and $signal.tcp_ip -and $signal.server_pid) {
     Write-Log "Found existing ready signal, attempting connection..."
-    if (Connect-Tcp $signal.tcp_ip) {
+    if (Connect-Tcp $signal.tcp_ip $signal.server_pid) {
         $global:SandboxTools = Get-SandboxToolList
         Write-Log "Connected to existing sandbox ($($global:SandboxTools.Count) tools)"
     }
