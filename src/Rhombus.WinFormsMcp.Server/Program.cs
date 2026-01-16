@@ -935,7 +935,8 @@ class AutomationServer
                         windowTitle = new { type = "string", description = "Window title (substring match) for window-relative coordinates" },
                         x = new { type = "integer", description = "X coordinate (window-relative if window specified, otherwise screen)" },
                         y = new { type = "integer", description = "Y coordinate (window-relative if window specified, otherwise screen)" },
-                        holdMs = new { type = "integer", description = "Milliseconds to hold before release (default 0)" }
+                        holdMs = new { type = "integer", description = "Milliseconds to hold before release (default 0)" },
+                        useLegacy = new { type = "boolean", description = "Use legacy InjectTouchInput API instead of synthetic pointer. May route through system touch device with proper coordinate mapping." }
                     },
                     required = new[] { "x", "y" }
                 }
@@ -2273,17 +2274,31 @@ class AutomationServer
             var x = GetIntArg(args, "x");
             var y = GetIntArg(args, "y");
             var holdMs = GetIntArg(args, "holdMs", 0);
+            var useLegacy = GetBoolArg(args, "useLegacy", false);
 
             var (resolved, screenX, screenY, errorResponse) = ResolveWindowCoordinates(windowHandle, windowTitle, x, y);
             if (!resolved)
                 return Task.FromResult(errorResponse!.Value);
 
-            var success = InputInjection.TouchTap(screenX, screenY, holdMs);
+            bool success;
+            string apiUsed;
+            if (useLegacy)
+            {
+                // Use legacy InjectTouchInput API which may route through system touch device
+                success = InputInjection.LegacyTouchTap(screenX, screenY, holdMs);
+                apiUsed = "legacy InjectTouchInput";
+            }
+            else
+            {
+                // Use synthetic pointer API (creates new device)
+                success = InputInjection.TouchTap(screenX, screenY, holdMs);
+                apiUsed = "synthetic pointer";
+            }
 
             if (success)
-                return Task.FromResult(ToolResponse.Ok(_windowManager, ("message", $"Touch tap at ({screenX}, {screenY})")).ToJsonElement());
+                return Task.FromResult(ToolResponse.Ok(_windowManager, ("message", $"Touch tap at ({screenX}, {screenY}) using {apiUsed}")).ToJsonElement());
             else
-                return Task.FromResult(ToolResponse.Fail("Touch injection failed. Requires Windows 10 1809+ with Synthetic Pointer API support.", _windowManager).ToJsonElement());
+                return Task.FromResult(ToolResponse.Fail($"Touch injection failed using {apiUsed}. Check pen-debug.log for details.", _windowManager).ToJsonElement());
         }
         catch (Exception ex)
         {

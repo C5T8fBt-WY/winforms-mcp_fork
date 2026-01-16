@@ -52,10 +52,16 @@ $BridgeTools = @(
     }
     @{
         name = "stop_sandbox"
-        description = "Signal the bootstrap to shut down and disconnect TCP. Note: This does NOT close the Windows Sandbox window - it only stops the MCP server and app processes inside. The sandbox remains open and can be reconnected with start_sandbox, or closed manually."
+        description = "Signal the bootstrap to shut down and disconnect TCP. WARNING: User interaction will be required to start the sandbox again (admin prompt). To restart just the MCP server or app, use trigger files instead (server.trigger or app.trigger). Only use this to completely tear down the sandbox."
         inputSchema = @{
             type = "object"
-            properties = @{}
+            properties = @{
+                confirm = @{
+                    type = "boolean"
+                    description = "Must be set to true to confirm shutdown. User interaction will be required to start sandbox again."
+                }
+            }
+            required = @("confirm")
         }
     }
     @{
@@ -398,6 +404,14 @@ function Invoke-StartSandbox {
 
 function Invoke-StopSandbox {
     param($Arguments)
+
+    # Check confirmation
+    if (-not $Arguments.confirm) {
+        return @{
+            success = $false
+            error = "Confirmation required. Set confirm=true to proceed. WARNING: User interaction will be required to start sandbox again (admin prompt). To restart just the MCP server or app, use trigger files instead."
+        }
+    }
 
     # Disconnect TCP first
     $wasConnected = Test-TcpConnected
