@@ -11,7 +11,9 @@
 # Usage: Called automatically by Claude Code via MCP configuration
 
 param(
-    [int]$Port = 9999
+    [int]$Port = 9999,
+    [int]$E2EPort = 0,  # Optional E2E port for test framework connections
+    [switch]$SetupPortForwarding  # Set up netsh port forwarding for external access
 )
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -219,6 +221,53 @@ function Forward-ToSandbox {
     }
 }
 
+function Setup-PortForwarding {
+    param(
+        [string]$SandboxIP,
+        [int]$MainPort,
+        [int]$E2EPort = 0
+    )
+
+    # Requires elevation to run netsh portproxy commands
+    Write-Log "Setting up port forwarding: localhost:$MainPort -> ${SandboxIP}:$MainPort"
+
+    try {
+        # Set up main port forwarding
+        $null = netsh interface portproxy add v4tov4 listenport=$MainPort listenaddress=0.0.0.0 connectport=$MainPort connectaddress=$SandboxIP 2>&1
+
+        # Set up E2E port forwarding if specified
+        if ($E2EPort -gt 0) {
+            Write-Log "Setting up E2E port forwarding: localhost:$E2EPort -> ${SandboxIP}:$E2EPort"
+            $null = netsh interface portproxy add v4tov4 listenport=$E2EPort listenaddress=0.0.0.0 connectport=$E2EPort connectaddress=$SandboxIP 2>&1
+        }
+
+        Write-Log "Port forwarding configured successfully"
+        return $true
+    } catch {
+        Write-Log "Failed to set up port forwarding: $_"
+        return $false
+    }
+}
+
+function Remove-PortForwarding {
+    param(
+        [int]$MainPort,
+        [int]$E2EPort = 0
+    )
+
+    Write-Log "Removing port forwarding for port $MainPort"
+    try {
+        $null = netsh interface portproxy delete v4tov4 listenport=$MainPort listenaddress=0.0.0.0 2>&1
+
+        if ($E2EPort -gt 0) {
+            Write-Log "Removing port forwarding for E2E port $E2EPort"
+            $null = netsh interface portproxy delete v4tov4 listenport=$E2EPort listenaddress=0.0.0.0 2>&1
+        }
+    } catch {
+        Write-Log "Failed to remove port forwarding: $_"
+    }
+}
+
 function Get-SandboxToolList {
     if (-not (Test-TcpConnected)) {
         return @()
@@ -391,8 +440,14 @@ function Invoke-StartSandbox {
     # Get tool list from sandbox
     $global:SandboxTools = Get-SandboxToolList
 
+    # Set up port forwarding if requested (for external access from WSL/remote)
+    $portForwardingSet = $false
+    if ($SetupPortForwarding) {
+        $portForwardingSet = Setup-PortForwarding -SandboxIP $signal.tcp_ip -MainPort $Port -E2EPort $E2EPort
+    }
+
     $elapsed = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 1)
-    return @{
+    $result = @{
         success = $true
         message = "Sandbox started and connected"
         tcp_endpoint = "$($signal.tcp_ip):$Port"
@@ -400,6 +455,24 @@ function Invoke-StartSandbox {
         tool_count = $global:SandboxTools.Count
         elapsed_seconds = $elapsed
     }
+
+    # Include E2E port info if configured
+    if ($E2EPort -gt 0) {
+        $result.e2e_endpoint = "$($signal.tcp_ip):$E2EPort"
+    }
+
+    # Include port forwarding status
+    if ($SetupPortForwarding) {
+        $result.port_forwarding = $portForwardingSet
+        if ($portForwardingSet) {
+            $result.localhost_endpoint = "localhost:$Port"
+            if ($E2EPort -gt 0) {
+                $result.localhost_e2e_endpoint = "localhost:$E2EPort"
+            }
+        }
+    }
+
+    return $result
 }
 
 function Invoke-StopSandbox {
@@ -416,6 +489,11 @@ function Invoke-StopSandbox {
     # Disconnect TCP first
     $wasConnected = Test-TcpConnected
     Disconnect-Tcp
+
+    # Clean up port forwarding if it was set up
+    if ($SetupPortForwarding) {
+        Remove-PortForwarding -MainPort $Port -E2EPort $E2EPort
+    }
 
     # Signal shutdown
     if (Test-Path $SharedPath) {
@@ -443,12 +521,22 @@ function Invoke-SandboxStatus {
         tcp_port = $Port
     }
 
+    # Include E2E port if configured
+    if ($E2EPort -gt 0) {
+        $status.e2e_port = $E2EPort
+    }
+
     if ($signal) {
         $status.sandbox_booted = $true
         $status.sandbox_ip = $signal.tcp_ip
         $status.server_pid = $signal.server_pid
         $status.app_pid = $signal.app_pid
         $status.sandbox_hostname = $signal.hostname
+
+        # Include e2e_port from ready signal if available
+        if ($signal.e2e_port) {
+            $status.sandbox_e2e_port = $signal.e2e_port
+        }
     } else {
         $status.sandbox_booted = $false
     }
