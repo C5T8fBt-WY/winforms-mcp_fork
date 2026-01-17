@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using FlaUI.Core.AutomationElements;
 using Rhombus.WinFormsMcp.Server.Automation;
@@ -117,6 +118,7 @@ class Program
             Log($"  Args: {string.Join(" ", args)}");
 
             int? tcpPort = null;
+            int? e2ePort = null;
 
             // Parse arguments
             for (int i = 0; i < args.Length; i++)
@@ -134,6 +136,19 @@ class Program
                         Environment.Exit(1);
                     }
                 }
+                else if (args[i] == "--e2e-port" && i + 1 < args.Length)
+                {
+                    if (int.TryParse(args[i + 1], out var port))
+                    {
+                        e2ePort = port;
+                        Log($"  E2E port: {port}");
+                    }
+                    else
+                    {
+                        Log($"Invalid E2E port: {args[i + 1]}");
+                        Environment.Exit(1);
+                    }
+                }
             }
 
             Log("Creating AutomationServer...");
@@ -143,7 +158,7 @@ class Program
             if (tcpPort.HasValue)
             {
                 Log($"Starting TCP server on port {tcpPort.Value}...");
-                await _server.RunTcpAsync(tcpPort.Value);
+                await _server.RunTcpAsync(tcpPort.Value, e2ePort);
             }
             else
             {
@@ -457,13 +472,26 @@ class SessionManager
 }
 
 /// <summary>
-/// Core MCP server implementation handling JSON-RPC communication
+/// Core MCP server implementation handling JSON-RPC communication.
+/// Supports multiple concurrent client connections with serialized UIA operations.
 /// </summary>
 class AutomationServer
 {
     private readonly Dictionary<string, Func<JsonElement, Task<JsonElement>>> _tools;
     private readonly SessionManager _session = new();
     private readonly WindowManager _windowManager = new();
+
+    /// <summary>
+    /// Semaphore to serialize UIA operations. FlaUI/UIA is not thread-safe,
+    /// so we allow multiple clients to connect but serialize actual tool execution.
+    /// </summary>
+    private readonly SemaphoreSlim _uiaLock = new(1, 1);
+
+    /// <summary>
+    /// Track active client tasks for graceful shutdown.
+    /// </summary>
+    private readonly List<Task> _clientTasks = new();
+    private readonly object _clientTasksLock = new();
 
     public AutomationServer()
     {
@@ -605,77 +633,130 @@ class AutomationServer
     }
 
     /// <summary>
-    /// Run the MCP server in TCP mode, listening on the specified port.
-    /// Accepts connections and processes JSON-RPC messages over the TCP stream.
+    /// Run the MCP server in TCP mode, listening on the specified port(s).
+    /// Accepts multiple concurrent connections - tool execution is serialized via semaphore.
     /// </summary>
-    public async Task RunTcpAsync(int port)
+    /// <param name="port">Main TCP port for agent connections</param>
+    /// <param name="e2ePort">Optional second port for E2E test connections</param>
+    public async Task RunTcpAsync(int port, int? e2ePort = null)
     {
-        var listener = new TcpListener(IPAddress.Any, port);
-        listener.Start();
+        var mainListener = new TcpListener(IPAddress.Any, port);
+        mainListener.Start();
+
+        TcpListener? e2eListener = null;
+        if (e2ePort.HasValue)
+        {
+            e2eListener = new TcpListener(IPAddress.Any, e2ePort.Value);
+            e2eListener.Start();
+        }
 
         // Write ready signal to stderr (stdout is reserved for JSON-RPC in stdio mode)
         Console.Error.WriteLine($"MCP Server listening on TCP port {port}");
-        Console.Error.WriteLine($"Connect with: telnet localhost {port}");
+        if (e2ePort.HasValue)
+        {
+            Console.Error.WriteLine($"E2E port: {e2ePort.Value}");
+        }
+        Console.Error.WriteLine("Multiple concurrent connections supported");
 
+        // Start accept loops for both ports
+        var mainAcceptTask = AcceptClientsAsync(mainListener, "main");
+        if (e2eListener != null)
+        {
+            var e2eAcceptTask = AcceptClientsAsync(e2eListener, "e2e");
+            await Task.WhenAll(mainAcceptTask, e2eAcceptTask);
+        }
+        else
+        {
+            await mainAcceptTask;
+        }
+    }
+
+    /// <summary>
+    /// Accept clients on a listener in a loop.
+    /// </summary>
+    private async Task AcceptClientsAsync(TcpListener listener, string listenerName)
+    {
         while (true)
         {
-            Console.Error.WriteLine("Waiting for client connection...");
+            Console.Error.WriteLine($"[{listenerName}] Waiting for client connection...");
             var client = await listener.AcceptTcpClientAsync();
-            Console.Error.WriteLine($"Client connected from {client.Client.RemoteEndPoint}");
+            var clientId = $"{listenerName}-{Guid.NewGuid().ToString("N")[..6]}";
+            Console.Error.WriteLine($"[{clientId}] Client connected from {client.Client.RemoteEndPoint}");
 
-            try
+            // Fire-and-forget: handle client concurrently
+            var clientTask = HandleTcpClientAsync(client, clientId);
+
+            // Track the task for potential graceful shutdown
+            lock (_clientTasksLock)
             {
-                await HandleTcpClientAsync(client);
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Client error: {ex.Message}");
-            }
-            finally
-            {
-                client.Close();
-                Console.Error.WriteLine("Client disconnected");
+                _clientTasks.Add(clientTask);
+                // Clean up completed tasks
+                _clientTasks.RemoveAll(t => t.IsCompleted);
             }
         }
     }
 
-    private async Task HandleTcpClientAsync(TcpClient client)
+    private async Task HandleTcpClientAsync(TcpClient client, string clientId)
     {
-        var stream = client.GetStream();
-        var reader = new StreamReader(stream);
-        var writer = new StreamWriter(stream) { AutoFlush = true };
-
-        // Process incoming messages
-        while (client.Connected)
+        try
         {
-            var line = await reader.ReadLineAsync();
-            if (string.IsNullOrEmpty(line))
-                break;
+            var stream = client.GetStream();
+            var reader = new StreamReader(stream);
+            var writer = new StreamWriter(stream) { AutoFlush = true };
 
-            try
+            // Process incoming messages
+            while (client.Connected)
             {
-                var request = JsonDocument.Parse(line).RootElement;
-                var response = await ProcessRequest(request);
-                // Skip writing response for notifications (response is null)
-                if (response != null)
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrEmpty(line))
+                    break;
+
+                try
                 {
-                    await writer.WriteLineAsync(JsonSerializer.Serialize(response));
+                    var request = JsonDocument.Parse(line).RootElement;
+
+                    // Serialize UIA operations via semaphore (FlaUI is not thread-safe)
+                    await _uiaLock.WaitAsync();
+                    object response;
+                    try
+                    {
+                        response = await ProcessRequest(request);
+                    }
+                    finally
+                    {
+                        _uiaLock.Release();
+                    }
+
+                    // Skip writing response for notifications (response is null)
+                    if (response != null)
+                    {
+                        await writer.WriteLineAsync(JsonSerializer.Serialize(response));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var error = new
+                    {
+                        jsonrpc = "2.0",
+                        error = new
+                        {
+                            code = -32603,
+                            message = "Internal error",
+                            data = new { details = ex.Message }
+                        }
+                    };
+                    await writer.WriteLineAsync(JsonSerializer.Serialize(error));
                 }
             }
-            catch (Exception ex)
-            {
-                var error = new
-                {
-                    jsonrpc = "2.0",
-                    error = new
-                    {
-                        code = -32603,
-                        message = "Internal error",
-                        data = new { details = ex.Message }
-                    }
-                };
-                await writer.WriteLineAsync(JsonSerializer.Serialize(error));
-            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[{clientId}] Client error: {ex.Message}");
+        }
+        finally
+        {
+            client.Close();
+            Console.Error.WriteLine($"[{clientId}] Client disconnected");
         }
     }
 
