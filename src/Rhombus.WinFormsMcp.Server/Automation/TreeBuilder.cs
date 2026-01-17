@@ -2,6 +2,7 @@ using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Xml;
@@ -90,7 +91,7 @@ public class TreeBuilder
         };
     }
 
-    private void BuildElementXml(XmlWriter writer, AutomationElement element, int depth)
+    private void BuildElementXml(XmlWriter writer, AutomationElement element, int depth, bool isDesktopChild = false)
     {
         // Check depth limit
         if (depth > _options.MaxDepth)
@@ -114,11 +115,21 @@ public class TreeBuilder
         var isEnabled = SafeGetProperty(() => element.IsEnabled, true);
         var isOffscreen = SafeGetProperty(() => element.IsOffscreen, false);
 
+        // Get RuntimeId (UIA identity)
+        var runtimeId = SafeGetRuntimeId(element);
+
+        // Check if element has keyboard focus
+        var hasFocus = SafeGetProperty(() => element.Properties.HasKeyboardFocus.ValueOrDefault, false);
+
         // Get bounding rectangle
         var bounds = SafeGetBounds(element);
 
         // Write element
         writer.WriteStartElement(controlType.ToLowerInvariant());
+
+        // RuntimeId is critical for identity tracking
+        if (!string.IsNullOrEmpty(runtimeId))
+            writer.WriteAttributeString("runtimeId", runtimeId);
 
         if (!string.IsNullOrEmpty(automationId))
             writer.WriteAttributeString("automationId", automationId);
@@ -134,19 +145,35 @@ public class TreeBuilder
         if (isOffscreen)
             writer.WriteAttributeString("isOffscreen", "true");
 
+        if (hasFocus)
+            writer.WriteAttributeString("hasFocus", "true");
+
         if (bounds != null)
         {
             writer.WriteAttributeString("bounds",
                 $"{bounds.Value.X},{bounds.Value.Y},{bounds.Value.Width},{bounds.Value.Height}");
         }
 
+        // For top-level windows (direct children of desktop), add pid and nativeWindowHandle
+        if (isDesktopChild)
+        {
+            var windowInfo = SafeGetWindowInfo(element);
+            if (windowInfo.HasValue)
+            {
+                writer.WriteAttributeString("pid", windowInfo.Value.pid.ToString());
+                writer.WriteAttributeString("nativeWindowHandle", $"0x{windowInfo.Value.hwnd:X}");
+            }
+        }
+
         // Get children
         try
         {
             var children = element.FindAllChildren();
+            // Mark immediate children of the root (depth 0) as desktop children (top-level windows)
+            var childrenAreDesktopChildren = (depth == 0);
             foreach (var child in children)
             {
-                BuildElementXml(writer, child, depth + 1);
+                BuildElementXml(writer, child, depth + 1, childrenAreDesktopChildren);
             }
         }
         catch
@@ -275,6 +302,49 @@ public class TreeBuilder
     }
 
     /// <summary>
+    /// Safely get the RuntimeId of an element as a dot-separated string.
+    /// RuntimeId is the UIA-provided unique identity for tracking elements across tree refreshes.
+    /// </summary>
+    private static string? SafeGetRuntimeId(AutomationElement element)
+    {
+        try
+        {
+            var runtimeId = element.Properties.RuntimeId.ValueOrDefault;
+            if (runtimeId != null && runtimeId.Length > 0)
+            {
+                return string.Join(".", runtimeId);
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    /// <summary>
+    /// Safely get window information (PID and HWND) for top-level window elements.
+    /// </summary>
+    private static (int pid, IntPtr hwnd)? SafeGetWindowInfo(AutomationElement element)
+    {
+        try
+        {
+            var hwnd = element.Properties.NativeWindowHandle.ValueOrDefault;
+            if (hwnd != IntPtr.Zero)
+            {
+                GetWindowThreadProcessId(hwnd, out var pid);
+                return (pid, hwnd);
+            }
+
+            // Fallback: try to get process ID from element properties
+            var processId = element.Properties.ProcessId.ValueOrDefault;
+            if (processId > 0)
+            {
+                return (processId, IntPtr.Zero);
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    /// <summary>
     /// Get the system DPI scale factor.
     /// </summary>
     public static double GetDpiScaleFactor()
@@ -292,6 +362,9 @@ public class TreeBuilder
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForSystem();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
 }
 
 /// <summary>

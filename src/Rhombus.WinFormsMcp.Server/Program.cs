@@ -517,6 +517,7 @@ class AutomationServer
             { "expand_collapse", ExpandCollapse },
             { "scroll", Scroll },
             { "check_element_state", CheckElementState },
+            { "get_element_at_point", GetElementAtPoint },
 
             // Phase 3: State Change Detection
             { "capture_ui_snapshot", CaptureUiSnapshot },
@@ -907,18 +908,18 @@ class AutomationServer
             new
             {
                 name = "take_screenshot",
-                description = "Take a screenshot. Specify windowHandle or windowTitle to capture a specific window (recommended). Response includes window bounds for coordinate reference. Without window params, captures full desktop.",
+                description = "Take a screenshot. Specify windowHandle or windowTitle to capture a specific window (recommended). Response includes window bounds for coordinate reference. Without window params, captures full desktop. Use returnBase64=true to get base64-encoded image data instead of saving to file.",
                 inputSchema = new
                 {
                     type = "object",
                     properties = new
                     {
-                        outputPath = new { type = "string", description = "Path to save the screenshot" },
+                        outputPath = new { type = "string", description = "Path to save the screenshot (required unless returnBase64=true)" },
                         windowHandle = new { type = "string", description = "Window handle (hex) to screenshot. Takes priority over windowTitle." },
                         windowTitle = new { type = "string", description = "Window title to screenshot (substring match). Use this or windowHandle for window-specific capture." },
-                        elementPath = new { type = "string", description = "Specific element to screenshot (optional, uses cached element)" }
-                    },
-                    required = new[] { "outputPath" }
+                        elementPath = new { type = "string", description = "Specific element to screenshot (optional, uses cached element)" },
+                        returnBase64 = new { type = "boolean", description = "If true, return base64-encoded image data instead of saving to file. outputPath is ignored when this is true." }
+                    }
                 }
             },
             // Touch/Pen Injection Tools
@@ -1227,6 +1228,21 @@ class AutomationServer
                         automationId = new { type = "string", description = "AutomationId to find the element (alternative to elementId)" },
                         windowTitle = new { type = "string", description = "Window to search in (required if using automationId)" }
                     }
+                }
+            },
+            new
+            {
+                name = "get_element_at_point",
+                description = "Get the UI element at a specific screen coordinate. Used for native grounding - verifying what's actually under a visual coordinate before performing actions. The Brain uses this to verify that a coordinate from Vision matches the expected element.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        x = new { type = "integer", description = "X screen coordinate" },
+                        y = new { type = "integer", description = "Y screen coordinate" }
+                    },
+                    required = new[] { "x", "y" }
                 }
             },
             // Phase 3: State Change Detection
@@ -2046,10 +2062,17 @@ class AutomationServer
     {
         try
         {
-            var outputPath = GetStringArg(args, "outputPath") ?? throw new ArgumentException("outputPath is required");
+            var outputPath = GetStringArg(args, "outputPath");
             var windowHandle = GetStringArg(args, "windowHandle");
             var windowTitle = GetStringArg(args, "windowTitle");
             var elementId = GetStringArg(args, "elementId") ?? GetStringArg(args, "elementPath");
+            var returnBase64 = GetBoolArg(args, "returnBase64", false);
+
+            // Validate: need either outputPath or returnBase64
+            if (!returnBase64 && string.IsNullOrEmpty(outputPath))
+            {
+                return Task.FromResult(ToolResponse.Fail("Either outputPath or returnBase64=true is required", _windowManager).ToJsonElement());
+            }
 
             var automation = _session.GetAutomation();
 
@@ -2061,9 +2084,19 @@ class AutomationServer
                 if (element == null)
                     return Task.FromResult(ToolResponse.Fail($"Element '{elementId}' not found in session", _windowManager).ToJsonElement());
 
-                automation.TakeScreenshot(outputPath, element);
-                return Task.FromResult(ToolResponse.Ok(_windowManager,
-                    ("message", $"Screenshot of element saved to {outputPath}")).ToJsonElement());
+                if (returnBase64)
+                {
+                    var base64 = CaptureElementToBase64(element);
+                    return Task.FromResult(ToolResponse.Ok(_windowManager,
+                        ("base64", base64),
+                        ("format", "png")).ToJsonElement());
+                }
+                else
+                {
+                    automation.TakeScreenshot(outputPath!, element);
+                    return Task.FromResult(ToolResponse.Ok(_windowManager,
+                        ("message", $"Screenshot of element saved to {outputPath}")).ToJsonElement());
+                }
             }
             else if (!string.IsNullOrEmpty(windowHandle) || !string.IsNullOrEmpty(windowTitle))
             {
@@ -2093,38 +2126,75 @@ class AutomationServer
                     return Task.FromResult(ToolResponse.Fail($"Could not get client area bounds for window", _windowManager).ToJsonElement());
                 }
 
-                // Capture only the client area (no title bar)
-                automation.TakeRegionScreenshot(outputPath,
-                    clientBounds.X, clientBounds.Y,
-                    clientBounds.Width, clientBounds.Height);
-
-                // Restore previous foreground window
-                if (!string.IsNullOrEmpty(previousForeground) && previousForeground != window.Handle)
+                if (returnBase64)
                 {
-                    _windowManager.FocusWindowByHandle(previousForeground);
-                }
+                    var base64 = CaptureRegionToBase64(clientBounds.X, clientBounds.Y, clientBounds.Width, clientBounds.Height);
 
-                // Return with client area bounds - coordinates in screenshot match client coordinates directly
-                return Task.FromResult(ToolResponse.Ok(_windowManager,
-                    ("message", $"Screenshot of window '{window.Title}' (client area) saved to {outputPath}"),
-                    ("window", new {
-                        handle = window.Handle,
-                        title = window.Title,
-                        clientBounds = new {
-                            x = clientBounds.X,
-                            y = clientBounds.Y,
-                            width = clientBounds.Width,
-                            height = clientBounds.Height
-                        },
-                        note = "Screenshot shows client area only (no title bar). Coordinates in screenshot match client coordinates. Add clientBounds.x/y to get screen coordinates for clicking."
-                    })).ToJsonElement());
+                    // Restore previous foreground window
+                    if (!string.IsNullOrEmpty(previousForeground) && previousForeground != window.Handle)
+                    {
+                        _windowManager.FocusWindowByHandle(previousForeground);
+                    }
+
+                    return Task.FromResult(ToolResponse.Ok(_windowManager,
+                        ("base64", base64),
+                        ("format", "png"),
+                        ("window", new {
+                            handle = window.Handle,
+                            title = window.Title,
+                            clientBounds = new {
+                                x = clientBounds.X,
+                                y = clientBounds.Y,
+                                width = clientBounds.Width,
+                                height = clientBounds.Height
+                            }
+                        })).ToJsonElement());
+                }
+                else
+                {
+                    // Capture only the client area (no title bar)
+                    automation.TakeRegionScreenshot(outputPath!,
+                        clientBounds.X, clientBounds.Y,
+                        clientBounds.Width, clientBounds.Height);
+
+                    // Restore previous foreground window
+                    if (!string.IsNullOrEmpty(previousForeground) && previousForeground != window.Handle)
+                    {
+                        _windowManager.FocusWindowByHandle(previousForeground);
+                    }
+
+                    // Return with client area bounds - coordinates in screenshot match client coordinates directly
+                    return Task.FromResult(ToolResponse.Ok(_windowManager,
+                        ("message", $"Screenshot of window '{window.Title}' (client area) saved to {outputPath}"),
+                        ("window", new {
+                            handle = window.Handle,
+                            title = window.Title,
+                            clientBounds = new {
+                                x = clientBounds.X,
+                                y = clientBounds.Y,
+                                width = clientBounds.Width,
+                                height = clientBounds.Height
+                            },
+                            note = "Screenshot shows client area only (no title bar). Coordinates in screenshot match client coordinates. Add clientBounds.x/y to get screen coordinates for clicking."
+                        })).ToJsonElement());
+                }
             }
             else
             {
                 // Full desktop screenshot
-                automation.TakeScreenshot(outputPath, null);
-                return Task.FromResult(ToolResponse.Ok(_windowManager,
-                    ("message", $"Desktop screenshot saved to {outputPath}")).ToJsonElement());
+                if (returnBase64)
+                {
+                    var base64 = CaptureDesktopToBase64();
+                    return Task.FromResult(ToolResponse.Ok(_windowManager,
+                        ("base64", base64),
+                        ("format", "png")).ToJsonElement());
+                }
+                else
+                {
+                    automation.TakeScreenshot(outputPath!, null);
+                    return Task.FromResult(ToolResponse.Ok(_windowManager,
+                        ("message", $"Desktop screenshot saved to {outputPath}")).ToJsonElement());
+                }
             }
         }
         catch (Exception ex)
@@ -3121,6 +3191,53 @@ class AutomationServer
             else
             {
                 return Task.FromResult(ToolResponse.Fail(result.ErrorMessage ?? "Unknown error", _windowManager).ToJsonElement());
+            }
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult(ToolResponse.Fail(ex.Message, _windowManager).ToJsonElement());
+        }
+    }
+
+    private Task<JsonElement> GetElementAtPoint(JsonElement args)
+    {
+        try
+        {
+            var x = GetIntArg(args, "x");
+            var y = GetIntArg(args, "y");
+
+            var automation = _session.GetAutomation();
+            var result = automation.GetElementAtPoint(x, y);
+
+            if (result.Success)
+            {
+                var props = new List<(string, object?)>
+                {
+                    ("automationId", result.AutomationId ?? ""),
+                    ("name", result.Name ?? ""),
+                    ("controlType", result.ControlType ?? ""),
+                    ("runtimeId", result.RuntimeId ?? ""),
+                    ("pid", result.Pid),
+                    ("processName", result.ProcessName ?? ""),
+                    ("className", result.ClassName ?? ""),
+                    ("nativeWindowHandle", result.NativeWindowHandle ?? "")
+                };
+
+                if (result.BoundingRect != null)
+                {
+                    props.Add(("boundingRect", new {
+                        x = result.BoundingRect.X,
+                        y = result.BoundingRect.Y,
+                        width = result.BoundingRect.Width,
+                        height = result.BoundingRect.Height
+                    }));
+                }
+
+                return Task.FromResult(ToolResponse.Ok(_windowManager, props.ToArray()).ToJsonElement());
+            }
+            else
+            {
+                return Task.FromResult(ToolResponse.Fail(result.ErrorMessage ?? "No element at point", _windowManager).ToJsonElement());
             }
         }
         catch (Exception ex)
@@ -4177,6 +4294,58 @@ class AutomationServer
         if (value == null)
             return "";
         return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+    }
+
+    /// <summary>
+    /// Capture an element's screenshot to base64-encoded PNG.
+    /// </summary>
+    private string CaptureElementToBase64(AutomationElement element)
+    {
+        var bitmap = element.Capture();
+        try
+        {
+            using var ms = new MemoryStream();
+            bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            return Convert.ToBase64String(ms.ToArray());
+        }
+        finally
+        {
+            bitmap.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Capture a screen region to base64-encoded PNG.
+    /// </summary>
+    private string CaptureRegionToBase64(int x, int y, int width, int height)
+    {
+        using var bitmap = new System.Drawing.Bitmap(width, height);
+        using var graphics = System.Drawing.Graphics.FromImage(bitmap);
+        graphics.CopyFromScreen(x, y, 0, 0, new System.Drawing.Size(width, height));
+
+        using var ms = new MemoryStream();
+        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+        return Convert.ToBase64String(ms.ToArray());
+    }
+
+    /// <summary>
+    /// Capture the full desktop to base64-encoded PNG.
+    /// </summary>
+    private string CaptureDesktopToBase64()
+    {
+        var automation = _session.GetAutomation();
+        var desktop = automation.GetDesktop();
+        var bitmap = desktop.Capture();
+        try
+        {
+            using var ms = new MemoryStream();
+            bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            return Convert.ToBase64String(ms.ToArray());
+        }
+        finally
+        {
+            bitmap.Dispose();
+        }
     }
 
     /// <summary>

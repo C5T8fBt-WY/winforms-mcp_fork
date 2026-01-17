@@ -990,6 +990,113 @@ public class AutomationHelper : IAutomationHelper
         return null;
     }
 
+    /// <summary>
+    /// Get the UI element at a specific screen coordinate.
+    /// Used for native grounding - verifying what's actually under a visual coordinate
+    /// before performing actions like clicking.
+    /// </summary>
+    /// <param name="x">X screen coordinate</param>
+    /// <param name="y">Y screen coordinate</param>
+    /// <returns>Information about the element at the point</returns>
+    public ElementAtPointResult GetElementAtPoint(int x, int y)
+    {
+        if (_automation == null)
+            throw new ObjectDisposedException(nameof(AutomationHelper));
+
+        try
+        {
+            var point = new System.Drawing.Point(x, y);
+            var element = _automation.FromPoint(point);
+
+            if (element == null)
+            {
+                return new ElementAtPointResult
+                {
+                    Success = false,
+                    ErrorMessage = $"No element found at point ({x}, {y})"
+                };
+            }
+
+            // Get RuntimeId
+            string? runtimeId = null;
+            try
+            {
+                var rid = element.Properties.RuntimeId.ValueOrDefault;
+                if (rid != null && rid.Length > 0)
+                {
+                    runtimeId = string.Join(".", rid);
+                }
+            }
+            catch { }
+
+            // Get process info
+            int? pid = null;
+            string? processName = null;
+            try
+            {
+                pid = element.Properties.ProcessId.ValueOrDefault;
+                if (pid.HasValue && pid.Value > 0)
+                {
+                    var process = Process.GetProcessById(pid.Value);
+                    processName = process.ProcessName;
+                }
+            }
+            catch { }
+
+            // Get native window handle
+            string? hwnd = null;
+            try
+            {
+                var handle = element.Properties.NativeWindowHandle.ValueOrDefault;
+                if (handle != IntPtr.Zero)
+                {
+                    hwnd = $"0x{handle:X}";
+                }
+            }
+            catch { }
+
+            // Get bounding rectangle
+            BoundingRectInfo? bounds = null;
+            try
+            {
+                var rect = element.BoundingRectangle;
+                if (rect.Width > 0 && rect.Height > 0)
+                {
+                    bounds = new BoundingRectInfo
+                    {
+                        X = (int)rect.X,
+                        Y = (int)rect.Y,
+                        Width = (int)rect.Width,
+                        Height = (int)rect.Height
+                    };
+                }
+            }
+            catch { }
+
+            return new ElementAtPointResult
+            {
+                Success = true,
+                AutomationId = SafeGet(() => element.AutomationId),
+                Name = SafeGet(() => element.Name),
+                ControlType = SafeGet(() => element.ControlType.ToString()),
+                RuntimeId = runtimeId,
+                Pid = pid,
+                ProcessName = processName,
+                ClassName = SafeGet(() => element.ClassName),
+                NativeWindowHandle = hwnd,
+                BoundingRect = bounds
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ElementAtPointResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to get element at point ({x}, {y}): {ex.Message}"
+            };
+        }
+    }
+
     public void Dispose()
     {
         lock (_lock)

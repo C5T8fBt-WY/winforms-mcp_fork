@@ -163,3 +163,65 @@ public class RelocateResult
     /// </summary>
     public string[]? Suggestions { get; set; }
 }
+
+/// <summary>
+/// Result of getting element at a screen coordinate.
+/// Used for native grounding - verifying what's actually at a visual coordinate.
+/// </summary>
+public class ElementAtPointResult
+{
+    /// <summary>
+    /// Whether an element was found at the point.
+    /// </summary>
+    public bool Success { get; init; }
+
+    /// <summary>
+    /// Error message if lookup failed.
+    /// </summary>
+    public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// AutomationId of the element (if available).
+    /// </summary>
+    public string? AutomationId { get; init; }
+
+    /// <summary>
+    /// Name of the element.
+    /// </summary>
+    public string? Name { get; init; }
+
+    /// <summary>
+    /// ControlType of the element (Button, Edit, etc.).
+    /// </summary>
+    public string? ControlType { get; init; }
+
+    /// <summary>
+    /// RuntimeId as dot-separated string - the UIA identity for tracking.
+    /// </summary>
+    public string? RuntimeId { get; init; }
+
+    /// <summary>
+    /// Process ID of the element's owning process.
+    /// </summary>
+    public int? Pid { get; init; }
+
+    /// <summary>
+    /// Name of the process that owns this element.
+    /// </summary>
+    public string? ProcessName { get; init; }
+
+    /// <summary>
+    /// ClassName of the element.
+    /// </summary>
+    public string? ClassName { get; init; }
+
+    /// <summary>
+    /// Native window handle (HWND) in hex format.
+    /// </summary>
+    public string? NativeWindowHandle { get; init; }
+
+    /// <summary>
+    /// Bounding rectangle of the element.
+    /// </summary>
+    public BoundingRectInfo? BoundingRect { get; init; }
+}
