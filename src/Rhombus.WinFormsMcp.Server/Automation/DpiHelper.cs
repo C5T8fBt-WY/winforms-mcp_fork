@@ -10,7 +10,7 @@ namespace Rhombus.WinFormsMcp.Server.Automation;
 /// </summary>
 public static class DpiHelper
 {
-    private const int StandardDpi = 96;
+    // StandardDpi constant moved to Constants.Display.StandardDpi
 
     /// <summary>
     /// Get the system DPI scale factor.
@@ -21,7 +21,7 @@ public static class DpiHelper
         try
         {
             var dpi = GetDpiForSystem();
-            return dpi / (double)StandardDpi;
+            return dpi / (double)Constants.Display.StandardDpi;
         }
         catch
         {
@@ -41,7 +41,7 @@ public static class DpiHelper
         }
         catch
         {
-            return StandardDpi;
+            return Constants.Display.StandardDpi;
         }
     }
 
@@ -147,7 +147,7 @@ public static class DpiHelper
     /// </summary>
     public static double GetScaleFactorForWindow(IntPtr hwnd)
     {
-        return GetDpiForWindow(hwnd) / (double)StandardDpi;
+        return GetDpiForWindow(hwnd) / (double)Constants.Display.StandardDpi;
     }
 
     /// <summary>
@@ -181,7 +181,7 @@ public static class DpiHelper
         if (windowHandle.HasValue && windowHandle.Value != IntPtr.Zero)
         {
             windowDpi = GetDpiForWindow(windowHandle.Value);
-            windowScale = windowDpi / (double)StandardDpi;
+            windowScale = windowDpi / (double)Constants.Display.StandardDpi;
         }
 
         return new DpiInfo
@@ -191,7 +191,7 @@ public static class DpiHelper
             WindowDpi = windowDpi,
             WindowScaleFactor = windowScale,
             IsPerMonitorAware = IsPerMonitorDpiAware(),
-            StandardDpi = StandardDpi
+            StandardDpi = Constants.Display.StandardDpi
         };
     }
 

@@ -50,7 +50,7 @@ public class WindowManager
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_SHOWWINDOW = 0x0040;
 
-    private const int SW_RESTORE = 9;
+    // SW_RESTORE now in Constants.Win32.ShowWindow.Restore
 
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr hWnd);
@@ -118,7 +118,7 @@ public class WindowManager
 
             windows.Add(new WindowInfo
             {
-                Handle = $"0x{hwnd.ToInt64():X}",
+                HandlePtr = hwnd,
                 Title = title,
                 AutomationId = "", // Would need UI Automation to get this
                 Bounds = new WindowBounds
@@ -166,13 +166,9 @@ public class WindowManager
     {
         try
         {
-            // Parse hex handle (with or without 0x prefix)
-            var cleanHex = handleHex.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-                ? handleHex.Substring(2)
-                : handleHex;
-
-            var handleValue = long.Parse(cleanHex, System.Globalization.NumberStyles.HexNumber);
-            var hwnd = new IntPtr(handleValue);
+            var hwnd = ParseHandleString(handleHex);
+            if (hwnd == IntPtr.Zero)
+                return null;
 
             // Verify window exists and is visible
             if (!IsWindowVisible(hwnd))
@@ -196,7 +192,7 @@ public class WindowManager
 
             return new WindowInfo
             {
-                Handle = $"0x{hwnd.ToInt64():X}",
+                HandlePtr = hwnd,
                 Title = title,
                 AutomationId = "",
                 Bounds = new WindowBounds
@@ -244,7 +240,7 @@ public class WindowManager
 
                 matches.Add(new WindowInfo
                 {
-                    Handle = $"0x{hwnd.ToInt64():X}",
+                    HandlePtr = hwnd,
                     Title = title,
                     AutomationId = "",
                     Bounds = new WindowBounds
@@ -293,7 +289,7 @@ public class WindowManager
 
                 matches.Add(new WindowInfo
                 {
-                    Handle = $"0x{hwnd.ToInt64():X}",
+                    HandlePtr = hwnd,
                     Title = title,
                     AutomationId = "",
                     Bounds = new WindowBounds
@@ -346,43 +342,37 @@ public class WindowManager
 
         if (!string.IsNullOrEmpty(windowHandle))
         {
-            try
-            {
-                var cleanHex = windowHandle.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-                    ? windowHandle.Substring(2)
-                    : windowHandle;
-                var handleValue = long.Parse(cleanHex, System.Globalization.NumberStyles.HexNumber);
-                hwnd = new IntPtr(handleValue);
-            }
-            catch
-            {
-                return false;
-            }
+            hwnd = ParseHandleString(windowHandle);
         }
         else if (!string.IsNullOrEmpty(windowTitle))
         {
             var window = FindWindowByTitle(windowTitle);
-            if (window == null)
-                return false;
-
-            try
-            {
-                var cleanHex = window.Handle.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-                    ? window.Handle.Substring(2)
-                    : window.Handle;
-                var handleValue = long.Parse(cleanHex, System.Globalization.NumberStyles.HexNumber);
-                hwnd = new IntPtr(handleValue);
-            }
-            catch
-            {
-                return false;
-            }
+            if (window != null)
+                hwnd = window.HandlePtr;
         }
 
         if (hwnd == IntPtr.Zero)
             return false;
 
         return IsIconic(hwnd);
+    }
+
+    /// <summary>
+    /// Parse a hex handle string (e.g., "0x1A2B3C") to IntPtr.
+    /// </summary>
+    public static IntPtr ParseHandleString(string handleHex)
+    {
+        try
+        {
+            var cleanHex = handleHex.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                ? handleHex.Substring(2)
+                : handleHex;
+            return new IntPtr(long.Parse(cleanHex, System.Globalization.NumberStyles.HexNumber));
+        }
+        catch
+        {
+            return IntPtr.Zero;
+        }
     }
 
     /// <summary>
@@ -402,34 +392,25 @@ public class WindowManager
     /// </summary>
     public bool FocusWindowByHandle(string handleHex)
     {
-        try
-        {
-            var cleanHex = handleHex.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-                ? handleHex.Substring(2)
-                : handleHex;
-            var handleValue = long.Parse(cleanHex, System.Globalization.NumberStyles.HexNumber);
-            var hwnd = new IntPtr(handleValue);
-
-            // Restore if minimized
-            if (IsIconic(hwnd))
-                ShowWindow(hwnd, SW_RESTORE);
-
-            // Reliable window activation trick:
-            // 1. Make window topmost (forces it to front)
-            // 2. Immediately make it non-topmost (allows normal z-order behavior)
-            // This bypasses SetForegroundWindow restrictions
-            SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-            SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-
-            // Also call SetForegroundWindow for keyboard focus
-            SetForegroundWindow(hwnd);
-
-            return true;
-        }
-        catch
-        {
+        var hwnd = ParseHandleString(handleHex);
+        if (hwnd == IntPtr.Zero)
             return false;
-        }
+
+        // Restore if minimized
+        if (IsIconic(hwnd))
+            ShowWindow(hwnd, Constants.Win32.ShowWindow.Restore);
+
+        // Reliable window activation trick:
+        // 1. Make window topmost (forces it to front)
+        // 2. Immediately make it non-topmost (allows normal z-order behavior)
+        // This bypasses SetForegroundWindow restrictions
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+        SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+
+        // Also call SetForegroundWindow for keyboard focus
+        SetForegroundWindow(hwnd);
+
+        return true;
     }
 
     /// <summary>
@@ -453,35 +434,26 @@ public class WindowManager
     /// <returns>Client area bounds (x, y, width, height) in screen coordinates, or null if failed</returns>
     public WindowBounds? GetClientAreaBounds(string handleHex)
     {
-        try
-        {
-            var cleanHex = handleHex.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-                ? handleHex.Substring(2)
-                : handleHex;
-            var handleValue = long.Parse(cleanHex, System.Globalization.NumberStyles.HexNumber);
-            var hwnd = new IntPtr(handleValue);
-
-            // Get client area size (relative to client origin)
-            if (!GetClientRect(hwnd, out RECT clientRect))
-                return null;
-
-            // Convert client origin (0,0) to screen coordinates
-            var clientOrigin = new POINT { x = 0, y = 0 };
-            if (!ClientToScreen(hwnd, ref clientOrigin))
-                return null;
-
-            return new WindowBounds
-            {
-                X = clientOrigin.x,
-                Y = clientOrigin.y,
-                Width = clientRect.right - clientRect.left,
-                Height = clientRect.bottom - clientRect.top
-            };
-        }
-        catch
-        {
+        var hwnd = ParseHandleString(handleHex);
+        if (hwnd == IntPtr.Zero)
             return null;
-        }
+
+        // Get client area size (relative to client origin)
+        if (!GetClientRect(hwnd, out RECT clientRect))
+            return null;
+
+        // Convert client origin (0,0) to screen coordinates
+        var clientOrigin = new POINT { x = 0, y = 0 };
+        if (!ClientToScreen(hwnd, ref clientOrigin))
+            return null;
+
+        return new WindowBounds
+        {
+            X = clientOrigin.x,
+            Y = clientOrigin.y,
+            Width = clientRect.right - clientRect.left,
+            Height = clientRect.bottom - clientRect.top
+        };
     }
 
     /// <summary>

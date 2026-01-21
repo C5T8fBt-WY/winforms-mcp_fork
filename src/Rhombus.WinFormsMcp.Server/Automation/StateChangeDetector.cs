@@ -112,7 +112,7 @@ public class StateChangeDetector
 /// </summary>
 public class TreeHasher
 {
-    private const int MaxDepth = 5;
+    // MaxDepth now in Constants.Queues.StateChangeMaxDepth
 
     /// <summary>
     /// Capture a snapshot of the UI tree including hash and element information.
@@ -136,7 +136,7 @@ public class TreeHasher
 
     private void TraverseTree(AutomationElement element, int depth, StringBuilder sb, Dictionary<string, ElementInfo> elements, string path)
     {
-        if (depth > MaxDepth)
+        if (depth > Constants.Queues.StateChangeMaxDepth)
             return;
 
         try
