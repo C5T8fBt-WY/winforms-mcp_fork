@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Rhombus.WinFormsMcp.Server.Abstractions;
 using Rhombus.WinFormsMcp.Server.Automation;
 using Rhombus.WinFormsMcp.Server.Sandbox;
 
@@ -14,7 +15,7 @@ namespace Rhombus.WinFormsMcp.Server.Handlers;
 /// </summary>
 internal class SandboxHandlers : HandlerBase
 {
-    public SandboxHandlers(SessionManager session, WindowManager windows)
+    public SandboxHandlers(ISessionManager session, IWindowManager windows)
         : base(session, windows)
     {
     }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using Rhombus.WinFormsMcp.Server.Abstractions;
 using Rhombus.WinFormsMcp.Server.Models;
 
 namespace Rhombus.WinFormsMcp.Server.Automation;
@@ -10,7 +11,7 @@ namespace Rhombus.WinFormsMcp.Server.Automation;
 /// Centralizes window enumeration and coordinate translation.
 /// Provides window context for every tool response.
 /// </summary>
-public class WindowManager
+public class WindowManager : IWindowManager
 {
     #region Win32 Imports
 

@@ -14,6 +14,7 @@ using Rhombus.WinFormsMcp.Server.Handlers;
 using Rhombus.WinFormsMcp.Server.Protocol;
 using Rhombus.WinFormsMcp.Server.Sandbox;
 using Rhombus.WinFormsMcp.Server.Services;
+using Rhombus.WinFormsMcp.Server.Abstractions;
 
 namespace Rhombus.WinFormsMcp.Server;
 
@@ -197,7 +198,7 @@ public class PendingConfirmation
 /// Session manager facade for tracking automation contexts and element references.
 /// Delegates to extracted services for testability while maintaining backwards compatibility.
 /// </summary>
-class SessionManager
+class SessionManager : ISessionManager
 {
     // Extracted services for testability
     private readonly IElementCache _elementCache;
@@ -468,27 +469,24 @@ class AutomationServer
 
     public AutomationServer()
     {
-        // Register handlers
-        RegisterHandler(new ProcessHandlers(_session, _windowManager));
-        RegisterHandler(new ElementHandlers(_session, _windowManager));
-        RegisterHandler(new InputHandlers(_session, _windowManager));
-        RegisterHandler(new TouchPenHandlers(_session, _windowManager));
-        RegisterHandler(new ScreenshotHandlers(_session, _windowManager));
-        RegisterHandler(new WindowHandlers(_session, _windowManager));
-        RegisterHandler(new ValidationHandlers(_session, _windowManager));
-        RegisterHandler(new ObservationHandlers(_session, _windowManager));
+        // Sandbox handlers (kept separate per architecture)
         RegisterHandler(new SandboxHandlers(_session, _windowManager));
-        // AdvancedHandlers needs tool dispatcher for execute_confirmed_action
-        RegisterHandler(new AdvancedHandlers(_session, _windowManager, DispatchTool));
 
-        // Initialize ScriptRunner with tool dispatcher
+        // Minimal API handlers (8 tools consolidated from 52)
+        RegisterHandler(new AppHandler(_session, _windowManager));
+        RegisterHandler(new FindHandler(_session, _windowManager));
+        RegisterHandler(new ClickHandler(_session, _windowManager));
+        RegisterHandler(new TypeHandler(_session, _windowManager));
+        RegisterHandler(new DragHandler(_session, _windowManager));
+        RegisterHandler(new GestureHandler(_session, _windowManager));
+        RegisterHandler(new ScreenshotHandler(_session, _windowManager));
+        // ScriptHandler needs tool dispatcher for executing steps
+        RegisterHandler(new ScriptHandler(_session, _windowManager, DispatchTool));
+
+        // Initialize ScriptRunner with tool dispatcher (used by script handler)
         _scriptRunner = new Script.ScriptRunner(DispatchTool, _windowManager);
 
-        _tools = new Dictionary<string, Func<JsonElement, Task<JsonElement>>>
-        {
-            // Script Execution
-            { "run_script", args => _scriptRunner.RunAsync(args) },
-        };
+        _tools = new Dictionary<string, Func<JsonElement, Task<JsonElement>>>();
 
         // Wire up tools from handlers
         foreach (var handler in _handlers)

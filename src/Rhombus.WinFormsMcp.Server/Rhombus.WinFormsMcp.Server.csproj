@@ -27,6 +27,11 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
+  <!-- Expose internals to test project -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Rhombus.WinFormsMcp.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- FlaUI for WinForms automation (UIA2 for maximum compatibility) -->
     <PackageReference Include="FlaUI.UIA2" Version="4.0.0" />

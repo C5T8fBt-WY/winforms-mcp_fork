@@ -19,7 +19,7 @@ dotnet publish src/Rhombus.WinFormsMcp.Server/Rhombus.WinFormsMcp.Server.csproj 
 | Component | Path | Purpose |
 |-----------|------|---------|
 | Server | `src/Rhombus.WinFormsMcp.Server/` | MCP server with JSON-RPC 2.0 over stdio/TCP |
-| Handlers | `src/Rhombus.WinFormsMcp.Server/Handlers/` | Tool implementations by category |
+| Handlers | `src/Rhombus.WinFormsMcp.Server/Handlers/` | Tool implementations (11 tools) |
 | Protocol | `src/Rhombus.WinFormsMcp.Server/Protocol/` | JSON-RPC parsing, tool definitions |
 | Automation | `src/Rhombus.WinFormsMcp.Server/Automation/` | FlaUI wrappers, window management |
 | Script | `src/Rhombus.WinFormsMcp.Server/Script/` | Batch script execution with variable interpolation |
@@ -32,6 +32,68 @@ dotnet publish src/Rhombus.WinFormsMcp.Server/Rhombus.WinFormsMcp.Server.csproj 
 | Tests | `tests/Rhombus.WinFormsMcp.Tests/` | NUnit test suite |
 
 **Stack**: .NET 8.0-windows, FlaUI 4.0.0 (UIA2), NUnit 3.14.0
+
+## Minimal API (11 Tools)
+
+Consolidated from 52 legacy tools for ~90% token reduction.
+
+### Sandbox Tools (3)
+
+| Tool | Description |
+|------|-------------|
+| `launch_app_sandboxed` | Launch app in Windows Sandbox |
+| `close_sandbox` | Close Windows Sandbox |
+| `list_sandbox_apps` | List processes in sandbox |
+
+### Core Tools (8)
+
+| Tool | Description | Replaces |
+|------|-------------|----------|
+| `app` | Application lifecycle: launch, attach, close, info | launch_app, attach_to_process, close_app, get_process_info |
+| `find` | Element discovery with tree traversal | find_element, get_ui_tree, list_elements, element_exists, wait_for_element, get_element_at_point, etc. |
+| `click` | Unified click/tap with mouse/touch/pen | click_element, mouse_click, touch_tap, pen_tap |
+| `type` | Text input and keyboard operations | type_text, set_value, send_keys |
+| `drag` | Drag/stroke with path support | drag_drop, mouse_drag, touch_drag, pen_stroke |
+| `gesture` | Multi-touch: pinch, rotate, custom | pinch_zoom, rotate_gesture, multi_touch_gesture |
+| `screenshot` | Capture window or element | take_screenshot |
+| `script` | Batch operations with variable interpolation | run_script |
+
+### Tool Usage Examples
+
+```json
+// Launch application
+{"tool": "app", "args": {"action": "launch", "path": "C:\\app.exe"}}
+
+// Find element
+{"tool": "find", "args": {"automationId": "btnSubmit"}}
+
+// Find UI tree
+{"tool": "find", "args": {"at": "root", "recursive": true, "depth": 3}}
+
+// Click element
+{"tool": "click", "args": {"target": "elem_1"}}
+
+// Click coordinates with touch
+{"tool": "click", "args": {"x": 100, "y": 200, "input": "touch"}}
+
+// Type text
+{"tool": "type", "args": {"text": "Hello", "target": "elem_2", "clear": true}}
+
+// Drag path
+{"tool": "drag", "args": {"path": [{"x": 100, "y": 100}, {"x": 200, "y": 200}], "input": "pen"}}
+
+// Pinch gesture
+{"tool": "gesture", "args": {"type": "pinch", "center": {"x": 400, "y": 300}, "start_distance": 200, "end_distance": 50}}
+
+// Screenshot
+{"tool": "screenshot", "args": {"target": "elem_1", "file": "C:\\capture.png"}}
+
+// Batch script
+{"tool": "script", "args": {"steps": [
+  {"id": "btn", "tool": "find", "args": {"name": "OK"}},
+  {"tool": "click", "args": {"target": "$btn.id"}}
+]}}
+```
 
 ### Services Architecture
 
@@ -51,35 +113,21 @@ All services are thread-safe and injectable for testing.
 
 ### Handler Architecture
 
-Tools are implemented in modular handlers inheriting from `HandlerBase`:
-
 | Handler | Tools |
 |---------|-------|
-| ProcessHandlers | `launch_app`, `attach_to_process`, `close_app`, `get_process_info` |
-| ElementHandlers | `find_element`, `click_element`, `type_text`, `set_value`, `get_property`, `click_by_automation_id`, `list_elements`, `find_element_near_anchor` |
-| InputHandlers | `send_keys`, `drag_drop`, `mouse_drag`, `mouse_drag_path`, `mouse_click` |
-| TouchPenHandlers | `touch_tap`, `touch_drag`, `pinch_zoom`, `rotate_gesture`, `multi_touch_gesture`, `pen_stroke`, `pen_tap` |
-| ScreenshotHandlers | `take_screenshot` |
-| WindowHandlers | `get_window_bounds`, `focus_window` |
-| ValidationHandlers | `element_exists`, `wait_for_element`, `check_element_state` |
-| ObservationHandlers | `get_ui_tree`, `expand_collapse`, `scroll`, `get_element_at_point`, `capture_ui_snapshot`, `compare_ui_snapshots` |
 | SandboxHandlers | `launch_app_sandboxed`, `close_sandbox`, `list_sandbox_apps` |
-| AdvancedHandlers | `get_capabilities`, `get_dpi_info`, `subscribe_to_events`, `get_pending_events`, `mark_for_expansion`, `clear_expansion_marks`, `relocate_element`, `check_element_stale`, `get_cache_stats`, `invalidate_cache`, `confirm_action`, `execute_confirmed_action` |
-
-Script execution via `run_script` in `ScriptRunner.cs`.
-
-Session state: cached elements (elem_1, elem_2...), active AutomationHelper, process PIDs.
+| AppHandler | `app` |
+| FindHandler | `find` |
+| ClickHandler | `click` |
+| TypeHandler | `type` |
+| DragHandler | `drag` |
+| GestureHandler | `gesture` |
+| ScreenshotHandler | `screenshot` |
+| ScriptHandler | `script` |
 
 ### Window Scoping
 
-Tool responses include a `windows` array with visible windows. By default, windows are scoped to tracked processes:
-
-- `launch_app` / `attach_to_process`: Automatically track the PID
-- `close_app`: Automatically untrack the PID
-- Response includes `windowScope`: "All", "Process", or "Tracked"
-- Each window includes `processId` for filtering
-
-Handlers can use `ScopedSuccess()` or `GetScopedWindows()` helpers.
+Tool responses include a `windows` array with visible windows scoped to tracked processes.
 
 ## CI/CD
 

@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using FlaUI.Core.AutomationElements;
+using Rhombus.WinFormsMcp.Server.Abstractions;
 using Rhombus.WinFormsMcp.Server.Automation;
 using Rhombus.WinFormsMcp.Server.Models;
 using Rhombus.WinFormsMcp.Server.Utilities;
@@ -15,10 +16,10 @@ namespace Rhombus.WinFormsMcp.Server.Handlers;
 /// </summary>
 internal abstract class HandlerBase : IToolHandler
 {
-    protected readonly SessionManager Session;
-    protected readonly WindowManager Windows;
+    protected readonly ISessionManager Session;
+    protected readonly IWindowManager Windows;
 
-    protected HandlerBase(SessionManager session, WindowManager windows)
+    protected HandlerBase(ISessionManager session, IWindowManager windows)
     {
         Session = session;
         Windows = windows;

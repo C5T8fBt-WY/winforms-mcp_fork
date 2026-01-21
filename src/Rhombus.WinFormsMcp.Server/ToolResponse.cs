@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Rhombus.WinFormsMcp.Server.Automation;
+using Rhombus.WinFormsMcp.Server.Abstractions;
 using Rhombus.WinFormsMcp.Server.Models;
 
 namespace Rhombus.WinFormsMcp.Server;
@@ -70,7 +70,7 @@ public class ToolResponse
     /// <summary>
     /// Create a successful response with window context.
     /// </summary>
-    public static ToolResponse Ok(object? result, WindowManager windowManager)
+    public static ToolResponse Ok(object? result, IWindowManager windowManager)
     {
         return new ToolResponse
         {
@@ -83,7 +83,7 @@ public class ToolResponse
     /// <summary>
     /// Create a successful response with custom properties merged in.
     /// </summary>
-    public static ToolResponse Ok(WindowManager windowManager, params (string key, object? value)[] properties)
+    public static ToolResponse Ok(IWindowManager windowManager, params (string key, object? value)[] properties)
     {
         var result = new Dictionary<string, object?>();
         foreach (var (key, value) in properties)
@@ -102,7 +102,7 @@ public class ToolResponse
     /// <summary>
     /// Create a failure response with window context.
     /// </summary>
-    public static ToolResponse Fail(string error, WindowManager windowManager)
+    public static ToolResponse Fail(string error, IWindowManager windowManager)
     {
         return new ToolResponse
         {
@@ -115,7 +115,7 @@ public class ToolResponse
     /// <summary>
     /// Create a failure response with custom properties merged in.
     /// </summary>
-    public static ToolResponse Fail(string error, WindowManager windowManager, params (string key, object? value)[] properties)
+    public static ToolResponse Fail(string error, IWindowManager windowManager, params (string key, object? value)[] properties)
     {
         var result = new Dictionary<string, object?>();
         foreach (var (key, value) in properties)
@@ -135,7 +135,7 @@ public class ToolResponse
     /// <summary>
     /// Create a failure response with partial matches for window-not-found errors.
     /// </summary>
-    public static ToolResponse FailWithPartialMatches(string error, List<WindowInfo> partialMatches, WindowManager windowManager)
+    public static ToolResponse FailWithPartialMatches(string error, List<WindowInfo> partialMatches, IWindowManager windowManager)
     {
         return new ToolResponse
         {
@@ -149,7 +149,7 @@ public class ToolResponse
     /// <summary>
     /// Create a failure response for multiple window matches.
     /// </summary>
-    public static ToolResponse FailWithMultipleMatches(string error, List<WindowInfo> matches, WindowManager windowManager)
+    public static ToolResponse FailWithMultipleMatches(string error, List<WindowInfo> matches, IWindowManager windowManager)
     {
         return new ToolResponse
         {
