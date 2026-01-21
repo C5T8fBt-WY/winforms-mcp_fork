@@ -13,6 +13,7 @@ using Rhombus.WinFormsMcp.Server.Automation;
 using Rhombus.WinFormsMcp.Server.Handlers;
 using Rhombus.WinFormsMcp.Server.Protocol;
 using Rhombus.WinFormsMcp.Server.Sandbox;
+using Rhombus.WinFormsMcp.Server.Services;
 
 namespace Rhombus.WinFormsMcp.Server;
 
@@ -193,24 +194,62 @@ public class PendingConfirmation
 }
 
 /// <summary>
-/// Session manager for tracking automation contexts and element references
+/// Session manager facade for tracking automation contexts and element references.
+/// Delegates to extracted services for testability while maintaining backwards compatibility.
 /// </summary>
 class SessionManager
 {
-    private readonly Dictionary<string, AutomationElement> _elementCache = new();
-    private readonly Dictionary<int, object> _processContext = new();
-    private readonly Dictionary<string, TreeSnapshot> _snapshotCache = new();
-    private readonly Dictionary<string, int> _launchedAppsByPath = new(); // Track last launched PID by executable path
-    private readonly Queue<UiEvent> _eventQueue = new();
-    private readonly HashSet<string> _subscribedEventTypes = new();
-    private readonly Dictionary<string, PendingConfirmation> _pendingConfirmations = new();
-    private readonly HashSet<string> _expandedElements = new();
+    // Extracted services for testability
+    private readonly IElementCache _elementCache;
+    private readonly IProcessContext _processContext;
+    private readonly ISnapshotCache _snapshotCache;
+    private readonly IEventService _eventService;
+    private readonly IConfirmationService _confirmationService;
+    private readonly ITreeExpansionService _treeExpansionService;
+    private readonly IProcessTracker _processTracker;
+
+    // Non-extracted components (kept for compatibility)
+    private readonly Dictionary<int, object> _processContextData = new();
     private readonly TreeCache _treeCache = new();
-    private int _eventsDropped = 0;
-    private int _nextElementId = 1;
     private AutomationHelper? _automation;
     private SandboxManager? _sandboxManager;
     private StateChangeDetector? _stateChangeDetector;
+
+    /// <summary>
+    /// Creates a new SessionManager with default service implementations.
+    /// </summary>
+    public SessionManager()
+        : this(
+            new ElementCache(),
+            new ProcessContext(),
+            new SnapshotCache(),
+            new EventService(),
+            new ConfirmationService(),
+            new TreeExpansionService(),
+            new ProcessTracker())
+    {
+    }
+
+    /// <summary>
+    /// Creates a new SessionManager with injected services (for testing).
+    /// </summary>
+    public SessionManager(
+        IElementCache elementCache,
+        IProcessContext processContext,
+        ISnapshotCache snapshotCache,
+        IEventService eventService,
+        IConfirmationService confirmationService,
+        ITreeExpansionService treeExpansionService,
+        IProcessTracker processTracker)
+    {
+        _elementCache = elementCache;
+        _processContext = processContext;
+        _snapshotCache = snapshotCache;
+        _eventService = eventService;
+        _confirmationService = confirmationService;
+        _treeExpansionService = treeExpansionService;
+        _processTracker = processTracker;
+    }
 
     public AutomationHelper GetAutomation()
     {
@@ -229,221 +268,171 @@ class SessionManager
 
     public TreeCache GetTreeCache() => _treeCache;
 
+    // Element cache delegation
     public string CacheElement(AutomationElement element)
-    {
-        var id = $"elem_{_nextElementId++}";
-        _elementCache[id] = element;
-        return id;
-    }
+        => _elementCache.Cache(element);
 
     public AutomationElement? GetElement(string elementId)
-    {
-        return _elementCache.TryGetValue(elementId, out var elem) ? elem : null;
-    }
+        => _elementCache.Get(elementId);
 
     public void ClearElement(string elementId)
-    {
-        _elementCache.Remove(elementId);
-    }
+        => _elementCache.Clear(elementId);
 
+    /// <summary>
+    /// Check if an element reference is stale (no longer valid in the UI tree).
+    /// </summary>
+    public bool IsElementStale(string elementId)
+        => _elementCache.IsStale(elementId);
+
+    /// <summary>
+    /// Cache a process context (not yet extracted to service).
+    /// </summary>
     public void CacheProcess(int pid, object context)
     {
-        _processContext[pid] = context;
+        _processContextData[pid] = context;
     }
 
+    // Process context delegation
     /// <summary>
     /// Track a launched app by its executable path. Returns the previous PID if one was tracked.
     /// </summary>
     public int? TrackLaunchedApp(string exePath, int pid)
-    {
-        var normalizedPath = Path.GetFullPath(exePath).ToLowerInvariant();
-        int? previousPid = null;
-        if (_launchedAppsByPath.TryGetValue(normalizedPath, out var oldPid))
-        {
-            previousPid = oldPid;
-        }
-        _launchedAppsByPath[normalizedPath] = pid;
-        return previousPid;
-    }
+        => _processContext.TrackLaunchedApp(exePath, pid);
 
     /// <summary>
     /// Get the previously launched PID for an executable path (if any).
     /// </summary>
     public int? GetPreviousLaunchedPid(string exePath)
-    {
-        var normalizedPath = Path.GetFullPath(exePath).ToLowerInvariant();
-        return _launchedAppsByPath.TryGetValue(normalizedPath, out var pid) ? pid : null;
-    }
+        => _processContext.GetPreviousLaunchedPid(exePath);
 
     /// <summary>
     /// Remove tracking for a launched app.
     /// </summary>
     public void UntrackLaunchedApp(string exePath)
-    {
-        var normalizedPath = Path.GetFullPath(exePath).ToLowerInvariant();
-        _launchedAppsByPath.Remove(normalizedPath);
-    }
+        => _processContext.UntrackLaunchedApp(exePath);
 
+    /// <summary>
+    /// Get all tracked PIDs.
+    /// </summary>
+    public IReadOnlyCollection<int> GetTrackedPids()
+        => _processContext.GetTrackedPids();
+
+    // Snapshot cache delegation
     public void CacheSnapshot(string snapshotId, TreeSnapshot snapshot)
-    {
-        _snapshotCache[snapshotId] = snapshot;
-    }
+        => _snapshotCache.Cache(snapshotId, snapshot);
 
     public TreeSnapshot? GetSnapshot(string snapshotId)
-    {
-        return _snapshotCache.TryGetValue(snapshotId, out var snapshot) ? snapshot : null;
-    }
+        => _snapshotCache.Get(snapshotId);
 
     public void ClearSnapshot(string snapshotId)
-    {
-        _snapshotCache.Remove(snapshotId);
-    }
+        => _snapshotCache.Clear(snapshotId);
 
+    // Event service delegation
     /// <summary>
     /// Subscribe to specific event types. Events will be queued for later retrieval.
     /// </summary>
     public void SubscribeToEvents(IEnumerable<string> eventTypes)
-    {
-        foreach (var eventType in eventTypes)
-        {
-            _subscribedEventTypes.Add(eventType.ToLowerInvariant());
-        }
-    }
+        => _eventService.Subscribe(eventTypes);
 
     /// <summary>
     /// Get the list of currently subscribed event types.
     /// </summary>
-    public IReadOnlyCollection<string> GetSubscribedEventTypes() => _subscribedEventTypes;
+    public IReadOnlyCollection<string> GetSubscribedEventTypes()
+        => _eventService.GetSubscribedEventTypes();
 
     /// <summary>
     /// Add an event to the queue. If queue is full, oldest event is dropped.
     /// </summary>
     public void EnqueueEvent(UiEvent evt)
-    {
-        if (!_subscribedEventTypes.Contains(evt.Type.ToLowerInvariant()))
-            return;
-
-        if (_eventQueue.Count >= Constants.Queues.MaxEventQueueSize)
-        {
-            _eventQueue.Dequeue();
-            _eventsDropped++;
-        }
-        _eventQueue.Enqueue(evt);
-    }
+        => _eventService.Enqueue(evt);
 
     /// <summary>
     /// Get all queued events and clear the queue. Returns events dropped count.
     /// </summary>
     public (List<UiEvent> events, int droppedCount) DrainEventQueue()
-    {
-        var events = _eventQueue.ToList();
-        _eventQueue.Clear();
-        var dropped = _eventsDropped;
-        _eventsDropped = 0;
-        return (events, dropped);
-    }
+        => _eventService.Drain();
 
     /// <summary>
     /// Check if any events are subscribed.
     /// </summary>
-    public bool HasSubscriptions => _subscribedEventTypes.Count > 0;
+    public bool HasSubscriptions => _eventService.HasSubscriptions;
 
+    // Confirmation service delegation
     /// <summary>
     /// Create a pending confirmation for a destructive action.
     /// </summary>
     public PendingConfirmation CreateConfirmation(string action, string description, string? target, JsonElement? parameters)
-    {
-        // Clean up expired confirmations first
-        CleanupExpiredConfirmations();
-
-        var confirmation = new PendingConfirmation
-        {
-            Token = Guid.NewGuid().ToString("N"),
-            Action = action,
-            Description = description,
-            Target = target,
-            Parameters = parameters,
-            CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddSeconds(Constants.Queues.ConfirmationTimeoutSeconds)
-        };
-
-        _pendingConfirmations[confirmation.Token] = confirmation;
-        return confirmation;
-    }
+        => _confirmationService.Create(action, description, target, parameters);
 
     /// <summary>
     /// Get and remove a pending confirmation by token. Returns null if not found or expired.
     /// </summary>
     public PendingConfirmation? ConsumeConfirmation(string token)
-    {
-        CleanupExpiredConfirmations();
+        => _confirmationService.Consume(token);
 
-        if (_pendingConfirmations.TryGetValue(token, out var confirmation))
-        {
-            _pendingConfirmations.Remove(token);
-
-            if (confirmation.ExpiresAt < DateTime.UtcNow)
-            {
-                return null; // Expired
-            }
-
-            return confirmation;
-        }
-
-        return null;
-    }
-
-    private void CleanupExpiredConfirmations()
-    {
-        var expired = _pendingConfirmations
-            .Where(kvp => kvp.Value.ExpiresAt < DateTime.UtcNow)
-            .Select(kvp => kvp.Key)
-            .ToList();
-
-        foreach (var token in expired)
-        {
-            _pendingConfirmations.Remove(token);
-        }
-    }
-
+    // Tree expansion service delegation
     /// <summary>
     /// Mark an element for expansion. The tree builder will expand its children
     /// on the next get_ui_tree call regardless of depth limit.
     /// </summary>
     /// <param name="elementKey">AutomationId or Name of the element</param>
     public void MarkForExpansion(string elementKey)
-    {
-        _expandedElements.Add(elementKey);
-    }
+        => _treeExpansionService.Mark(elementKey);
 
     /// <summary>
     /// Check if an element is marked for expansion.
     /// </summary>
     public bool IsMarkedForExpansion(string elementKey)
-    {
-        return _expandedElements.Contains(elementKey);
-    }
+        => _treeExpansionService.IsMarked(elementKey);
 
     /// <summary>
     /// Get all elements marked for expansion.
     /// </summary>
-    public IReadOnlyCollection<string> GetExpandedElements() => _expandedElements;
+    public IReadOnlyCollection<string> GetExpandedElements()
+        => _treeExpansionService.GetAll();
 
     /// <summary>
     /// Clear expansion marks for an element.
     /// </summary>
     public void ClearExpansionMark(string elementKey)
-    {
-        _expandedElements.Remove(elementKey);
-    }
+        => _treeExpansionService.Clear(elementKey);
 
     /// <summary>
     /// Clear all expansion marks.
     /// </summary>
     public void ClearAllExpansionMarks()
-    {
-        _expandedElements.Clear();
-    }
+        => _treeExpansionService.ClearAll();
+
+    // Process tracker delegation (for window scoping)
+    /// <summary>
+    /// Start tracking a process ID for window scoping.
+    /// </summary>
+    public void TrackProcess(int pid)
+        => _processTracker.Track(pid);
+
+    /// <summary>
+    /// Stop tracking a process ID for window scoping.
+    /// </summary>
+    public void UntrackProcess(int pid)
+        => _processTracker.Untrack(pid);
+
+    /// <summary>
+    /// Check if a process ID is being tracked.
+    /// </summary>
+    public bool IsProcessTracked(int pid)
+        => _processTracker.IsTracked(pid);
+
+    /// <summary>
+    /// Get all tracked process IDs for window scoping.
+    /// </summary>
+    public IReadOnlySet<int> GetTrackedProcessIds()
+        => _processTracker.GetTrackedPids();
+
+    /// <summary>
+    /// Clear all tracked process IDs.
+    /// </summary>
+    public void ClearTrackedProcesses()
+        => _processTracker.Clear();
 
     public void Dispose()
     {

@@ -35,6 +35,7 @@
     </MappedFolder>
   </MappedFolders>
   <LogonCommand>
-    <Command>powershell -ExecutionPolicy Bypass -NoExit -Command "reg add 'HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy' /v VerifiedAndReputablePolicyState /t REG_DWORD /d 0 /f; $env:DOTNET_ROOT = 'C:\DotNet'; $env:PATH = 'C:\DotNet;' + $env:PATH; C:\Server\bootstrap.ps1 -EnableTcp -TcpPort 9999 -LazyStart"</Command>
+    <!-- Bootstrap with TCP mode, LazyStart, and code coverage enabled -->
+    <Command>powershell -ExecutionPolicy Bypass -NoExit -Command "reg add 'HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy' /v VerifiedAndReputablePolicyState /t REG_DWORD /d 0 /f; $env:DOTNET_ROOT = 'C:\DotNet'; $env:PATH = 'C:\DotNet;' + $env:PATH; &amp; 'C:\Server\bootstrap.ps1' -EnableTcp -TcpPort 9999 -LazyStart -EnableCoverage"</Command>
   </LogonCommand>
 </Configuration>

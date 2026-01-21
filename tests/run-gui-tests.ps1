@@ -140,11 +140,11 @@ try {
     Start-Sleep -Seconds 2
 
     Write-Host "`n=== Test 2: Get Window Bounds ===" -ForegroundColor Cyan
-    $windowResult = Invoke-McpTool "get_window_bounds" @{ windowTitle = "fnWindowsMCP Test" }
+    $windowResult = Invoke-McpTool "get_window_bounds" @{ windowTitle = "WinForms MCP Test" }
     Write-TestResult "Get Window Bounds" ($windowResult.success -and $windowResult.width -gt 0) "Size: $($windowResult.width)x$($windowResult.height)"
 
     Write-Host "`n=== Test 3: List UI Elements ===" -ForegroundColor Cyan
-    $elementsResult = Invoke-McpTool "list_elements" @{ windowTitle = "fnWindowsMCP Test"; maxDepth = 3 }
+    $elementsResult = Invoke-McpTool "list_elements" @{ windowTitle = "WinForms MCP Test"; maxDepth = 3 }
     $elementCount = if ($elementsResult.elements) { $elementsResult.elements.Count } else { 0 }
     Write-TestResult "List Elements" ($elementsResult.success -and $elementCount -gt 0) "Found $elementCount elements"
 
@@ -234,7 +234,7 @@ try {
     }
 
     Write-Host "`n=== Test 12: Focus Window ===" -ForegroundColor Cyan
-    $focusResult = Invoke-McpTool "focus_window" @{ windowTitle = "fnWindowsMCP Test" }
+    $focusResult = Invoke-McpTool "focus_window" @{ windowTitle = "WinForms MCP Test" }
     Write-TestResult "Focus Window" ($focusResult.success) ""
 
 } catch {

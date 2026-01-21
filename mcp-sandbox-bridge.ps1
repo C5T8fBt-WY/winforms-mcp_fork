@@ -1,12 +1,17 @@
 # MCP Sandbox Bridge (Hybrid)
-# Implements lifecycle tools locally, forwards automation tools to sandbox via TCP
+# Auto-launches sandbox on startup, forwards automation tools via TCP
 #
 # Bridge-handled tools:
-#   - start_sandbox: Launch sandbox, wait for ready, start server, connect TCP
-#   - stop_sandbox: Signal shutdown, disconnect TCP
-#   - sandbox_status: Return current state
+#   - start_sandbox: Launch sandbox, wait for boot, connect (called at startup)
+#   - reconnect_sandbox: Reconnect if connection dropped (sandbox must be running)
+#   - sandbox_status: Return current connection state (read-only)
 #
 # All other tools are forwarded to the MCP server running inside the sandbox
+#
+# Sandbox lifecycle:
+#   - AUTO-LAUNCH: Bridge calls start_sandbox on startup (requires UAC prompt)
+#   - NO STOP: Agent cannot stop the sandbox - only user can close it manually
+#   - This prevents agents from accidentally terminating the sandbox environment
 #
 # Usage: Called automatically by Claude Code via MCP configuration
 
@@ -34,41 +39,56 @@ $global:TcpWriter = $null
 $global:SandboxTools = @()  # Cached tool list from sandbox
 $global:ServerCapabilities = $null
 $global:ConnectedServerPid = $null  # Track which server PID we connected to
+$global:ConnectionState = "Disconnected"  # States: Disconnected, Connecting, Connected, Reconnecting
+$global:LastConnectionTime = $null  # Timestamp of successful connection
+$global:ConnectionAttempts = 0  # Track retry attempts for backoff
+#endregion
+
+#region Connection State Machine
+$script:BackoffDelays = @(500, 1000, 2000, 4000, 8000)  # Milliseconds
+
+function Get-BackoffDelay {
+    param([int]$Attempt)
+    $index = [Math]::Min($Attempt, $script:BackoffDelays.Length - 1)
+    $baseDelay = $script:BackoffDelays[$index]
+    # Add 20% jitter
+    $jitter = Get-Random -Minimum (-$baseDelay * 0.2) -Maximum ($baseDelay * 0.2)
+    return [int]($baseDelay + $jitter)
+}
+
+function Set-ConnectionState {
+    param([string]$State)
+    $oldState = $global:ConnectionState
+    $global:ConnectionState = $State
+    if ($State -eq "Connected") {
+        $global:LastConnectionTime = Get-Date
+        $global:ConnectionAttempts = 0
+    }
+    Write-Log "Connection state: $oldState -> $State"
+}
 #endregion
 
 #region Bridge Tool Definitions
+# Note: Bridge auto-launches sandbox on startup via start_sandbox (internal, not exposed to agent).
+# Agent cannot stop sandbox (user must close manually).
 $BridgeTools = @(
     @{
-        name = "start_sandbox"
-        description = "Start Windows Sandbox with the MCP server. Launches the sandbox, waits for it to boot, starts the MCP server, and establishes TCP connection."
+        name = "reconnect_sandbox"
+        description = "Reconnect to the sandbox MCP server if connection was lost. Only works if sandbox is already running."
         inputSchema = @{
             type = "object"
             properties = @{
                 timeout_seconds = @{
                     type = "integer"
-                    description = "Maximum time to wait for sandbox to be ready (default: 60)"
-                    default = 60
+                    description = "Maximum time to wait for connection (default: 30)"
+                    default = 30
                 }
             }
-        }
-    }
-    @{
-        name = "stop_sandbox"
-        description = "Signal the bootstrap to shut down and disconnect TCP. WARNING: User interaction will be required to start the sandbox again (admin prompt). To restart just the MCP server or app, use trigger files instead (server.trigger or app.trigger). Only use this to completely tear down the sandbox."
-        inputSchema = @{
-            type = "object"
-            properties = @{
-                confirm = @{
-                    type = "boolean"
-                    description = "Must be set to true to confirm shutdown. User interaction will be required to start sandbox again."
-                }
-            }
-            required = @("confirm")
         }
     }
     @{
         name = "sandbox_status"
-        description = "Get current sandbox and MCP server status."
+        description = "Get current sandbox and MCP server connection status (read-only)."
         inputSchema = @{
             type = "object"
             properties = @{}
@@ -128,6 +148,9 @@ function Connect-Tcp {
         return $true
     }
 
+    Set-ConnectionState "Connecting"
+    $global:ConnectionAttempts++
+
     try {
         $global:TcpClient = New-Object System.Net.Sockets.TcpClient
         $global:TcpClient.Connect($ServerIP, $Port)
@@ -139,10 +162,11 @@ function Connect-Tcp {
         $global:TcpWriter.AutoFlush = $true
         $global:ConnectedServerPid = $ServerPid
 
+        Set-ConnectionState "Connected"
         Write-Log "TCP connected to ${ServerIP}:${Port} (server PID: $ServerPid)"
         return $true
     } catch {
-        Write-Log "TCP connection failed: $_"
+        Write-Log "TCP connection failed (attempt $($global:ConnectionAttempts)): $_"
         Disconnect-Tcp
         return $false
     }
@@ -154,6 +178,7 @@ function Disconnect-Tcp {
     if ($global:TcpClient) { $global:TcpClient.Close(); $global:TcpClient = $null }
     $global:SandboxTools = @()
     $global:ConnectedServerPid = $null
+    Set-ConnectionState "Disconnected"
     Write-Log "TCP disconnected"
 }
 
@@ -167,8 +192,10 @@ function Test-ServerReloadAndReconnect {
     # Case 1: Connected to different PID - server was hot-reloaded
     if ($global:ConnectedServerPid -and $signal.server_pid -ne $global:ConnectedServerPid) {
         Write-Log "Server hot-reloaded: PID changed from $($global:ConnectedServerPid) to $($signal.server_pid)"
+        Set-ConnectionState "Reconnecting"
         Disconnect-Tcp
-        Start-Sleep -Milliseconds 500  # Give new server time to initialize
+        $delay = Get-BackoffDelay $global:ConnectionAttempts
+        Start-Sleep -Milliseconds $delay  # Backoff with jitter
         if (Connect-Tcp $signal.tcp_ip $signal.server_pid) {
             $global:SandboxTools = Get-SandboxToolList
             Write-Log "Reconnected to hot-reloaded server ($($global:SandboxTools.Count) tools)"
@@ -179,6 +206,7 @@ function Test-ServerReloadAndReconnect {
 
     # Case 2: Not connected but server is running - reconnect
     if (-not (Test-TcpConnected) -and $signal.server_pid) {
+        Set-ConnectionState "Reconnecting"
         Write-Log "Not connected but server running (PID: $($signal.server_pid)), reconnecting..."
         if (Connect-Tcp $signal.tcp_ip $signal.server_pid) {
             $global:SandboxTools = Get-SandboxToolList
@@ -330,12 +358,10 @@ function Invoke-StartSandbox {
     }
 
     # Check if sandbox might already be running (ready signal exists)
-    # Do this BEFORE cleaning up signals!
     $signal = Get-ReadySignal
     if ($signal -and $signal.tcp_ip) {
         Write-Log "Found existing ready signal, checking connection..."
         if (Connect-Tcp $signal.tcp_ip $signal.server_pid) {
-            # Try to get tool list to verify connection works
             $global:SandboxTools = Get-SandboxToolList
             if ($global:SandboxTools.Count -gt 0) {
                 return @{
@@ -347,15 +373,15 @@ function Invoke-StartSandbox {
             }
             Disconnect-Tcp
         }
-        # Stale signal, will be cleaned up below
+        # Stale signal, clean up
+        Remove-Item $ReadySignalPath -Force -ErrorAction SilentlyContinue
     }
 
-    # Clean up old signals before launching new sandbox
+    # Clean up old signals before launching
     Remove-Item $ReadySignalPath -Force -ErrorAction SilentlyContinue
     Remove-Item $ShutdownSignalPath -Force -ErrorAction SilentlyContinue
 
-    # Launch sandbox (requires elevation due to coreclr bug)
-    # Can't use -Verb RunAs directly on .wsb files, so launch elevated PowerShell
+    # Launch sandbox (requires elevation)
     Write-Log "Launching sandbox with elevation: $SandboxWsbPath"
     try {
         $escapedPath = $SandboxWsbPath -replace "'", "''"
@@ -387,30 +413,18 @@ function Invoke-StartSandbox {
     }
 
     # Check if server is running (LazyStart mode means it might not be)
-    # Create ONE trigger, then wait for server to start
     if (-not $signal.server_pid) {
         Write-Log "Server not started (LazyStart mode), creating trigger..."
+        "start" | Out-File -FilePath $ServerTriggerPath -Encoding UTF8
+
         $serverTimeout = 30
         $serverStart = Get-Date
-
-        # Create trigger once
-        "start" | Out-File -FilePath $ServerTriggerPath -Encoding UTF8
-        Write-Log "Created server.trigger, waiting for server to start..."
-
-        # Wait for server to start (check every 500ms)
         while (((Get-Date) - $serverStart).TotalSeconds -lt $serverTimeout) {
             Start-Sleep -Milliseconds 500
             $signal = Get-ReadySignal
             if ($signal -and $signal.server_pid) {
                 Write-Log "Server started (PID: $($signal.server_pid))"
                 break
-            }
-
-            # Only recreate trigger if it's been more than 5 seconds and trigger file is gone
-            $elapsed = ((Get-Date) - $serverStart).TotalSeconds
-            if ($elapsed -gt 5 -and -not (Test-Path $ServerTriggerPath)) {
-                Write-Log "Recreating trigger (elapsed: ${elapsed}s)..."
-                "start" | Out-File -FilePath $ServerTriggerPath -Encoding UTF8
             }
         }
 
@@ -440,6 +454,97 @@ function Invoke-StartSandbox {
     # Get tool list from sandbox
     $global:SandboxTools = Get-SandboxToolList
 
+    $elapsed = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 1)
+    return @{
+        success = $true
+        message = "Sandbox started and connected"
+        tcp_endpoint = "$($signal.tcp_ip):$Port"
+        server_pid = $signal.server_pid
+        tool_count = $global:SandboxTools.Count
+        elapsed_seconds = $elapsed
+    }
+}
+
+function Invoke-ReconnectSandbox {
+    param($Arguments)
+
+    $timeout = if ($Arguments.timeout_seconds) { $Arguments.timeout_seconds } else { 30 }
+    $startTime = Get-Date
+
+    # Check if already connected
+    if (Test-TcpConnected) {
+        return @{
+            success = $true
+            message = "Already connected to sandbox MCP server"
+            status = (Invoke-SandboxStatus @{})
+        }
+    }
+
+    # Check for ready signal (sandbox must already be running)
+    $signal = Get-ReadySignal
+    if (-not $signal -or -not $signal.tcp_ip) {
+        return @{
+            success = $false
+            error = "Sandbox is not running. Please start the sandbox manually first."
+            hint = "Run the sandbox WSB file at: $SandboxWsbPath"
+        }
+    }
+
+    Write-Log "Found ready signal, attempting connection..."
+
+    # If server is not running (LazyStart mode), create trigger to start it
+    if (-not $signal.server_pid) {
+        Write-Log "Server not started (LazyStart mode), creating trigger..."
+        $serverTimeout = 30
+        $serverStart = Get-Date
+
+        # Create trigger once
+        "start" | Out-File -FilePath $ServerTriggerPath -Encoding UTF8
+        Write-Log "Created server.trigger, waiting for server to start..."
+
+        # Wait for server to start (check every 500ms)
+        while (((Get-Date) - $serverStart).TotalSeconds -lt $serverTimeout) {
+            Start-Sleep -Milliseconds 500
+            $signal = Get-ReadySignal
+            if ($signal -and $signal.server_pid) {
+                Write-Log "Server started (PID: $($signal.server_pid))"
+                break
+            }
+
+            # Only recreate trigger if it's been more than 5 seconds and trigger file is gone
+            $elapsed = ((Get-Date) - $serverStart).TotalSeconds
+            if ($elapsed -gt 5 -and -not (Test-Path $ServerTriggerPath)) {
+                Write-Log "Recreating trigger (elapsed: ${elapsed}s)..."
+                "start" | Out-File -FilePath $ServerTriggerPath -Encoding UTF8
+            }
+        }
+
+        if (-not $signal -or -not $signal.server_pid) {
+            return @{
+                success = $false
+                error = "Timeout waiting for MCP server to start inside sandbox"
+                sandbox_ip = $signal.tcp_ip
+            }
+        }
+    }
+
+    # Give server a moment to initialize TCP listener if it just started
+    Start-Sleep -Milliseconds 500
+
+    # Connect TCP
+    Write-Log "Connecting to MCP server at $($signal.tcp_ip):$Port..."
+    if (-not (Connect-Tcp $signal.tcp_ip $signal.server_pid)) {
+        return @{
+            success = $false
+            error = "Failed to connect to MCP server TCP"
+            sandbox_ip = $signal.tcp_ip
+            server_pid = $signal.server_pid
+        }
+    }
+
+    # Get tool list from sandbox
+    $global:SandboxTools = Get-SandboxToolList
+
     # Set up port forwarding if requested (for external access from WSL/remote)
     $portForwardingSet = $false
     if ($SetupPortForwarding) {
@@ -449,7 +554,7 @@ function Invoke-StartSandbox {
     $elapsed = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 1)
     $result = @{
         success = $true
-        message = "Sandbox started and connected"
+        message = "Connected to sandbox MCP server"
         tcp_endpoint = "$($signal.tcp_ip):$Port"
         server_pid = $signal.server_pid
         tool_count = $global:SandboxTools.Count
@@ -475,38 +580,6 @@ function Invoke-StartSandbox {
     return $result
 }
 
-function Invoke-StopSandbox {
-    param($Arguments)
-
-    # Check confirmation
-    if (-not $Arguments.confirm) {
-        return @{
-            success = $false
-            error = "Confirmation required. Set confirm=true to proceed. WARNING: User interaction will be required to start sandbox again (admin prompt). To restart just the MCP server or app, use trigger files instead."
-        }
-    }
-
-    # Disconnect TCP first
-    $wasConnected = Test-TcpConnected
-    Disconnect-Tcp
-
-    # Clean up port forwarding if it was set up
-    if ($SetupPortForwarding) {
-        Remove-PortForwarding -MainPort $Port -E2EPort $E2EPort
-    }
-
-    # Signal shutdown
-    if (Test-Path $SharedPath) {
-        "shutdown" | Out-File -FilePath $ShutdownSignalPath -Encoding UTF8
-        Write-Log "Shutdown signal sent"
-    }
-
-    return @{
-        success = $true
-        message = if ($wasConnected) { "Disconnected and shutdown signal sent" } else { "Shutdown signal sent (was not connected)" }
-    }
-}
-
 function Invoke-SandboxStatus {
     param($Arguments)
 
@@ -519,6 +592,13 @@ function Invoke-SandboxStatus {
         sandbox_wsb_exists = (Test-Path $SandboxWsbPath)
         tcp_connected = $tcpConnected
         tcp_port = $Port
+        connection_state = $global:ConnectionState
+        connected_server_pid = $global:ConnectedServerPid
+    }
+
+    # Include last connection time if available
+    if ($global:LastConnectionTime) {
+        $status.last_connection_time = $global:LastConnectionTime.ToString("yyyy-MM-ddTHH:mm:ss")
     }
 
     # Include E2E port if configured
@@ -550,7 +630,7 @@ function Invoke-SandboxStatus {
 
 $BridgeToolHandlers = @{
     "start_sandbox" = { param($args) Invoke-StartSandbox $args }
-    "stop_sandbox" = { param($args) Invoke-StopSandbox $args }
+    "reconnect_sandbox" = { param($args) Invoke-ReconnectSandbox $args }
     "sandbox_status" = { param($args) Invoke-SandboxStatus $args }
 }
 #endregion
@@ -615,7 +695,7 @@ function Handle-ToolsCall {
 
     # Forward to sandbox
     if (-not (Test-TcpConnected)) {
-        Send-McpError -Id $Request.id -Code -32603 -Message "Not connected to sandbox. Call 'start_sandbox' first."
+        Send-McpError -Id $Request.id -Code -32603 -Message "Not connected to sandbox. Restart Claude Code to auto-launch sandbox, or call 'reconnect_sandbox' if sandbox is already running."
         return
     }
 
@@ -638,14 +718,12 @@ function Handle-ToolsCall {
 Write-Log "MCP Sandbox Bridge starting..."
 Write-Log "Workspace: $WorkspacePath"
 
-# Try to connect to existing sandbox
-$signal = Get-ReadySignal
-if ($signal -and $signal.tcp_ip -and $signal.server_pid) {
-    Write-Log "Found existing ready signal, attempting connection..."
-    if (Connect-Tcp $signal.tcp_ip $signal.server_pid) {
-        $global:SandboxTools = Get-SandboxToolList
-        Write-Log "Connected to existing sandbox ($($global:SandboxTools.Count) tools)"
-    }
+# Auto-launch sandbox at startup (or connect to existing)
+$result = Invoke-StartSandbox @{ timeout_seconds = 60 }
+if ($result.success) {
+    Write-Log "Startup: $($result.message) ($($result.tool_count) tools)"
+} else {
+    Write-Log "Startup: $($result.error)"
 }
 
 try {

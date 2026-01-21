@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Serialization;
 
 namespace Rhombus.WinFormsMcp.Server.Models;
@@ -9,10 +10,39 @@ namespace Rhombus.WinFormsMcp.Server.Models;
 public class WindowInfo
 {
     /// <summary>
+    /// Native HWND pointer. Use this internally to avoid string parsing overhead.
+    /// </summary>
+    [JsonIgnore]
+    public IntPtr HandlePtr { get; set; } = IntPtr.Zero;
+
+    /// <summary>
     /// Native HWND as hex string (e.g., "0x1A2B3C"). Stable within session.
+    /// Computed from HandlePtr for JSON serialization.
     /// </summary>
     [JsonPropertyName("handle")]
-    public string Handle { get; set; } = "";
+    public string Handle
+    {
+        get => HandlePtr == IntPtr.Zero ? "" : $"0x{HandlePtr.ToInt64():X}";
+        set
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                HandlePtr = IntPtr.Zero;
+                return;
+            }
+            try
+            {
+                var cleanHex = value.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                    ? value.Substring(2)
+                    : value;
+                HandlePtr = new IntPtr(long.Parse(cleanHex, System.Globalization.NumberStyles.HexNumber));
+            }
+            catch
+            {
+                HandlePtr = IntPtr.Zero;
+            }
+        }
+    }
 
     /// <summary>
     /// Current window title. May change dynamically.
@@ -37,6 +67,12 @@ public class WindowInfo
     /// </summary>
     [JsonPropertyName("isActive")]
     public bool IsActive { get; set; }
+
+    /// <summary>
+    /// Process ID that owns this window.
+    /// </summary>
+    [JsonPropertyName("processId")]
+    public int ProcessId { get; set; }
 }
 
 /// <summary>

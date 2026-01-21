@@ -144,6 +144,20 @@ public class WindowManagerTests
         Assert.That(result, Is.False);
     }
 
+    [Test]
+    public void TestGetClientAreaBounds_InvalidHandle_ReturnsNull()
+    {
+        var result = _windowManager!.GetClientAreaBounds("0xDEADBEEF");
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void TestTranslateClientToScreen_InvalidHandle_ReturnsNull()
+    {
+        var result = _windowManager!.TranslateClientToScreen("0xDEADBEEF", 50, 50);
+        Assert.That(result, Is.Null);
+    }
+
     #endregion
 
     #region ToolResponse Tests
@@ -263,6 +277,29 @@ public class WindowManagerTests
         // Empty partial matches should be omitted
         var doc = JsonDocument.Parse(json);
         Assert.That(doc.RootElement.TryGetProperty("partialMatches", out _), Is.False);
+    }
+
+    [Test]
+    public void TestToolResponse_Warning_IncludedInJson()
+    {
+        var response = ToolResponse.Ok(_windowManager!, ("message", "Test"));
+        response.Warning = "Coordinates outside bounds";
+        var json = response.ToJson();
+
+        var doc = JsonDocument.Parse(json);
+        Assert.That(doc.RootElement.TryGetProperty("warning", out var warningProp), Is.True);
+        Assert.That(warningProp.GetString(), Is.EqualTo("Coordinates outside bounds"));
+    }
+
+    [Test]
+    public void TestToolResponse_NullWarning_OmittedInJson()
+    {
+        var response = ToolResponse.Ok(_windowManager!, ("message", "Test"));
+        // Warning is null by default
+        var json = response.ToJson();
+
+        var doc = JsonDocument.Parse(json);
+        Assert.That(doc.RootElement.TryGetProperty("warning", out _), Is.False);
     }
 
     #endregion

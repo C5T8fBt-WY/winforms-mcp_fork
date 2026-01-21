@@ -24,13 +24,14 @@ jobs:
     - name: Build
       run: dotnet build Rhombus.WinFormsMcp.sln --configuration Release --no-restore
 
-    - name: Run tests
-      run: dotnet test Rhombus.WinFormsMcp.sln --configuration Release --no-build --logger "console;verbosity=minimal" --collect:"XPlat Code Coverage"
+    - name: Run tests with coverage
+      run: dotnet test Rhombus.WinFormsMcp.sln --configuration Release --no-build --logger "console;verbosity=minimal" --collect:"XPlat Code Coverage" --results-directory ./TestResults
 
     - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       if: always()
       with:
-        files: ./coverage.cobertura.xml
+        directory: ./TestResults
         flags: unittests
         name: codecov-umbrella
+        fail_ci_if_error: false

@@ -7,6 +7,27 @@ using Rhombus.WinFormsMcp.Server.Models;
 namespace Rhombus.WinFormsMcp.Server;
 
 /// <summary>
+/// Scope of windows returned in the response.
+/// </summary>
+public enum WindowScope
+{
+    /// <summary>
+    /// All visible windows on the desktop.
+    /// </summary>
+    All,
+
+    /// <summary>
+    /// Windows from a single process.
+    /// </summary>
+    Process,
+
+    /// <summary>
+    /// Windows from tracked processes only.
+    /// </summary>
+    Tracked
+}
+
+/// <summary>
 /// Standardized response format for all MCP tools.
 /// Every response includes window context so agents always know available windows.
 /// </summary>
@@ -23,8 +44,19 @@ public class ToolResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Error { get; set; }
 
+    [JsonPropertyName("warning")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Warning { get; set; }
+
     [JsonPropertyName("windows")]
     public List<WindowInfo> Windows { get; set; } = new();
+
+    /// <summary>
+    /// Scope of the windows array - indicates if filtered or all windows.
+    /// </summary>
+    [JsonPropertyName("windowScope")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public WindowScope WindowScope { get; set; } = WindowScope.All;
 
     // Additional context for specific error types
     [JsonPropertyName("partialMatches")]
@@ -125,6 +157,81 @@ public class ToolResponse
             Error = error,
             Matches = matches,
             Windows = windowManager.GetAllWindows()
+        };
+    }
+
+    /// <summary>
+    /// Create a successful response with scoped windows.
+    /// </summary>
+    /// <param name="result">The result payload.</param>
+    /// <param name="windowScope">The scope of the windows array.</param>
+    /// <param name="windows">The scoped windows list.</param>
+    public static ToolResponse OkScoped(object? result, WindowScope windowScope, List<WindowInfo> windows)
+    {
+        return new ToolResponse
+        {
+            Success = true,
+            Result = result,
+            Windows = windows,
+            WindowScope = windowScope
+        };
+    }
+
+    /// <summary>
+    /// Create a successful response with scoped windows and custom properties.
+    /// </summary>
+    public static ToolResponse OkScoped(WindowScope windowScope, List<WindowInfo> windows, params (string key, object? value)[] properties)
+    {
+        var result = new Dictionary<string, object?>();
+        foreach (var (key, value) in properties)
+        {
+            result[key] = value;
+        }
+
+        return new ToolResponse
+        {
+            Success = true,
+            Result = result.Count > 0 ? result : null,
+            Windows = windows,
+            WindowScope = windowScope
+        };
+    }
+
+    /// <summary>
+    /// Create a failure response with all windows for error recovery context.
+    /// Used when scoping would hide relevant context during errors.
+    /// </summary>
+    /// <param name="error">The error message.</param>
+    /// <param name="allWindows">All available windows for recovery context.</param>
+    public static ToolResponse FailWithContext(string error, List<WindowInfo> allWindows)
+    {
+        return new ToolResponse
+        {
+            Success = false,
+            Error = error,
+            Windows = allWindows,
+            WindowScope = WindowScope.All
+        };
+    }
+
+    /// <summary>
+    /// Create a failure response with all windows and custom properties.
+    /// </summary>
+    public static ToolResponse FailWithContext(string error, List<WindowInfo> allWindows, params (string key, object? value)[] properties)
+    {
+        var result = new Dictionary<string, object?>();
+        foreach (var (key, value) in properties)
+        {
+            result[key] = value;
+        }
+
+        return new ToolResponse
+        {
+            Success = false,
+            Error = error,
+            Result = result.Count > 0 ? result : null,
+            Windows = allWindows,
+            WindowScope = WindowScope.All
         };
     }
 

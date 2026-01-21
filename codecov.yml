@@ -1,0 +1,46 @@
+# Codecov Configuration
+# https://docs.codecov.com/docs/codecovyml-reference
+
+coverage:
+  # Coverage thresholds
+  status:
+    project:
+      default:
+        # Require at least 50% coverage (realistic for a growing project)
+        target: 50%
+        # Fail if coverage drops by more than 2%
+        threshold: 2%
+        # Only check files that were changed in the PR
+        only_pulls: true
+    patch:
+      default:
+        # New code should have at least 60% coverage
+        target: 60%
+        # Allow some flexibility for edge cases
+        threshold: 5%
+
+  # Precision for coverage percentages
+  precision: 2
+  round: down
+  range: "40...100"
+
+# Comment configuration for PRs
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: true
+  require_base: false
+  require_head: true
+
+# Ignore generated or third-party code
+ignore:
+  - "**/*.Designer.cs"
+  - "**/obj/**"
+  - "**/bin/**"
+
+# Flags for different test types
+flags:
+  unittests:
+    paths:
+      - src/
+    carryforward: true

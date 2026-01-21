@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Text.Json;
 
 /// <summary>
-/// Integration tests for the fnWindowsMCP server
+/// Integration tests for the Rhombus.WinFormsMcp server
 /// These tests verify the complete JSON-RPC protocol flow and MCP server functionality
 /// </summary>
 public class IntegrationTests

@@ -1,0 +1,240 @@
+{
+  "name": "Pen-Based Drawing Agent",
+  "description": "Demonstrates pen/stylus input for InkCanvas applications",
+  "prerequisites": {
+    "app": "InkCanvas-enabled application",
+    "coordinates": "Window-relative mode recommended",
+    "permissions": "Admin privileges (handled by sandbox)"
+  },
+  "examples": [
+    {
+      "name": "draw_signature",
+      "description": "Draw a simple signature with pressure variation",
+      "script": {
+        "steps": [
+          {
+            "id": "launch",
+            "tool": "launch_app",
+            "args": {
+              "path": "C:\\TestApps\\InkDemo.exe"
+            },
+            "delay_after_ms": 2000
+          },
+          {
+            "id": "wait_canvas",
+            "tool": "wait_for_element",
+            "args": {
+              "automationId": "inkCanvas",
+              "timeoutMs": 5000
+            }
+          },
+          {
+            "id": "stroke1",
+            "tool": "pen_stroke",
+            "args": {
+              "x1": 50, "y1": 150,
+              "x2": 100, "y2": 100,
+              "pressure": 400,
+              "steps": 15,
+              "windowTitle": "Ink Demo"
+            },
+            "delay_after_ms": 50
+          },
+          {
+            "id": "stroke2",
+            "tool": "pen_stroke",
+            "args": {
+              "x1": 100, "y1": 100,
+              "x2": 150, "y2": 150,
+              "pressure": 600,
+              "steps": 15,
+              "windowTitle": "Ink Demo"
+            },
+            "delay_after_ms": 50
+          },
+          {
+            "id": "stroke3",
+            "tool": "pen_stroke",
+            "args": {
+              "x1": 150, "y1": 150,
+              "x2": 200, "y2": 100,
+              "pressure": 300,
+              "steps": 15,
+              "windowTitle": "Ink Demo"
+            },
+            "delay_after_ms": 50
+          },
+          {
+            "id": "screenshot",
+            "tool": "take_screenshot",
+            "args": {
+              "windowTitle": "Ink Demo",
+              "outputPath": "C:\\Output\\signature.png"
+            }
+          }
+        ],
+        "options": {
+          "stop_on_error": true,
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "name": "draw_rectangle",
+      "description": "Draw a rectangle with consistent pressure",
+      "script": {
+        "steps": [
+          {
+            "tool": "pen_stroke",
+            "args": {
+              "x1": 100, "y1": 100,
+              "x2": 300, "y2": 100,
+              "pressure": 512,
+              "steps": 20,
+              "windowTitle": "Ink Demo"
+            }
+          },
+          {
+            "tool": "pen_stroke",
+            "args": {
+              "x1": 300, "y1": 100,
+              "x2": 300, "y2": 200,
+              "pressure": 512,
+              "steps": 20,
+              "windowTitle": "Ink Demo"
+            }
+          },
+          {
+            "tool": "pen_stroke",
+            "args": {
+              "x1": 300, "y1": 200,
+              "x2": 100, "y2": 200,
+              "pressure": 512,
+              "steps": 20,
+              "windowTitle": "Ink Demo"
+            }
+          },
+          {
+            "tool": "pen_stroke",
+            "args": {
+              "x1": 100, "y1": 200,
+              "x2": 100, "y2": 100,
+              "pressure": 512,
+              "steps": 20,
+              "windowTitle": "Ink Demo"
+            }
+          }
+        ],
+        "options": {
+          "default_delay_ms": 30
+        }
+      }
+    },
+    {
+      "name": "erase_and_redraw",
+      "description": "Demonstrate eraser mode",
+      "script": {
+        "steps": [
+          {
+            "id": "draw",
+            "tool": "pen_stroke",
+            "args": {
+              "x1": 100, "y1": 150,
+              "x2": 300, "y2": 150,
+              "pressure": 512,
+              "eraser": false,
+              "windowTitle": "Ink Demo"
+            },
+            "delay_after_ms": 500
+          },
+          {
+            "id": "erase",
+            "tool": "pen_stroke",
+            "args": {
+              "x1": 150, "y1": 100,
+              "x2": 250, "y2": 200,
+              "pressure": 512,
+              "eraser": true,
+              "windowTitle": "Ink Demo"
+            },
+            "delay_after_ms": 500
+          },
+          {
+            "id": "redraw",
+            "tool": "pen_stroke",
+            "args": {
+              "x1": 175, "y1": 125,
+              "x2": 225, "y2": 175,
+              "pressure": 768,
+              "eraser": false,
+              "windowTitle": "Ink Demo"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "pinch_zoom_canvas",
+      "description": "Zoom in on the canvas using pinch gesture",
+      "script": {
+        "steps": [
+          {
+            "id": "zoom_in",
+            "tool": "pinch_zoom",
+            "args": {
+              "centerX": 200,
+              "centerY": 200,
+              "startDistance": 50,
+              "endDistance": 150,
+              "steps": 20,
+              "windowTitle": "Ink Demo"
+            },
+            "delay_after_ms": 500
+          },
+          {
+            "id": "verify_zoom",
+            "tool": "take_screenshot",
+            "args": {
+              "windowTitle": "Ink Demo",
+              "outputPath": "C:\\Output\\zoomed.png"
+            }
+          },
+          {
+            "id": "zoom_out",
+            "tool": "pinch_zoom",
+            "args": {
+              "centerX": 200,
+              "centerY": 200,
+              "startDistance": 150,
+              "endDistance": 50,
+              "steps": 20,
+              "windowTitle": "Ink Demo"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "pressure_guide": {
+    "0": "Hovering (not touching surface)",
+    "256": "Light touch - thin strokes",
+    "512": "Normal pressure - default",
+    "768": "Firm pressure - thick strokes",
+    "1024": "Maximum pressure - thickest strokes"
+  },
+  "tips": [
+    "Use window-relative coordinates (windowTitle parameter) for consistent positioning",
+    "Increase 'steps' for smoother curves (20-30 for detailed work)",
+    "Add delays between strokes if ink rendering is slow",
+    "Use eraser=true to erase ink instead of drawing",
+    "Vary pressure along strokes for calligraphy effects",
+    "Take screenshots to verify ink was captured correctly"
+  ],
+  "patterns_demonstrated": [
+    "Pen stroke with pressure variation",
+    "Multi-stroke drawing sequences",
+    "Eraser mode for corrections",
+    "Pinch zoom gesture",
+    "Screenshot verification"
+  ]
+}

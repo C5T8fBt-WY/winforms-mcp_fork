@@ -1,0 +1,226 @@
+{
+  "name": "UI Bug Detection Agent",
+  "description": "Scans UI for common accessibility and usability issues",
+  "checks": [
+    {
+      "name": "unlabeled_buttons",
+      "description": "Find buttons without accessible names",
+      "detection": {
+        "step1": {
+          "description": "Get full UI tree",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "get_ui_tree",
+              "arguments": {
+                "windowTitle": "MyApplication",
+                "maxDepth": 10,
+                "includeInvisible": false
+              }
+            }
+          }
+        },
+        "analysis": "For each Button element, check if Name is empty or generic like 'button1'",
+        "bug_criteria": [
+          "Button.Name is empty",
+          "Button.Name matches /^button\\d+$/i",
+          "Button.AutomationId is empty AND Button.Name is empty"
+        ]
+      },
+      "severity": "high",
+      "wcag": "1.1.1 Non-text Content"
+    },
+    {
+      "name": "disabled_without_tooltip",
+      "description": "Find disabled controls that don't explain why",
+      "detection": {
+        "step1": {
+          "description": "Find all disabled elements",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "get_ui_tree",
+              "arguments": {
+                "windowTitle": "MyApplication",
+                "maxDepth": 10
+              }
+            }
+          }
+        },
+        "analysis": "For each element with IsEnabled=false, check for HelpText property",
+        "step2": {
+          "description": "Check element state for HelpText",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "check_element_state",
+              "arguments": {
+                "elementId": "$disabled_element.id"
+              }
+            }
+          }
+        },
+        "bug_criteria": [
+          "IsEnabled=false AND no HelpText explaining why"
+        ]
+      },
+      "severity": "medium",
+      "wcag": "3.3.1 Error Identification"
+    },
+    {
+      "name": "missing_keyboard_focus",
+      "description": "Find interactive elements that can't receive keyboard focus",
+      "detection": {
+        "step1": {
+          "description": "Get UI tree",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "get_ui_tree",
+              "arguments": {
+                "windowTitle": "MyApplication",
+                "maxDepth": 10
+              }
+            }
+          }
+        },
+        "step2": {
+          "description": "Check focusability of interactive elements",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "check_element_state",
+              "arguments": {
+                "elementId": "$interactive_element.id"
+              }
+            }
+          }
+        },
+        "bug_criteria": [
+          "ControlType in [Button, TextBox, ComboBox, CheckBox] AND IsKeyboardFocusable=false"
+        ]
+      },
+      "severity": "high",
+      "wcag": "2.1.1 Keyboard"
+    },
+    {
+      "name": "inconsistent_tab_order",
+      "description": "Detect tab order that doesn't follow visual layout",
+      "detection": {
+        "step1": {
+          "description": "Get all focusable elements with bounds",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "get_ui_tree",
+              "arguments": {
+                "windowTitle": "MyApplication",
+                "maxDepth": 10
+              }
+            }
+          }
+        },
+        "step2": {
+          "description": "Tab through elements and record order",
+          "loop": [
+            {
+              "request": {
+                "method": "tools/call",
+                "params": {
+                  "name": "send_keys",
+                  "arguments": {
+                    "keys": "{TAB}",
+                    "windowTitle": "MyApplication"
+                  }
+                }
+              }
+            },
+            {
+              "request": {
+                "method": "tools/call",
+                "params": {
+                  "name": "get_ui_tree",
+                  "arguments": {
+                    "windowTitle": "MyApplication",
+                    "maxDepth": 3
+                  }
+                }
+              },
+              "record": "Element with HasKeyboardFocus=true"
+            }
+          ]
+        },
+        "analysis": "Compare tab order with visual top-to-bottom, left-to-right order",
+        "bug_criteria": [
+          "Tab order jumps unexpectedly across the UI",
+          "Focus moves right-to-left or bottom-to-top unexpectedly"
+        ]
+      },
+      "severity": "medium",
+      "wcag": "2.4.3 Focus Order"
+    },
+    {
+      "name": "truncated_text",
+      "description": "Find text elements that may be clipped",
+      "detection": {
+        "step1": {
+          "description": "Get UI tree with bounds",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "get_ui_tree",
+              "arguments": {
+                "windowTitle": "MyApplication",
+                "maxDepth": 10
+              }
+            }
+          }
+        },
+        "analysis": "For Text/Label elements, estimate if text length exceeds bounds width",
+        "step2": {
+          "description": "Take screenshot for visual verification",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "take_screenshot",
+              "arguments": {
+                "windowTitle": "MyApplication",
+                "outputPath": "C:\\Output\\truncation-check.png"
+              }
+            }
+          }
+        },
+        "bug_criteria": [
+          "Text element Name contains '...'",
+          "Text appears cut off in screenshot"
+        ]
+      },
+      "severity": "low",
+      "wcag": "1.4.4 Resize Text"
+    }
+  ],
+  "report_format": {
+    "summary": {
+      "total_issues": 0,
+      "high_severity": 0,
+      "medium_severity": 0,
+      "low_severity": 0
+    },
+    "issues": [
+      {
+        "check": "unlabeled_buttons",
+        "element": "AutomationId or path",
+        "description": "What's wrong",
+        "suggestion": "How to fix",
+        "wcag_reference": "Guideline number"
+      }
+    ]
+  },
+  "patterns_demonstrated": [
+    "Systematic UI analysis",
+    "Heuristic-based bug detection",
+    "WCAG accessibility checking",
+    "Screenshot capture for visual verification",
+    "Anchor-based navigation for related elements"
+  ]
+}

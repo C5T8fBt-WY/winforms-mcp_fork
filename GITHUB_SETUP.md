@@ -17,7 +17,7 @@
 After creating the repo on GitHub, run:
 
 ```bash
-cd /c/dev/fnWindowsMCP
+cd /c/dev/Rhombus.WinFormsMcp
 git remote add origin https://github.com/rhom6us/winforms-mcp.git
 git branch -M master
 git push -u origin master
@@ -89,7 +89,7 @@ Go to **Repository Settings → Branches** and create a rule for `master`:
 Create and push the first tag to trigger the publish workflow:
 
 ```bash
-cd /c/dev/fnWindowsMCP
+cd /c/dev/Rhombus.WinFormsMcp
 git tag v1.0.0
 git push origin v1.0.0
 ```

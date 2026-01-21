@@ -1,6 +1,6 @@
-# fnWindowsMCP Usage Examples
+# Rhombus.WinFormsMcp Usage Examples
 
-This document provides practical examples of using fnWindowsMCP to automate WinForms applications.
+This document provides practical examples of using Rhombus.WinFormsMcp to automate WinForms applications.
 
 ## Table of Contents
 
@@ -10,6 +10,7 @@ This document provides practical examples of using fnWindowsMCP to automate WinF
 4. [Screenshot-Based Validation](#screenshot-based-validation)
 5. [Error Handling](#error-handling)
 6. [Advanced Scenarios](#advanced-scenarios)
+7. [Script Execution (Batch Commands)](#script-execution-batch-commands)
 
 ## Basic Application Launch
 
@@ -706,6 +707,150 @@ Or navigate with keys:
   }
 }
 ```
+
+## Script Execution (Batch Commands)
+
+The `run_script` tool allows you to execute multiple commands in sequence without round-trip overhead between each step. This is ideal for test automation and complex workflows.
+
+### Basic Script Execution
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "run_script",
+    "arguments": {
+      "script": {
+        "steps": [
+          { "id": "launch", "tool": "launch_app", "args": { "path": "notepad.exe" }, "delay_after_ms": 1000 },
+          { "id": "find_edit", "tool": "find_element", "args": { "className": "Edit" } },
+          { "tool": "type_text", "args": { "elementId": "$find_edit.result.elementId", "text": "Hello, World!" } }
+        ]
+      }
+    }
+  }
+}
+```
+
+### Variable References
+
+Steps can reference results from previous steps using `$stepId.result.path` syntax:
+
+```json
+{
+  "script": {
+    "steps": [
+      { "id": "btn", "tool": "find_element", "args": { "name": "Submit" } },
+      { "tool": "click_element", "args": { "elementId": "$btn.result.elementId" } }
+    ]
+  }
+}
+```
+
+Use `$last` to reference the immediately previous step:
+
+```json
+{
+  "script": {
+    "steps": [
+      { "tool": "find_element", "args": { "name": "txtName" } },
+      { "tool": "type_text", "args": { "elementId": "$last.result.elementId", "text": "John Doe" } }
+    ]
+  }
+}
+```
+
+### Script Options
+
+```json
+{
+  "script": {
+    "steps": [...],
+    "options": {
+      "stop_on_error": true,
+      "default_delay_ms": 100,
+      "timeout_ms": 60000
+    }
+  }
+}
+```
+
+- **stop_on_error** (default: true) - Stop execution on first error
+- **default_delay_ms** (default: 0) - Delay after each step in milliseconds
+- **timeout_ms** (default: 120000) - Overall script timeout
+
+### Complete Form Fill Script
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "run_script",
+    "arguments": {
+      "script": {
+        "steps": [
+          { "id": "name", "tool": "find_element", "args": { "automationId": "txtName" } },
+          { "tool": "type_text", "args": { "elementId": "$name.result.elementId", "text": "John Doe", "clearFirst": true } },
+          { "id": "email", "tool": "find_element", "args": { "automationId": "txtEmail" } },
+          { "tool": "type_text", "args": { "elementId": "$email.result.elementId", "text": "john@example.com", "clearFirst": true } },
+          { "id": "submit", "tool": "find_element", "args": { "name": "Submit" } },
+          { "tool": "click_element", "args": { "elementId": "$submit.result.elementId" } },
+          { "tool": "wait_for_element", "args": { "name": "Success", "timeoutMs": 5000 } }
+        ],
+        "options": {
+          "stop_on_error": true,
+          "default_delay_ms": 50
+        }
+      }
+    }
+  }
+}
+```
+
+### Script Response Format
+
+```json
+{
+  "success": true,
+  "result": {
+    "completed_steps": 3,
+    "total_steps": 3,
+    "steps": [
+      { "id": "launch", "success": true, "result": { "pid": 5432 }, "execution_time_ms": 1150 },
+      { "id": "find_edit", "success": true, "result": { "elementId": "elem_1" }, "execution_time_ms": 50 },
+      { "id": "step_3", "success": true, "result": { "typed": true }, "execution_time_ms": 200 }
+    ],
+    "total_execution_time_ms": 1400
+  }
+}
+```
+
+### Error Handling in Scripts
+
+When `stop_on_error: true` and a step fails:
+
+```json
+{
+  "success": false,
+  "result": {
+    "completed_steps": 2,
+    "total_steps": 5,
+    "failed_at_step": "step3",
+    "steps": [
+      { "id": "step1", "success": true, "result": {...} },
+      { "id": "step2", "success": true, "result": {...} },
+      { "id": "step3", "success": false, "error": "Element not found" }
+    ]
+  },
+  "error": "Script failed at step 'step3': Element not found"
+}
+```
+
+When `stop_on_error: false`, all steps execute and failures are recorded individually.
 
 ## Tips and Best Practices
 

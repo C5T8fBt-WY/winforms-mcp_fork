@@ -1,14 +1,15 @@
-## Critical Bug: Handle String Conversion
+## Handle String Conversion
 
-**Location**: winforms-mcp WindowManager and Program.cs
+**Status**: RESOLVED (2026-01-19)
 
-**Issue**: Window handles are converted from IntPtr to string ("0x{hwnd:X}") when stored in WindowInfo, then converted back to IntPtr when needed. This is wasteful and error-prone.
+**Issue**: Window handles were converted from IntPtr to string ("0x{hwnd:X}") when stored in WindowInfo, then converted back to IntPtr when needed.
 
-**Recommendation**: Keep handles as IntPtr internally. Only convert to string for JSON/MCP output.
-
-**Files affected**:
-- Automation/WindowManager.cs:121, 199 - converts to string
-- Program.cs:3329, 4110 - converts back to IntPtr
+**Fix**:
+- Added `HandlePtr` property to `WindowInfo` (IntPtr, not serialized)
+- Made `Handle` a computed property that formats/parses for JSON
+- Updated `WindowManager` to use `HandlePtr` directly internally
+- Added `WindowManager.ParseHandleString()` helper for external handle strings
+- Now: IntPtr used internally, string only for JSON output
 
 
 ## Issue: Synthetic Pointer Input Not Reaching WPF Applications

@@ -1,0 +1,151 @@
+{
+  "name": "UI Test Case Generation Agent",
+  "description": "Explores UI progressively and generates test cases for interactive elements",
+  "workflow": {
+    "phase1_discovery": {
+      "description": "Initial shallow exploration to map UI structure",
+      "steps": [
+        {
+          "description": "Get shallow UI tree",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "get_ui_tree",
+              "arguments": {
+                "windowTitle": "MyApplication",
+                "maxDepth": 2,
+                "maxTokenBudget": 3000
+              }
+            }
+          },
+          "analysis": "Identify containers that need deeper exploration"
+        },
+        {
+          "description": "Mark interesting containers for expansion",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "mark_for_expansion",
+              "arguments": {
+                "elementKey": "MainContentPanel"
+              }
+            }
+          }
+        },
+        {
+          "description": "Get expanded tree for marked elements",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "get_ui_tree",
+              "arguments": {
+                "windowTitle": "MyApplication",
+                "maxDepth": 5,
+                "maxTokenBudget": 8000
+              }
+            }
+          },
+          "analysis": "Now MainContentPanel is expanded to depth 5"
+        }
+      ]
+    },
+    "phase2_element_testing": {
+      "description": "Test each interactive element systematically",
+      "for_each_button": [
+        {
+          "description": "Check element state before interaction",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "check_element_state",
+              "arguments": {
+                "automationId": "$button.automationId"
+              }
+            }
+          },
+          "record": "Initial state: IsEnabled, bounds, any Value"
+        },
+        {
+          "description": "Capture snapshot before click",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "capture_ui_snapshot",
+              "arguments": {
+                "snapshotId": "before_$button.automationId"
+              }
+            }
+          }
+        },
+        {
+          "description": "Click the button",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "click_by_automation_id",
+              "arguments": {
+                "automationId": "$button.automationId"
+              }
+            }
+          }
+        },
+        {
+          "description": "Compare state to detect effect",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "compare_ui_snapshots",
+              "arguments": {
+                "beforeSnapshotId": "before_$button.automationId"
+              }
+            }
+          },
+          "record": "Effect: dialogs opened, elements changed, etc."
+        },
+        {
+          "description": "Subscribe to events for async effects",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "subscribe_to_events",
+              "arguments": {
+                "event_types": ["window_opened", "dialog_shown"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Check for pending events",
+          "request": {
+            "method": "tools/call",
+            "params": {
+              "name": "get_pending_events",
+              "arguments": {}
+            }
+          },
+          "record": "Any dialogs or windows that appeared"
+        }
+      ]
+    },
+    "phase3_generate_tests": {
+      "description": "Generate test case documentation from observations",
+      "output_format": {
+        "test_case": {
+          "element": "$button.automationId",
+          "element_type": "$button.controlType",
+          "preconditions": ["App launched", "Main window visible"],
+          "action": "Click button",
+          "expected_result": "$observed_effect",
+          "actual_result": "TO BE VERIFIED"
+        }
+      }
+    }
+  },
+  "patterns_demonstrated": [
+    "Progressive disclosure (shallow first, expand targets)",
+    "Systematic element enumeration",
+    "State change detection for each interaction",
+    "Event subscription for async UI changes",
+    "Test case documentation generation"
+  ]
+}

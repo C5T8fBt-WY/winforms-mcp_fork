@@ -58,6 +58,9 @@ public class WindowManager
     [DllImport("user32.dll")]
     private static extern int GetWindowTextLength(IntPtr hWnd);
 
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -116,6 +119,9 @@ public class WindowManager
             if (width <= 0 || height <= 0)
                 return true;
 
+            // Get process ID
+            GetWindowThreadProcessId(hwnd, out uint processId);
+
             windows.Add(new WindowInfo
             {
                 HandlePtr = hwnd,
@@ -128,7 +134,8 @@ public class WindowManager
                     Width = width,
                     Height = height
                 },
-                IsActive = hwnd == foregroundHwnd
+                IsActive = hwnd == foregroundHwnd,
+                ProcessId = (int)processId
             });
 
             return true;
@@ -190,6 +197,9 @@ public class WindowManager
 
             var foregroundHwnd = GetForegroundWindow();
 
+            // Get process ID
+            GetWindowThreadProcessId(hwnd, out uint processId);
+
             return new WindowInfo
             {
                 HandlePtr = hwnd,
@@ -202,7 +212,8 @@ public class WindowManager
                     Width = rect.right - rect.left,
                     Height = rect.bottom - rect.top
                 },
-                IsActive = hwnd == foregroundHwnd
+                IsActive = hwnd == foregroundHwnd,
+                ProcessId = (int)processId
             };
         }
         catch
@@ -238,6 +249,9 @@ public class WindowManager
                 if (!GetWindowRect(hwnd, out RECT rect))
                     return true;
 
+                // Get process ID
+                GetWindowThreadProcessId(hwnd, out uint processId);
+
                 matches.Add(new WindowInfo
                 {
                     HandlePtr = hwnd,
@@ -250,7 +264,8 @@ public class WindowManager
                         Width = rect.right - rect.left,
                         Height = rect.bottom - rect.top
                     },
-                    IsActive = hwnd == foregroundHwnd
+                    IsActive = hwnd == foregroundHwnd,
+                    ProcessId = (int)processId
                 });
             }
 
@@ -287,6 +302,9 @@ public class WindowManager
                 if (!GetWindowRect(hwnd, out RECT rect))
                     return true;
 
+                // Get process ID
+                GetWindowThreadProcessId(hwnd, out uint processId);
+
                 matches.Add(new WindowInfo
                 {
                     HandlePtr = hwnd,
@@ -299,7 +317,8 @@ public class WindowManager
                         Width = rect.right - rect.left,
                         Height = rect.bottom - rect.top
                     },
-                    IsActive = hwnd == foregroundHwnd
+                    IsActive = hwnd == foregroundHwnd,
+                    ProcessId = (int)processId
                 });
             }
 
@@ -467,5 +486,28 @@ public class WindowManager
             return null;
 
         return (clientBounds.X + clientX, clientBounds.Y + clientY);
+    }
+
+    /// <summary>
+    /// Get windows belonging to specific process IDs.
+    /// </summary>
+    /// <param name="pids">Set of process IDs to filter by.</param>
+    /// <returns>List of windows belonging to the specified processes.</returns>
+    public List<WindowInfo> GetWindowsByPids(IReadOnlySet<int> pids)
+    {
+        if (pids.Count == 0)
+            return new List<WindowInfo>();
+
+        return GetAllWindows().Where(w => pids.Contains(w.ProcessId)).ToList();
+    }
+
+    /// <summary>
+    /// Get windows belonging to a specific process ID.
+    /// </summary>
+    /// <param name="pid">Process ID to filter by.</param>
+    /// <returns>List of windows belonging to the specified process.</returns>
+    public List<WindowInfo> GetWindowsByPid(int pid)
+    {
+        return GetAllWindows().Where(w => w.ProcessId == pid).ToList();
     }
 }

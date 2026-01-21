@@ -81,7 +81,7 @@ try {
         name = "take_screenshot"
         arguments = @{
             outputPath = $screenshotPath
-            windowTitle = "fnWindowsMCP Test"
+            windowTitle = "WinForms MCP Test"
         }
     }
 
@@ -120,7 +120,7 @@ try {
     $result = Send-Request -method "tools/call" -params @{
         name = "mouse_click"
         arguments = @{
-            windowTitle = "fnWindowsMCP Test"
+            windowTitle = "WinForms MCP Test"
             x = 705
             y = 355
         }
@@ -144,7 +144,7 @@ try {
         name = "take_screenshot"
         arguments = @{
             outputPath = $verifyPath
-            windowTitle = "fnWindowsMCP Test"
+            windowTitle = "WinForms MCP Test"
         }
     }
 

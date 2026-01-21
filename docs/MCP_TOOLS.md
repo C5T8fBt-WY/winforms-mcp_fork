@@ -5,6 +5,7 @@ Complete reference for all MCP tools provided by Rhombus.WinFormsMcp.
 ## Table of Contents
 
 - [Process Management](#process-management)
+- [Window Management](#window-management)
 - [Element Discovery](#element-discovery)
 - [UI Interaction](#ui-interaction)
 - [Input Injection](#input-injection)
@@ -17,6 +18,7 @@ Complete reference for all MCP tools provided by Rhombus.WinFormsMcp.
 - [DPI & Coordinates](#dpi--coordinates)
 - [Confirmation Flow](#confirmation-flow)
 - [Sandbox Tools](#sandbox-tools)
+- [Scripting](#scripting)
 
 ---
 
@@ -58,6 +60,52 @@ Terminate an application gracefully or forcefully.
 | force | boolean | No | Force kill (default: false) |
 
 **Returns:** `{ success, closed, forced }`
+
+---
+
+## Window Management
+
+### `focus_window`
+
+Bring a window to the foreground and give it input focus.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| windowHandle | string | No | Window handle (HWND) |
+| windowTitle | string | No | Window title (partial match) |
+| pid | integer | No | Process ID |
+
+**Returns:** `{ success, window_title, window_handle }`
+
+### `get_window_bounds`
+
+Get the position and size of a window.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| windowHandle | string | No | Window handle (HWND) |
+| windowTitle | string | No | Window title (partial match) |
+| pid | integer | No | Process ID |
+
+**Returns:** `{ success, bounds: { x, y, width, height }, is_minimized, is_maximized }`
+
+### `take_screenshot`
+
+Capture a screenshot of a window or the entire screen.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| windowHandle | string | No | Window handle (HWND) |
+| windowTitle | string | No | Window title (partial match) |
+| outputPath | string | No | File path to save screenshot |
+| format | string | No | Image format: "png" or "jpeg" (default: png) |
+
+**Returns:** `{ success, path, width, height, format }`
+
+**Note:** If no window is specified, captures the entire primary screen. Returns base64-encoded image data if no outputPath is specified.
 
 ---
 
@@ -112,6 +160,20 @@ List all UI elements in a window for debugging.
 
 **Returns:** Array of element info with AutomationId, Name, ClassName, ControlType, bounds
 
+### `wait_for_element`
+
+Wait for an element to appear in the UI.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| automationId | string | Yes | AutomationId to wait for |
+| parent | string | No | Parent element path |
+| timeoutMs | integer | No | Timeout (default: 10000) |
+| pollIntervalMs | integer | No | Poll interval (default: 100) |
+
+**Returns:** `{ success, elementId, wait_time_ms }`
+
 ---
 
 ## UI Interaction
@@ -154,6 +216,19 @@ Enter text into a text field.
 
 **Returns:** `{ success }`
 
+### `set_value`
+
+Set the value of an input element by selecting all and typing.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| elementPath | string | Yes | Element ID |
+| value | string | Yes | Value to set |
+| selectAllDelayMs | integer | No | Delay after select-all (default: 50) |
+
+**Returns:** `{ success }`
+
 ### `send_keys`
 
 Send keyboard input to focused element.
@@ -162,6 +237,22 @@ Send keyboard input to focused element.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | keys | string | Yes | Keys to send (e.g., "{ENTER}", "^c") |
+| windowHandle | string | No | Target window handle |
+| windowTitle | string | No | Target window title |
+
+**Returns:** `{ success }`
+
+### `drag_drop`
+
+Drag one element onto another.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| sourceElementId | string | Yes | Source element ID |
+| targetElementId | string | Yes | Target element ID |
+| dragSetupDelayMs | integer | No | Delay before drag (default: 100) |
+| dropDelayMs | integer | No | Delay before release (default: 200) |
 
 **Returns:** `{ success }`
 
@@ -194,6 +285,22 @@ Drag from one point to another.
 | steps | integer | No | Intermediate points (default: 20) |
 
 **Performance Note:** Keep waypoint count low. Each waypoint has ~100ms overhead. For straight drags, FlaUI interpolates smoothly between just start/end points.
+
+### `mouse_drag_path`
+
+Drag along a path with multiple waypoints.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| waypoints | array | Yes | Array of {x, y} coordinates |
+| windowHandle | string | No | Target window handle for relative coords |
+| windowTitle | string | No | Target window title for relative coords |
+| stepDelayMs | integer | No | Delay between waypoints (default: 50) |
+
+**Returns:** `{ success, waypoints_count, total_distance }`
+
+**Note:** When `windowHandle` or `windowTitle` is provided, coordinates are relative to that window's client area.
 
 ### `touch_tap`
 
@@ -232,6 +339,21 @@ Simulate pen stroke with pressure.
 | pressure | integer | No | Pen pressure 0-1024 (default: 512) |
 | steps | integer | No | Points (default: 20) |
 | eraser | boolean | No | Use eraser end (default: false) |
+
+### `pen_tap`
+
+Simulate a single pen tap at coordinates.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| x | integer | Yes | X coordinate |
+| y | integer | Yes | Y coordinate |
+| pressure | integer | No | Pen pressure 0-1024 (default: 512) |
+| windowHandle | string | No | Target window handle for relative coords |
+| windowTitle | string | No | Target window title for relative coords |
+
+**Returns:** `{ success }`
 
 ### `pinch_zoom`
 
@@ -300,6 +422,20 @@ Scroll scrollable containers.
 | automationId | string | No | AutomationId to find |
 | direction | string | Yes | "up", "down", "left", "right" |
 | amount | string | No | "small" or "large" (default: small) |
+
+### `get_element_at_point`
+
+Get the UI element at specific screen coordinates.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| x | integer | Yes | X coordinate |
+| y | integer | Yes | Y coordinate |
+| windowHandle | string | No | Target window handle for relative coords |
+| windowTitle | string | No | Target window title for relative coords |
+
+**Returns:** `{ success, elementId, automationId, name, controlType, bounds }`
 
 ---
 
@@ -525,6 +661,17 @@ Gracefully shutdown sandbox VM.
 | force | boolean | No | Force kill (default: false) |
 | timeoutMs | integer | No | Graceful shutdown timeout |
 
+### `list_sandbox_apps`
+
+List running applications inside the sandbox.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| includeSystem | boolean | No | Include system processes (default: false) |
+
+**Returns:** `{ success, apps: [{ pid, name, mainWindowTitle }] }`
+
 ---
 
 ## Capability Detection
@@ -557,6 +704,65 @@ Get process metadata for window targeting.
 | windowTitle | string | No | Window title (partial match) |
 
 **Returns:** `{ pid, processName, responding, window_state, main_window_title }`
+
+---
+
+## Scripting
+
+### `run_script`
+
+Execute a sequence of MCP tool calls as a batch script.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| script | object | Yes | Script definition (see below) |
+
+**Script Structure:**
+```json
+{
+  "steps": [
+    { "id": "step1", "tool": "launch_app", "args": { "path": "C:\\app.exe" }, "delay_after_ms": 1000 },
+    { "id": "step2", "tool": "find_element", "args": { "automationId": "NameField" } },
+    { "tool": "type_text", "args": { "elementPath": "$step2.result.elementId", "text": "Hello" } }
+  ],
+  "options": {
+    "stop_on_error": true,
+    "default_delay_ms": 0,
+    "timeout_ms": 60000
+  }
+}
+```
+
+**Variable Interpolation:**
+- Reference previous step results using `$stepId.result.path` syntax
+- Use `$last.result` as alias for the previous step's result
+
+**Options:**
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| stop_on_error | boolean | true | Stop execution on first error |
+| default_delay_ms | integer | 0 | Default delay after each step |
+| timeout_ms | integer | 60000 | Overall script timeout |
+
+**Returns:**
+```json
+{
+  "success": false,
+  "result": {
+    "completed_steps": 2,
+    "total_steps": 3,
+    "failed_at_step": "step3",
+    "steps": [
+      { "id": "step1", "success": true, "result": {...}, "execution_time_ms": 150 },
+      { "id": "step2", "success": true, "result": {...}, "execution_time_ms": 50 },
+      { "id": "step3", "success": false, "error": "Element not found", "execution_time_ms": 5000 }
+    ],
+    "total_execution_time_ms": 5200
+  },
+  "error": "Script failed at step 'step3': Element not found"
+}
+```
 
 ---
 

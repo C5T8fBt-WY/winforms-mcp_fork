@@ -31,7 +31,7 @@ partial class Form1
         var titleLabel = new System.Windows.Forms.Label
         {
             Name = "titleLabel",
-            Text = "fnWindowsMCP Test Application",
+            Text = "WinForms MCP Test Application",
             Font = new System.Drawing.Font("Arial", 16, System.Drawing.FontStyle.Bold),
             Location = new System.Drawing.Point(10, 10),
             Size = new System.Drawing.Size(400, 30)
@@ -192,7 +192,7 @@ partial class Form1
         // Form configuration
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
         this.ClientSize = new System.Drawing.Size(800, 400);
-        this.Text = "fnWindowsMCP Test Application";
+        this.Text = "WinForms MCP Test Application";
         this.Name = "TestForm";
         this.Controls.Add(mainPanel);
     }

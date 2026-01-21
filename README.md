@@ -1,4 +1,4 @@
-# fnWindowsMCP - WinForms Automation MCP Server
+# Rhombus.WinFormsMcp - WinForms Automation MCP Server
 
 [![CI Status](https://github.com/rhom6us/winforms-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/rhom6us/winforms-mcp/actions/workflows/ci.yml)
 [![Publish Status](https://github.com/rhom6us/winforms-mcp/actions/workflows/publish.yml/badge.svg)](https://github.com/rhom6us/winforms-mcp/actions/workflows/publish.yml)
@@ -6,11 +6,11 @@
 [![NPM Version](https://img.shields.io/npm/v/@rhom6us/winforms-mcp)](https://www.npmjs.com/package/@rhom6us/winforms-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**fnWindowsMCP** is a Model Context Protocol (MCP) server that provides headless automation capabilities for WinForms applications. It uses the FlaUI library with the UIA2 backend (MSAA - Microsoft Active Accessibility) to enable full Windows Forms compatibility without requiring visual interaction.
+**Rhombus.WinFormsMcp** is a Model Context Protocol (MCP) server that provides headless automation capabilities for WinForms applications. It uses the FlaUI library with the UIA2 backend (MSAA - Microsoft Active Accessibility) to enable full Windows Forms compatibility without requiring visual interaction.
 
 ## Overview
 
-fnWindowsMCP bridges the gap between Claude Code and WinForms applications, enabling:
+Rhombus.WinFormsMcp bridges the gap between Claude Code and WinForms applications, enabling:
 
 - **Automated element discovery** by AutomationId, Name, ClassName, or ControlType
 - **UI interaction** including clicking, typing, value setting, and drag-drop operations
@@ -60,25 +60,25 @@ Get-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClientVM" 
 ### Project Structure
 
 ```
-fnWindowsMCP/
+Rhombus.WinFormsMcp/
 ├── src/
-│   ├── fnWindowsMCP.Server/          # MCP server implementation
+│   ├── Rhombus.WinFormsMcp.Server/          # MCP server implementation
 │   │   ├── Program.cs                # MCP stdio transport + tool implementations
 │   │   ├── Automation/
 │   │   │   └── AutomationHelper.cs   # Core FlaUI wrapper (428 lines)
-│   │   └── fnWindowsMCP.Server.csproj
+│   │   └── Rhombus.WinFormsMcp.Server.csproj
 │   │
-│   ├── fnWindowsMCP.TestApp/         # Sample WinForms application for testing
+│   ├── Rhombus.WinFormsMcp.TestApp/         # Sample WinForms application for testing
 │   │   ├── Form1.cs / Form1.Designer.cs
 │   │   ├── Program.cs
-│   │   └── fnWindowsMCP.TestApp.csproj
+│   │   └── Rhombus.WinFormsMcp.TestApp.csproj
 │   │
-│   └── fnWindowsMCP.sln              # Solution file
+│   └── Rhombus.WinFormsMcp.sln              # Solution file
 │
 ├── tests/
-│   └── fnWindowsMCP.Tests/           # NUnit test suite
+│   └── Rhombus.WinFormsMcp.Tests/           # NUnit test suite
 │       ├── UnitTest1.cs              # AutomationHelper tests
-│       └── fnWindowsMCP.Tests.csproj
+│       └── Rhombus.WinFormsMcp.Tests.csproj
 │
 ├── README.md                         # This file
 ├── global.json                       # .NET 8.0 SDK version pinning
@@ -98,7 +98,7 @@ fnWindowsMCP/
 
 ## Core Components
 
-### 1. AutomationHelper (src/fnWindowsMCP.Server/Automation/AutomationHelper.cs)
+### 1. AutomationHelper (src/Rhombus.WinFormsMcp.Server/Automation/AutomationHelper.cs)
 
 Core automation wrapper with 25+ methods:
 
@@ -138,7 +138,7 @@ Core automation wrapper with 25+ methods:
 - **Resource cleanup**: IDisposable implementation with automatic process termination
 - **Headless compatible**: No visual interaction required, all operations via window messages
 
-### 2. MCP Server (src/fnWindowsMCP.Server/Program.cs)
+### 2. MCP Server (src/Rhombus.WinFormsMcp.Server/Program.cs)
 
 Implements Model Context Protocol with:
 
@@ -148,32 +148,58 @@ Implements Model Context Protocol with:
   - Cached automation elements with unique IDs
   - Process contexts for lifecycle tracking
 
-#### Tool Implementations (14 tools)
+#### Tool Implementations (45+ tools)
 
-**Element Tools:**
-- `find_element` - Discover UI element by identifier
-- `click_element` - Interact with element
-- `type_text` - Enter text into field
-- `set_value` - Set element value
-- `get_property` - Read element properties
+The MCP server provides comprehensive UI automation capabilities organized into categories:
 
-**Process Tools:**
-- `launch_app` - Start WinForms application
-- `attach_to_process` - Connect to running app
-- `close_app` - Terminate application
+**Process Management:**
+- `launch_app`, `attach_to_process`, `close_app`, `get_process_info`
 
-**Validation Tools:**
-- `take_screenshot` - Capture visual state
-- `element_exists` - Check element presence
-- `wait_for_element` - Wait for element appearance
+**Window Management:**
+- `focus_window`, `get_window_bounds`, `take_screenshot`
 
-**Interaction Tools:**
-- `drag_drop` - Drag-and-drop operation
-- `send_keys` - Send keyboard input
+**Element Discovery:**
+- `find_element`, `find_element_near_anchor`, `list_elements`, `wait_for_element`
 
-**Future Enhancement:**
-- `raise_event` - Trigger UI events (not yet implemented)
-- `listen_for_event` - Monitor UI events (not yet implemented)
+**UI Interaction:**
+- `click_element`, `click_by_automation_id`, `type_text`, `set_value`, `send_keys`, `drag_drop`
+
+**Input Injection (coordinate-based):**
+- `mouse_click`, `mouse_drag`, `mouse_drag_path`
+- `touch_tap`, `touch_drag`, `pinch_zoom`, `rotate_gesture`, `multi_touch_gesture`
+- `pen_tap`, `pen_stroke` (with pressure sensitivity)
+
+**UI Tree & Observation:**
+- `get_ui_tree`, `check_element_state`, `expand_collapse`, `scroll`, `get_element_at_point`
+
+**State Change Detection:**
+- `capture_ui_snapshot`, `compare_ui_snapshots`
+
+**Self-Healing:**
+- `check_element_stale`, `relocate_element`
+
+**Progressive Disclosure:**
+- `mark_for_expansion`, `clear_expansion_marks`
+
+**Event System:**
+- `subscribe_to_events`, `get_pending_events`
+
+**Performance & Caching:**
+- `get_cache_stats`, `invalidate_cache`
+
+**DPI & Coordinates:**
+- `get_dpi_info` (all coordinate tools support window-relative positioning)
+
+**Sandbox Tools:**
+- `launch_app_sandboxed`, `close_sandbox`, `list_sandbox_apps`
+
+**Scripting:**
+- `run_script` - Execute batch sequences with variable interpolation
+
+**Capabilities:**
+- `get_capabilities` - Query server features and version
+
+For complete documentation, see **[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)**.
 
 #### Protocol Details
 - **Transport**: stdio with line-based JSON-RPC 2.0
@@ -181,7 +207,7 @@ Implements Model Context Protocol with:
 - **Error handling**: Comprehensive try-catch with JSON error responses
 - **Session state**: Persists across multiple tool calls
 
-### 3. Test Application (src/fnWindowsMCP.TestApp/)
+### 3. Test Application (src/Rhombus.WinFormsMcp.TestApp/)
 
 Sample WinForms application with:
 - **TextBox** - Text input control
@@ -194,7 +220,7 @@ Sample WinForms application with:
 
 All controls configured with proper names for automation discovery.
 
-### 4. Test Suite (tests/fnWindowsMCP.Tests/)
+### 4. Test Suite (tests/Rhombus.WinFormsMcp.Tests/)
 
 Comprehensive NUnit tests covering:
 - AutomationHelper initialization
@@ -275,15 +301,15 @@ See [Sandbox Development Guide](docs/SANDBOX_DEVELOPMENT.md) for hot-reload work
 
 ```bash
 cd C:\dev
-git clone <repo-url> fnWindowsMCP
-cd fnWindowsMCP
+git clone <repo-url> Rhombus.WinFormsMcp
+cd Rhombus.WinFormsMcp
 dotnet build
 ```
 
 ### Running the Server
 
 ```bash
-dotnet run --project src/fnWindowsMCP.Server/fnWindowsMCP.Server.csproj
+dotnet run --project src/Rhombus.WinFormsMcp.Server/Rhombus.WinFormsMcp.Server.csproj
 ```
 
 The server listens on stdin/stdout for JSON-RPC messages.
@@ -297,7 +323,7 @@ dotnet test
 ### Running the Test Application
 
 ```bash
-dotnet run --project src/fnWindowsMCP.TestApp/fnWindowsMCP.TestApp.csproj
+dotnet run --project src/Rhombus.WinFormsMcp.TestApp/Rhombus.WinFormsMcp.TestApp.csproj
 ```
 
 ## MCP Tool Reference
@@ -590,13 +616,27 @@ Edit `global.json` to change .NET SDK version:
 - `FNWINDOWSMCP_TIMEOUT` - Default timeout for operations (ms)
 - `FNWINDOWSMCP_SCREENSHOT_DIR` - Default screenshot directory
 
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+| Document | Description |
+|----------|-------------|
+| [MCP_TOOLS.md](docs/MCP_TOOLS.md) | Complete reference for all 45+ MCP tools |
+| [AGENT_EXPLORATION_GUIDE.md](docs/AGENT_EXPLORATION_GUIDE.md) | Patterns for AI agents: OODA loop, progressive disclosure, self-healing |
+| [SANDBOX_SETUP.md](docs/SANDBOX_SETUP.md) | Windows Sandbox configuration and security |
+| [HOST_SETUP.md](docs/HOST_SETUP.md) | Host machine setup for headless automation |
+| [TOUCH_PEN_GUIDE.md](docs/TOUCH_PEN_GUIDE.md) | Touch and pen input with pressure sensitivity |
+
+Example agent scripts are available in the `examples/` directory.
+
 ## Known Limitations
 
-1. **Event Listening** - Event monitoring not yet implemented (placeholder tool returns "not yet implemented")
-2. **Event Raising** - Event triggering not yet implemented (placeholder tool returns "not yet implemented")
-3. **Complex Patterns** - Some advanced UI Automation patterns (ValuePattern, SelectionPattern) use fallback implementations
-4. **Cross-machine** - Designed for local machine automation; remote scenarios may require additional configuration
-5. **UAC** - Applications requiring administrator privileges need special handling
+1. **Windows Only** - Designed for Windows 10/11; no cross-platform support
+2. **UIA-Compatible Apps** - Only works with applications that support UI Automation (WinForms, WPF, most modern Windows apps)
+3. **Single Monitor** - Coordinate system assumes single monitor setup
+4. **Network Disabled** - Sandbox runs with network disabled for security
+5. **UAC** - Applications requiring administrator privileges work in sandbox (runs as admin) but may need special handling on bare metal
 
 ## Performance Characteristics
 
@@ -687,4 +727,4 @@ For issues, questions, or feature requests, please open an issue on GitHub.
 
 ---
 
-**fnWindowsMCP** enables headless WinForms automation with full type safety, async/await support, and MCP protocol compatibility. Perfect for test automation, CI/CD integration, and programmatic UI control.
+**Rhombus.WinFormsMcp** enables headless WinForms automation with full type safety, async/await support, and MCP protocol compatibility. Perfect for test automation, CI/CD integration, and programmatic UI control.

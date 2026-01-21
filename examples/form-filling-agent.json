@@ -1,0 +1,150 @@
+{
+  "name": "Simple Form Filling Agent",
+  "description": "Demonstrates finding form fields, typing text, and submitting",
+  "steps": [
+    {
+      "description": "Launch the application",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "launch_app",
+          "arguments": {
+            "path": "C:\\TestApps\\FormApp.exe"
+          }
+        }
+      },
+      "expected_result": "Application launches, PID returned"
+    },
+    {
+      "description": "Wait for main window to appear",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "wait_for_element",
+          "arguments": {
+            "automationId": "MainForm",
+            "timeoutMs": 10000
+          }
+        }
+      },
+      "expected_result": "Main form element found"
+    },
+    {
+      "description": "Get UI tree to understand form structure",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "get_ui_tree",
+          "arguments": {
+            "windowTitle": "Registration Form",
+            "maxDepth": 4
+          }
+        }
+      },
+      "expected_result": "XML tree with form fields visible"
+    },
+    {
+      "description": "Find and fill username field",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "find_element",
+          "arguments": {
+            "automationId": "txtUsername",
+            "windowTitle": "Registration Form"
+          }
+        }
+      },
+      "expected_result": "Element ID returned for username field"
+    },
+    {
+      "description": "Type username",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "type_text",
+          "arguments": {
+            "elementPath": "$previous.elementId",
+            "text": "testuser123"
+          }
+        }
+      },
+      "expected_result": "Text typed into username field"
+    },
+    {
+      "description": "Find and fill email field",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "find_element",
+          "arguments": {
+            "automationId": "txtEmail",
+            "windowTitle": "Registration Form"
+          }
+        }
+      },
+      "expected_result": "Element ID returned for email field"
+    },
+    {
+      "description": "Type email",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "type_text",
+          "arguments": {
+            "elementPath": "$previous.elementId",
+            "text": "test@example.com"
+          }
+        }
+      },
+      "expected_result": "Text typed into email field"
+    },
+    {
+      "description": "Capture state before clicking submit",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_ui_snapshot",
+          "arguments": {
+            "snapshotId": "before_submit"
+          }
+        }
+      },
+      "expected_result": "Snapshot captured"
+    },
+    {
+      "description": "Click submit button",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "click_by_automation_id",
+          "arguments": {
+            "automationId": "btnSubmit",
+            "windowTitle": "Registration Form"
+          }
+        }
+      },
+      "expected_result": "Button clicked"
+    },
+    {
+      "description": "Compare UI state to detect changes",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "compare_ui_snapshots",
+          "arguments": {
+            "beforeSnapshotId": "before_submit"
+          }
+        }
+      },
+      "expected_result": "State changed - success dialog appeared or form submitted"
+    }
+  ],
+  "patterns_demonstrated": [
+    "Application launch and wait",
+    "UI tree exploration",
+    "Element discovery by AutomationId",
+    "Text input",
+    "State change detection"
+  ]
+}

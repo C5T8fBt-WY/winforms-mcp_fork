@@ -164,4 +164,87 @@ public static class Constants
         /// <summary>Maximum depth for state change detection.</summary>
         public const int StateChangeMaxDepth = 5;
     }
+
+    /// <summary>
+    /// Input injection defaults for touch and pen.
+    /// </summary>
+    public static class Input
+    {
+        /// <summary>Default contact size for touch injection (pixels).</summary>
+        public const int TouchContactSize = 2;
+
+        /// <summary>Default touch pressure value (0-65535 range).</summary>
+        public const uint TouchPressureDefault = 32000;
+
+        /// <summary>Default pen pressure value (0-1024 range, midpoint).</summary>
+        public const uint PenPressureDefault = 512;
+
+        /// <summary>Perpendicular orientation value (degrees).</summary>
+        public const uint OrientationPerpendicular = 90;
+
+        /// <summary>Default number of steps for drag interpolation.</summary>
+        public const int DefaultDragSteps = 10;
+
+        /// <summary>Default delay between drag steps (ms).</summary>
+        public const int DefaultDragDelayMs = 5;
+
+        /// <summary>Default delay between touch events (ms).</summary>
+        public const int DefaultTouchDelayMs = 1;
+
+        /// <summary>Default number of steps for pen stroke interpolation.</summary>
+        public const int DefaultPenStrokeSteps = 20;
+
+        /// <summary>Default delay between pen stroke steps (ms).</summary>
+        public const int DefaultPenStrokeDelayMs = 2;
+
+        /// <summary>Maximum touch contacts for multi-touch.</summary>
+        public const uint MaxTouchContacts = 10;
+
+        /// <summary>Default number of steps for pinch/rotate gestures.</summary>
+        public const int DefaultGestureSteps = 20;
+    }
+
+    /// <summary>
+    /// Pointer flag constants for input injection.
+    /// Mirrors Win32 POINTER_FLAG_* values for quick reference.
+    /// Full definitions are in Interop/Win32Constants.cs.
+    /// </summary>
+    public static class Pointer
+    {
+        /// <summary>No flags.</summary>
+        public const uint FlagNone = 0x00000000;
+
+        /// <summary>New pointer (first contact).</summary>
+        public const uint FlagNew = 0x00000001;
+
+        /// <summary>Pointer is in range.</summary>
+        public const uint FlagInRange = 0x00000002;
+
+        /// <summary>Pointer is in contact.</summary>
+        public const uint FlagInContact = 0x00000004;
+
+        /// <summary>First button pressed.</summary>
+        public const uint FlagFirstButton = 0x00000010;
+
+        /// <summary>This is the primary pointer.</summary>
+        public const uint FlagPrimary = 0x00002000;
+
+        /// <summary>Input is confident (not accidental).</summary>
+        public const uint FlagConfidence = 0x00004000;
+
+        /// <summary>Pointer down event.</summary>
+        public const uint FlagDown = 0x00010000;
+
+        /// <summary>Pointer update event.</summary>
+        public const uint FlagUpdate = 0x00020000;
+
+        /// <summary>Pointer up event.</summary>
+        public const uint FlagUp = 0x00040000;
+
+        /// <summary>Pointer type: Touch.</summary>
+        public const uint TypeTouch = 0x00000002;
+
+        /// <summary>Pointer type: Pen.</summary>
+        public const uint TypePen = 0x00000003;
+    }
 }

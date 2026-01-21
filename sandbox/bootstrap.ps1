@@ -17,7 +17,8 @@ param(
     [string]$SharedFolder = "C:\Shared",
     [switch]$EnableTcp,
     [int]$TcpPort = 9999,
-    [switch]$LazyStart  # Skip auto-starting server/app - use triggers instead
+    [switch]$LazyStart,  # Skip auto-starting server/app - use triggers instead
+    [switch]$EnableCoverage  # Wrap server with dotnet-coverage for code coverage
 )
 
 $ErrorActionPreference = "Stop"
@@ -64,7 +65,12 @@ $global:AppProcess = $null
 $global:CurrentAppName = $null  # Track which app is running for hot-reload
 
 # Version for tracking deployments
-$BootstrapVersion = "v7.0-smart-app-reload"
+$BootstrapVersion = "v8.0-code-coverage"
+
+# Coverage configuration
+$global:CoverageEnabled = $EnableCoverage.IsPresent
+$CoverageToolPath = "C:\DotNet\tools\dotnet-coverage.exe"
+$CoverageOutputPath = Join-Path $SharedFolder "coverage.cobertura.xml"
 
 # Start logging
 Start-Transcript -Path $LogPath -Append
@@ -231,8 +237,32 @@ function Start-ServerProcess {
 
     # Use dotnet.exe (trusted by WDAC) to run our DLL instead of exe
     $dotnetExe = "C:\DotNet\dotnet.exe"
-    Write-Output "Starting via dotnet: $dotnetExe $($mcpArgs -join ' ')"
-    $proc = Start-Process $dotnetExe -ArgumentList $mcpArgs -PassThru
+
+    if ($global:CoverageEnabled -and (Test-Path $CoverageToolPath)) {
+        # Wrap with dotnet-coverage for code coverage collection
+        # Coverage report is written when the process exits
+        Write-Output "Coverage ENABLED - wrapping server with dotnet-coverage"
+        Write-Output "Coverage output: $CoverageOutputPath"
+
+        # Build coverage arguments: dotnet-coverage collect --output <path> --output-format cobertura -- dotnet <dll> [args]
+        $coverageArgs = @(
+            "collect",
+            "--output", $CoverageOutputPath,
+            "--output-format", "cobertura",
+            "--"
+            $dotnetExe
+        ) + $mcpArgs
+
+        Write-Output "Starting via coverage: $CoverageToolPath $($coverageArgs -join ' ')"
+        $proc = Start-Process $CoverageToolPath -ArgumentList $coverageArgs -PassThru
+    } else {
+        Write-Output "Starting via dotnet: $dotnetExe $($mcpArgs -join ' ')"
+        $proc = Start-Process $dotnetExe -ArgumentList $mcpArgs -PassThru
+
+        if ($global:CoverageEnabled) {
+            Write-Warning "Coverage requested but dotnet-coverage not found at $CoverageToolPath"
+        }
+    }
 
     # Add to Job Object
     if ($global:JobObject.AddProcess($proc.Handle)) {
@@ -396,6 +426,8 @@ function Update-ReadySignal {
         tcp_enabled = $EnableTcp.IsPresent
         tcp_port = if ($EnableTcp) { $TcpPort } else { $null }
         tcp_ip = $sandboxIp
+        coverage_enabled = $global:CoverageEnabled
+        coverage_output = if ($global:CoverageEnabled) { $CoverageOutputPath } else { $null }
     } | ConvertTo-Json
 
     $ReadyContent | Out-File -FilePath $ReadySignal -Encoding UTF8
@@ -535,6 +567,9 @@ Write-Output "  Server PID: $global:ServerPid"
 Write-Output "  App PID: $global:AppPid"
 if ($EnableTcp) {
     Write-Output "  TCP Mode: Enabled on port $TcpPort"
+}
+if ($global:CoverageEnabled) {
+    Write-Output "  Coverage: ENABLED (output: $CoverageOutputPath)"
 }
 Write-Output "Bootstrap ready - monitoring for triggers..."
 #endregion
