@@ -188,6 +188,7 @@ public static class ToolDefinitions
                         input = new { type = "string", description = "mouse | touch | pen" },
                         button = new { type = "string", description = "left | right | middle (mouse)" },
                         eraser = new { type = "boolean", description = "Pen eraser tip" },
+                        right = new { type = "boolean", description = "Right-drag or barrel button (pen)" },
                         duration_ms = new { type = "integer", description = "Total drag duration" }
                     },
                     required = new[] { "path" }

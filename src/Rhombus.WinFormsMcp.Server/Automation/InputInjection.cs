@@ -933,8 +933,18 @@ public static class InputInjection
     /// <param name="delayMs">Delay between steps in ms</param>
     /// <param name="hwndTarget">Target window handle (if IntPtr.Zero, uses window at coordinates)</param>
     public static bool PenStroke(int x1, int y1, int x2, int y2, int steps = 20, uint pressure = 512, bool eraser = false, int delayMs = 2, IntPtr hwndTarget = default)
+        => PenStroke(x1, y1, x2, y2, steps, pressure, eraser, barrel: false, delayMs, hwndTarget);
+
+    /// <summary>
+    /// Simulate pen stroke with eraser and barrel button support.
+    /// </summary>
+    public static bool PenStroke(int x1, int y1, int x2, int y2, int steps, uint pressure, bool eraser, bool barrel, int delayMs = 2, IntPtr hwndTarget = default)
     {
-        uint penFlags = eraser ? PEN_FLAG_INVERTED : PEN_FLAG_NONE;
+        // Build pen flags
+        uint penFlags = PEN_FLAG_NONE;
+        if (eraser) penFlags |= PEN_FLAG_INVERTED;
+        if (barrel) penFlags |= PEN_FLAG_BARREL;
+
         uint pointerId = _nextPointerId++;
 
         // Flag combinations per Gemini suggestions for WPF InkCanvas:
@@ -963,7 +973,7 @@ public static class InputInjection
 
         // Up - pen lifts
         uint upFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_UP;
-        return InjectPen(x2, y2, pointerId, upFlags, penFlags, 0, 0, 0, hwndTarget);
+        return InjectPen(x2, y2, pointerId, upFlags, PEN_FLAG_NONE, 0, 0, 0, hwndTarget);
     }
 
     /// <summary>
@@ -975,6 +985,20 @@ public static class InputInjection
     /// <param name="holdMs">Milliseconds to hold before release (default 0)</param>
     /// <param name="hwndTarget">Target window handle (if IntPtr.Zero, uses window at coordinates)</param>
     public static bool PenTap(int x, int y, uint pressure = 512, int holdMs = 0, IntPtr hwndTarget = default)
+        => PenTap(x, y, pressure, holdMs, eraser: false, barrel: false, hwndTarget);
+
+    /// <summary>
+    /// Simulate pen tap with eraser and barrel button support.
+    /// Uses InjectSyntheticPointerInput API for full pen state machine.
+    /// </summary>
+    /// <param name="x">Screen X coordinate</param>
+    /// <param name="y">Screen Y coordinate</param>
+    /// <param name="pressure">Pen pressure 0-1024 (default 512)</param>
+    /// <param name="holdMs">Milliseconds to hold before release (default 0)</param>
+    /// <param name="eraser">Use eraser end of pen (PEN_FLAG_INVERTED)</param>
+    /// <param name="barrel">Barrel button pressed (PEN_FLAG_BARREL)</param>
+    /// <param name="hwndTarget">Target window handle (if IntPtr.Zero, uses window at coordinates)</param>
+    public static bool PenTap(int x, int y, uint pressure, int holdMs, bool eraser, bool barrel, IntPtr hwndTarget = default)
     {
         // IMPORTANT: Windows has a "press and hold to right-click" gesture.
         // To prevent this, we must complete the full gesture quickly:
@@ -986,15 +1010,20 @@ public static class InputInjection
         uint updateFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT | POINTER_FLAG_UPDATE | POINTER_FLAG_FIRSTBUTTON;
         uint upFlags = POINTER_FLAG_INRANGE | POINTER_FLAG_UP;
 
+        // Build pen flags
+        uint penFlags = PEN_FLAG_NONE;
+        if (eraser) penFlags |= PEN_FLAG_INVERTED;
+        if (barrel) penFlags |= PEN_FLAG_BARREL;
+
         // Down - pen makes contact with 1px offset
-        if (!InjectPen(x - 1, y, pointerId, downFlags, PEN_FLAG_NONE, pressure, 0, 0, hwndTarget))
+        if (!InjectPen(x - 1, y, pointerId, downFlags, penFlags, pressure, 0, 0, hwndTarget))
             return false;
 
         // Brief pause for event processing
         System.Threading.Thread.Sleep(1);
 
         // Update to actual position (the movement cancels hold gesture)
-        if (!InjectPen(x, y, pointerId, updateFlags, PEN_FLAG_NONE, pressure, 0, 0, hwndTarget))
+        if (!InjectPen(x, y, pointerId, updateFlags, penFlags, pressure, 0, 0, hwndTarget))
             return false;
 
         if (holdMs > 0)
@@ -1004,7 +1033,7 @@ public static class InputInjection
             {
                 System.Threading.Thread.Sleep(50);
                 int wiggleX = x + (i % 2);
-                if (!InjectPen(wiggleX, y, pointerId, updateFlags, PEN_FLAG_NONE, pressure, 0, 0, hwndTarget))
+                if (!InjectPen(wiggleX, y, pointerId, updateFlags, penFlags, pressure, 0, 0, hwndTarget))
                     return false;
             }
         }

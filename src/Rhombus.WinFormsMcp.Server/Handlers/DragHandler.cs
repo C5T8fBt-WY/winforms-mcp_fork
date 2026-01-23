@@ -29,6 +29,7 @@ internal class DragHandler : HandlerBase
             var input = GetStringArg(args, "input") ?? "mouse";
             var button = GetStringArg(args, "button") ?? "left";
             var eraser = GetBoolArg(args, "eraser", false);
+            var barrel = GetBoolArg(args, "right", false);
             var durationMs = GetIntArg(args, "duration_ms", 0);
 
             // Parse path array
@@ -47,7 +48,7 @@ internal class DragHandler : HandlerBase
             {
                 "mouse" => ExecuteMouseDrag(path, button, delayMs),
                 "touch" => ExecuteTouchDrag(path, delayMs),
-                "pen" => ExecutePenStroke(path, eraser, delayMs),
+                "pen" => ExecutePenStroke(path, eraser, barrel, delayMs),
                 _ => throw new ArgumentException($"Unknown input type: {input}")
             };
 
@@ -126,14 +127,14 @@ internal class DragHandler : HandlerBase
         return true;
     }
 
-    private bool ExecutePenStroke(List<PathPoint> path, bool eraser, int delayMs)
+    private bool ExecutePenStroke(List<PathPoint> path, bool eraser, bool barrel, int delayMs)
     {
         if (path.Count == 2)
         {
             var start = path[0];
             var end = path[1];
-            return InputFacade.PenStroke(start.X, start.Y, end.X, end.Y,
-                steps: 20, pressure: (uint)start.Pressure, eraser: eraser, delayMs: delayMs);
+            return InputInjection.PenStroke(start.X, start.Y, end.X, end.Y,
+                steps: 20, pressure: (uint)start.Pressure, eraser: eraser, barrel: barrel, delayMs: delayMs);
         }
 
         // Multi-point pen stroke - chain segments
@@ -141,8 +142,8 @@ internal class DragHandler : HandlerBase
         {
             var start = path[i];
             var end = path[i + 1];
-            if (!InputFacade.PenStroke(start.X, start.Y, end.X, end.Y,
-                steps: 5, pressure: (uint)start.Pressure, eraser: eraser, delayMs: delayMs))
+            if (!InputInjection.PenStroke(start.X, start.Y, end.X, end.Y,
+                steps: 5, pressure: (uint)start.Pressure, eraser: eraser, barrel: barrel, delayMs: delayMs))
                 return false;
         }
         return true;

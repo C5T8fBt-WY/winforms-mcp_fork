@@ -69,7 +69,7 @@ internal class ClickHandler : HandlerBase
             {
                 "mouse" => ExecuteMouseClick(x, y, right, doubleClick, holdMs),
                 "touch" => ExecuteTouchTap(x, y, holdMs),
-                "pen" => ExecutePenTap(x, y, (uint)pressure, holdMs, eraser),
+                "pen" => ExecutePenTap(x, y, (uint)pressure, holdMs, eraser, right),
                 _ => throw new ArgumentException($"Unknown input type: {input}")
             };
 
@@ -137,10 +137,8 @@ internal class ClickHandler : HandlerBase
         return InputFacade.TouchTap(x, y, holdMs);
     }
 
-    private bool ExecutePenTap(int x, int y, uint pressure, int holdMs, bool eraser)
+    private bool ExecutePenTap(int x, int y, uint pressure, int holdMs, bool eraser, bool barrel)
     {
-        // Pen tap with barrel button support would be via the holdMs or right-click logic
-        // For now, use standard pen tap
-        return InputFacade.PenTap(x, y, pressure, holdMs);
+        return InputInjection.PenTap(x, y, pressure, holdMs, eraser, barrel);
     }
 }
