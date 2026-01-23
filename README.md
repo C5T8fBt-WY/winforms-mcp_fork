@@ -165,9 +165,10 @@ The MCP server provides comprehensive UI automation capabilities organized into 
 - `click_element`, `click_by_automation_id`, `type_text`, `set_value`, `send_keys`, `drag_drop`
 
 **Input Injection (coordinate-based):**
-- `mouse_click`, `mouse_drag`, `mouse_drag_path`
-- `touch_tap`, `touch_drag`, `pinch_zoom`, `rotate_gesture`, `multi_touch_gesture`
-- `pen_tap`, `pen_stroke` (with pressure sensitivity)
+- **Unified Input**:
+  - `click` (replaces `mouse_click`, `touch_tap`, `pen_tap`)
+  - `drag` (replaces `mouse_drag`, `touch_drag`, `pen_stroke`)
+  - `gesture` (replaces `pinch_zoom`, `rotate_gesture`, `multi_touch_gesture`)
 
 **UI Tree & Observation:**
 - `get_ui_tree`, `check_element_state`, `expand_collapse`, `scroll`, `get_element_at_point`

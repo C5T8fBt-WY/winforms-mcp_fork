@@ -44,6 +44,14 @@ if (Test-Path $CertPath) {
 
 # Bypass execution policy for this process
 Set-ExecutionPolicy Bypass -Scope Process -Force
+
+# --- SECURITY MITIGATION: Disable Smart App Control (SAC) ---
+# Force the policy state to 0 (OFF) to prevent cloud-based blocking of unknown binaries.
+# This addresses Vector 5 (Modern Protections) from the engineering report.
+Write-Host "Disabling Smart App Control (SAC) enforcement..." -ForegroundColor Green
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy" -Name "VerifiedAndReputablePolicyState" -Value 0 -Force -ErrorAction SilentlyContinue
+# ------------------------------------------------------------
+
 #endregion
 
 # Path configuration
@@ -458,7 +466,10 @@ function Handle-Trigger {
     # Read trigger content before deleting (may contain app name or other params)
     $triggerContent = ""
     if (Test-Path $TriggerPath) {
-        $triggerContent = (Get-Content $TriggerPath -Raw -ErrorAction SilentlyContinue).Trim()
+        $rawContent = Get-Content $TriggerPath -Raw -ErrorAction SilentlyContinue
+        if ($rawContent) {
+            $triggerContent = $rawContent.Trim()
+        }
     }
 
     # Delete trigger file
@@ -611,6 +622,9 @@ $watcher.NotifyFilter = [System.IO.NotifyFilters]::FileName -bor `
                         [System.IO.NotifyFilters]::CreationTime
 $watcher.EnableRaisingEvents = $true
 
+# Ensure Shared folder is also unblocked (removes MotW from any scripts/binaries here)
+Get-ChildItem -Path $SharedFolder -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
+
 $triggerAction = {
     $path = $Event.SourceEventArgs.FullPath
     Write-Output "FSW: Trigger detected - $path"
@@ -622,6 +636,15 @@ Register-ObjectEvent $watcher "Changed" -Action $triggerAction | Out-Null
 Register-ObjectEvent $watcher "Renamed" -Action $triggerAction | Out-Null  # For atomic rename pattern
 
 Write-Output "FileSystemWatcher registered (Created, Changed, Renamed events)"
+
+# --- DIAGNOSTIC PANIC BUTTON (Engineering Report Vector 3) ---
+Write-Host "----------------------------------------------------------------" -ForegroundColor Gray
+Write-Host "DIAGNOSTIC PANIC BUTTON:" -ForegroundColor Yellow
+Write-Host "If an app crashes silently, run these commands to see why:" -ForegroundColor Yellow
+Write-Host '1. Code Integrity Blocks: Get-WinEvent -LogName "Microsoft-Windows-CodeIntegrity/Operational" | Where-Object { $_.Id -eq 3076 -or $_.Id -eq 3077 } | Format-Table TimeCreated, Id, Message -AutoSize'
+Write-Host '2. AppLocker Blocks: Get-WinEvent -LogName "Microsoft-Windows-AppLocker/EXE and DLL" | Where-Object { $_.Id -eq 8004 } | Format-Table TimeCreated, Message -AutoSize'
+Write-Host "----------------------------------------------------------------" -ForegroundColor Gray
+# -------------------------------------------------------------
 
 # Main loop with polling
 # FSW doesn't work over 9P mapped folders in Windows Sandbox, so we poll at 500ms

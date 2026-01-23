@@ -31,6 +31,7 @@ internal class ClickHandler : HandlerBase
             var input = GetStringArg(args, "input") ?? "mouse";
             var target = GetStringArg(args, "target");
             var right = GetBoolArg(args, "right", false);
+            var barrel = GetBoolArg(args, "barrel", false);
             var doubleClick = GetBoolArg(args, "double", false);
             var holdMs = GetIntArg(args, "hold_ms", 0);
             var pressure = GetIntArg(args, "pressure", 512);
@@ -69,7 +70,7 @@ internal class ClickHandler : HandlerBase
             {
                 "mouse" => ExecuteMouseClick(x, y, right, doubleClick, holdMs),
                 "touch" => ExecuteTouchTap(x, y, holdMs),
-                "pen" => ExecutePenTap(x, y, (uint)pressure, holdMs, eraser, right),
+                "pen" => ExecutePenTap(x, y, (uint)pressure, holdMs, eraser, right || barrel),
                 _ => throw new ArgumentException($"Unknown input type: {input}")
             };
 

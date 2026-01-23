@@ -30,36 +30,42 @@
           },
           {
             "id": "stroke1",
-            "tool": "pen_stroke",
+            "tool": "drag",
             "args": {
-              "x1": 50, "y1": 150,
-              "x2": 100, "y2": 100,
-              "pressure": 400,
-              "steps": 15,
+              "path": [
+                { "x": 50, "y": 150, "pressure": 400 },
+                { "x": 100, "y": 100, "pressure": 400 }
+              ],
+              "input": "pen",
+              "duration_ms": 500,
               "windowTitle": "Ink Demo"
             },
             "delay_after_ms": 50
           },
           {
             "id": "stroke2",
-            "tool": "pen_stroke",
+            "tool": "drag",
             "args": {
-              "x1": 100, "y1": 100,
-              "x2": 150, "y2": 150,
-              "pressure": 600,
-              "steps": 15,
+              "path": [
+                { "x": 100, "y": 100, "pressure": 600 },
+                { "x": 150, "y": 150, "pressure": 600 }
+              ],
+              "input": "pen",
+              "duration_ms": 500,
               "windowTitle": "Ink Demo"
             },
             "delay_after_ms": 50
           },
           {
             "id": "stroke3",
-            "tool": "pen_stroke",
+            "tool": "drag",
             "args": {
-              "x1": 150, "y1": 150,
-              "x2": 200, "y2": 100,
-              "pressure": 300,
-              "steps": 15,
+              "path": [
+                { "x": 150, "y": 150, "pressure": 300 },
+                { "x": 200, "y": 100, "pressure": 300 }
+              ],
+              "input": "pen",
+              "duration_ms": 500,
               "windowTitle": "Ink Demo"
             },
             "delay_after_ms": 50
@@ -85,42 +91,17 @@
       "script": {
         "steps": [
           {
-            "tool": "pen_stroke",
+            "tool": "drag",
             "args": {
-              "x1": 100, "y1": 100,
-              "x2": 300, "y2": 100,
-              "pressure": 512,
-              "steps": 20,
-              "windowTitle": "Ink Demo"
-            }
-          },
-          {
-            "tool": "pen_stroke",
-            "args": {
-              "x1": 300, "y1": 100,
-              "x2": 300, "y2": 200,
-              "pressure": 512,
-              "steps": 20,
-              "windowTitle": "Ink Demo"
-            }
-          },
-          {
-            "tool": "pen_stroke",
-            "args": {
-              "x1": 300, "y1": 200,
-              "x2": 100, "y2": 200,
-              "pressure": 512,
-              "steps": 20,
-              "windowTitle": "Ink Demo"
-            }
-          },
-          {
-            "tool": "pen_stroke",
-            "args": {
-              "x1": 100, "y1": 200,
-              "x2": 100, "y2": 100,
-              "pressure": 512,
-              "steps": 20,
+              "path": [
+                { "x": 100, "y": 100, "pressure": 512 },
+                { "x": 300, "y": 100, "pressure": 512 },
+                { "x": 300, "y": 200, "pressure": 512 },
+                { "x": 100, "y": 200, "pressure": 512 },
+                { "x": 100, "y": 100, "pressure": 512 }
+              ],
+              "input": "pen",
+              "duration_ms": 2000,
               "windowTitle": "Ink Demo"
             }
           }
@@ -137,36 +118,48 @@
         "steps": [
           {
             "id": "draw",
-            "tool": "pen_stroke",
+            "tool": "drag",
             "args": {
-              "x1": 100, "y1": 150,
-              "x2": 300, "y2": 150,
+              "path": [
+                { "x": 100, "y": 150 },
+                { "x": 300, "y": 150 }
+              ],
+              "input": "pen",
               "pressure": 512,
               "eraser": false,
+              "duration_ms": 500,
               "windowTitle": "Ink Demo"
             },
             "delay_after_ms": 500
           },
           {
             "id": "erase",
-            "tool": "pen_stroke",
+            "tool": "drag",
             "args": {
-              "x1": 150, "y1": 100,
-              "x2": 250, "y2": 200,
+              "path": [
+                { "x": 150, "y": 100 },
+                { "x": 250, "y": 200 }
+              ],
+              "input": "pen",
               "pressure": 512,
               "eraser": true,
+              "duration_ms": 500,
               "windowTitle": "Ink Demo"
             },
             "delay_after_ms": 500
           },
           {
             "id": "redraw",
-            "tool": "pen_stroke",
+            "tool": "drag",
             "args": {
-              "x1": 175, "y1": 125,
-              "x2": 225, "y2": 175,
+              "path": [
+                { "x": 175, "y": 125 },
+                { "x": 225, "y": 175 }
+              ],
+              "input": "pen",
               "pressure": 768,
               "eraser": false,
+              "duration_ms": 500,
               "windowTitle": "Ink Demo"
             }
           }
@@ -180,13 +173,13 @@
         "steps": [
           {
             "id": "zoom_in",
-            "tool": "pinch_zoom",
+            "tool": "gesture",
             "args": {
-              "centerX": 200,
-              "centerY": 200,
-              "startDistance": 50,
-              "endDistance": 150,
-              "steps": 20,
+              "type": "pinch",
+              "center": { "x": 200, "y": 200 },
+              "start_distance": 50,
+              "end_distance": 150,
+              "duration_ms": 1000,
               "windowTitle": "Ink Demo"
             },
             "delay_after_ms": 500
@@ -201,13 +194,13 @@
           },
           {
             "id": "zoom_out",
-            "tool": "pinch_zoom",
+            "tool": "gesture",
             "args": {
-              "centerX": 200,
-              "centerY": 200,
-              "startDistance": 150,
-              "endDistance": 50,
-              "steps": 20,
+              "type": "pinch",
+              "center": { "x": 200, "y": 200 },
+              "start_distance": 150,
+              "end_distance": 50,
+              "duration_ms": 1000,
               "windowTitle": "Ink Demo"
             }
           }
@@ -224,7 +217,7 @@
   },
   "tips": [
     "Use window-relative coordinates (windowTitle parameter) for consistent positioning",
-    "Increase 'steps' for smoother curves (20-30 for detailed work)",
+    "Use 'drag' tool with 'input': 'pen' for strokes",
     "Add delays between strokes if ink rendering is slow",
     "Use eraser=true to erase ink instead of drawing",
     "Vary pressure along strokes for calligraphy effects",

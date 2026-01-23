@@ -29,7 +29,8 @@ internal class DragHandler : HandlerBase
             var input = GetStringArg(args, "input") ?? "mouse";
             var button = GetStringArg(args, "button") ?? "left";
             var eraser = GetBoolArg(args, "eraser", false);
-            var barrel = GetBoolArg(args, "right", false);
+            var right = GetBoolArg(args, "right", false);
+            var barrel = GetBoolArg(args, "barrel", false);
             var durationMs = GetIntArg(args, "duration_ms", 0);
 
             // Parse path array
@@ -48,7 +49,7 @@ internal class DragHandler : HandlerBase
             {
                 "mouse" => ExecuteMouseDrag(path, button, delayMs),
                 "touch" => ExecuteTouchDrag(path, delayMs),
-                "pen" => ExecutePenStroke(path, eraser, barrel, delayMs),
+                "pen" => ExecutePenStroke(path, eraser, right || barrel, delayMs),
                 _ => throw new ArgumentException($"Unknown input type: {input}")
             };
 

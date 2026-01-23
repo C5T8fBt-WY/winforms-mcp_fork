@@ -1,0 +1,25 @@
+<Configuration>
+  <VGpu>Disable</VGpu>
+  <Networking>Default</Networking>
+  <ProtectedClient>Disable</ProtectedClient>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\Server</HostFolder>
+      <SandboxFolder>C:\Server</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\DotNet</HostFolder>
+      <SandboxFolder>C:\DotNet</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>C:\WinFormsMcpSandboxWorkspace\Shared</HostFolder>
+      <SandboxFolder>C:\Shared</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>powershell -ExecutionPolicy Bypass -NoExit -Command "Write-Host '[Init] Configuring Zone Trust for mapped folders...'; reg add 'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\ProtocolDefaults' /v file /t REG_DWORD /d 1 /f | Out-Null; Write-Host '[Init] Stripping Mark of the Web from mapped folders...'; Get-ChildItem -Path 'C:\Server','C:\DotNet','C:\Shared' -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue; reg add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' /v SmartScreenEnabled /t REG_SZ /d Off /f; reg add 'HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy' /v VerifiedAndReputablePolicyState /t REG_DWORD /d 0 /f; Write-Host '--- DIAGNOSTIC PANIC BUTTON ---' -ForegroundColor Yellow; Write-Host 'If apps block, run: Get-WinEvent -LogName \"Microsoft-Windows-CodeIntegrity/Operational\" | Where-Object { $_.Id -eq 3076 -or $_.Id -eq 3077 }' -ForegroundColor Yellow; $env:DOTNET_ROOT = 'C:\DotNet'; $env:PATH = 'C:\DotNet;' + $env:PATH; Write-Host 'Ready - run: C:\DotNet\dotnet.exe C:\Server\Rhombus.WinFormsMcp.Server.dll --tcp 9999'"</Command>
+  </LogonCommand>
+</Configuration>

@@ -6,7 +6,7 @@ A guide for using touch and pen input tools for ink-based and gesture-based UI a
 
 The WinForms MCP server provides low-level input injection for:
 - **Touch**: Taps, drags, pinch gestures, rotation
-- **Pen/Stylus**: Pressure-sensitive strokes, eraser mode, tilt
+- **Pen/Stylus**: Pressure-sensitive strokes, eraser mode, tilt, barrel button
 
 These tools are useful for testing InkCanvas applications, touch-optimized UIs, and pen-based workflows.
 
@@ -47,15 +47,15 @@ Returns:
 
 ### Window-Relative Coordinates
 
-All coordinate-based tools accept `windowHandle` or `windowTitle` to use window-relative coordinates:
+All coordinate-based tools accept `windowHandle` or `windowTitle` to use window-relative coordinates (Not yet fully implemented in unified tools):
 
 ```json
 {
-  "tool": "touch_tap",
+  "tool": "click",
   "args": {
     "x": 100,
     "y": 50,
-    "windowTitle": "InkCanvas Demo"
+    "input": "touch"
   }
 }
 ```
@@ -74,11 +74,11 @@ Single touch tap at a point:
 
 ```json
 {
-  "tool": "touch_tap",
+  "tool": "click",
   "args": {
     "x": 200,
     "y": 300,
-    "windowTitle": "MyApp"
+    "input": "touch"
   }
 }
 ```
@@ -89,24 +89,22 @@ Single-finger drag gesture:
 
 ```json
 {
-  "tool": "touch_drag",
+  "tool": "drag",
   "args": {
-    "x1": 100,
-    "y1": 300,
-    "x2": 400,
-    "y2": 300,
-    "steps": 20,
-    "windowTitle": "MyApp"
+    "path": [
+      { "x": 100, "y": 300 },
+      { "x": 400, "y": 300 }
+    ],
+    "input": "touch",
+    "duration_ms": 1000
   }
 }
 ```
 
 **Parameters**:
-- `x1, y1`: Start point
-- `x2, y2`: End point
-- `steps`: Intermediate points (default: 10)
-
-More steps = smoother animation, slower execution.
+- `path`: Array of points (x, y)
+- `input`: "touch"
+- `duration_ms`: Total duration of drag
 
 ### Pinch Zoom
 
@@ -114,26 +112,25 @@ Two-finger pinch gesture:
 
 ```json
 {
-  "tool": "pinch_zoom",
+  "tool": "gesture",
   "args": {
-    "centerX": 300,
-    "centerY": 300,
-    "startDistance": 50,
-    "endDistance": 200,
-    "steps": 20,
-    "windowTitle": "MyApp"
+    "type": "pinch",
+    "center": { "x": 300, "y": 300 },
+    "start_distance": 50,
+    "end_distance": 200,
+    "duration_ms": 1000
   }
 }
 ```
 
 **Parameters**:
-- `centerX, centerY`: Center point of the pinch
-- `startDistance`: Initial finger separation (pixels)
-- `endDistance`: Final finger separation
-- `steps`: Animation smoothness
+- `center`: Center point of the pinch (x, y)
+- `start_distance`: Initial finger separation (pixels)
+- `end_distance`: Final finger separation
+- `duration_ms`: Animation duration
 
-**Zoom in**: `endDistance > startDistance`
-**Zoom out**: `endDistance < startDistance`
+**Zoom in**: `end_distance > start_distance`
+**Zoom out**: `end_distance < start_distance`
 
 ### Rotation Gesture
 
@@ -141,24 +138,23 @@ Two-finger rotation:
 
 ```json
 {
-  "tool": "rotate_gesture",
+  "tool": "gesture",
   "args": {
-    "centerX": 300,
-    "centerY": 300,
+    "type": "rotate",
+    "center": { "x": 300, "y": 300 },
     "radius": 100,
-    "startAngle": 0,
-    "endAngle": 90,
-    "steps": 20,
-    "windowTitle": "MyApp"
+    "start_angle": 0,
+    "end_angle": 90,
+    "duration_ms": 1000
   }
 }
 ```
 
 **Parameters**:
-- `centerX, centerY`: Center of rotation
+- `center`: Center of rotation
 - `radius`: Distance from center to each finger
-- `startAngle, endAngle`: Rotation in degrees (clockwise)
-- `steps`: Animation smoothness
+- `start_angle, end_angle`: Rotation in degrees (clockwise)
+- `duration_ms`: Animation duration
 
 ### Multi-Touch Gesture
 
@@ -166,36 +162,32 @@ Arbitrary multi-touch with multiple contact points:
 
 ```json
 {
-  "tool": "multi_touch_gesture",
+  "tool": "gesture",
   "args": {
-    "touches": [
+    "type": "custom",
+    "fingers": [
       {
-        "id": 0,
         "path": [
-          { "x": 100, "y": 100 },
-          { "x": 150, "y": 150 },
-          { "x": 200, "y": 200 }
+          { "x": 100, "y": 100, "time_ms": 0 },
+          { "x": 150, "y": 150, "time_ms": 500 },
+          { "x": 200, "y": 200, "time_ms": 1000 }
         ]
       },
       {
-        "id": 1,
         "path": [
-          { "x": 400, "y": 100 },
-          { "x": 350, "y": 150 },
-          { "x": 300, "y": 200 }
+          { "x": 400, "y": 100, "time_ms": 0 },
+          { "x": 350, "y": 150, "time_ms": 500 },
+          { "x": 300, "y": 200, "time_ms": 1000 }
         ]
       }
-    ],
-    "stepDelayMs": 50,
-    "windowTitle": "MyApp"
+    ]
   }
 }
 ```
 
 **Parameters**:
-- `touches`: Array of touch contact definitions
-- Each touch has `id` (0-9) and `path` (array of coordinates)
-- `stepDelayMs`: Delay between path points
+- `fingers`: Array of finger paths
+- Each finger has a `path` array of points with `x`, `y`, and `time_ms`
 
 ---
 
@@ -207,17 +199,18 @@ Quick pen tap (like clicking):
 
 ```json
 {
-  "tool": "pen_tap",
+  "tool": "click",
   "args": {
     "x": 200,
     "y": 300,
-    "pressure": 512,
-    "windowTitle": "InkCanvas"
+    "input": "pen",
+    "pressure": 512
   }
 }
 ```
 
 **Parameters**:
+- `input`: "pen"
 - `pressure`: 0-1024 (0 = hovering, 1024 = maximum)
 
 ### Pen Stroke
@@ -226,26 +219,54 @@ Draw a line with pressure:
 
 ```json
 {
-  "tool": "pen_stroke",
+  "tool": "drag",
   "args": {
-    "x1": 50,
-    "y1": 50,
-    "x2": 200,
-    "y2": 200,
-    "pressure": 512,
-    "steps": 20,
-    "eraser": false,
-    "windowTitle": "InkCanvas"
+    "path": [
+      { "x": 50, "y": 50, "pressure": 512 },
+      { "x": 200, "y": 200, "pressure": 512 }
+    ],
+    "input": "pen",
+    "duration_ms": 1000,
+    "eraser": false
   }
 }
 ```
 
 **Parameters**:
-- `x1, y1`: Start point
-- `x2, y2`: End point
-- `pressure`: Pressure level (0-1024)
-- `steps`: Intermediate points for smooth strokes
+- `path`: Array of points with optional `pressure`
+- `input`: "pen"
+- `duration_ms`: Total duration
 - `eraser`: Use eraser end of stylus (default: false)
+- `barrel`: Use barrel button (default: false)
+
+### Barrel Button
+
+Simulate barrel button press (often right-click or tool cycle):
+
+```json
+{
+  "tool": "click",
+  "args": {
+    "x": 200,
+    "y": 300,
+    "input": "pen",
+    "barrel": true
+  }
+}
+```
+
+Or during a stroke:
+
+```json
+{
+  "tool": "drag",
+  "args": {
+    "path": [...],
+    "input": "pen",
+    "barrel": true
+  }
+}
+```
 
 ### Pressure Sensitivity
 
@@ -261,15 +282,15 @@ Draw a line with pressure:
 
 ```json
 {
-  "tool": "run_script",
+  "tool": "drag",
   "args": {
-    "script": {
-      "steps": [
-        { "tool": "pen_stroke", "args": { "x1": 50, "y1": 100, "x2": 100, "y2": 100, "pressure": 256 } },
-        { "tool": "pen_stroke", "args": { "x1": 100, "y1": 100, "x2": 150, "y2": 100, "pressure": 768 } },
-        { "tool": "pen_stroke", "args": { "x1": 150, "y1": 100, "x2": 200, "y2": 100, "pressure": 256 } }
-      ]
-    }
+    "path": [
+      { "x": 50, "y": 100, "pressure": 256 },
+      { "x": 100, "y": 100, "pressure": 768 },
+      { "x": 150, "y": 100, "pressure": 256 }
+    ],
+    "input": "pen",
+    "duration_ms": 1000
   }
 }
 ```
@@ -280,15 +301,14 @@ To erase ink:
 
 ```json
 {
-  "tool": "pen_stroke",
+  "tool": "drag",
   "args": {
-    "x1": 50,
-    "y1": 50,
-    "x2": 200,
-    "y2": 50,
-    "pressure": 512,
-    "eraser": true,
-    "windowTitle": "InkCanvas"
+    "path": [
+      { "x": 50, "y": 50 },
+      { "x": 200, "y": 50 }
+    ],
+    "input": "pen",
+    "eraser": true
   }
 }
 ```
@@ -301,61 +321,55 @@ To erase ink:
 
 ```json
 {
-  "tool": "run_script",
+  "tool": "drag",
   "args": {
-    "script": {
-      "steps": [
-        { "tool": "pen_stroke", "args": { "x1": 100, "y1": 100, "x2": 300, "y2": 100, "pressure": 512 } },
-        { "tool": "pen_stroke", "args": { "x1": 300, "y1": 100, "x2": 300, "y2": 200, "pressure": 512 } },
-        { "tool": "pen_stroke", "args": { "x1": 300, "y1": 200, "x2": 100, "y2": 200, "pressure": 512 } },
-        { "tool": "pen_stroke", "args": { "x1": 100, "y1": 200, "x2": 100, "y2": 100, "pressure": 512 } }
-      ],
-      "options": { "default_delay_ms": 50 }
-    }
+    "path": [
+      { "x": 100, "y": 100 },
+      { "x": 300, "y": 100 },
+      { "x": 300, "y": 200 },
+      { "x": 100, "y": 200 },
+      { "x": 100, "y": 100 }
+    ],
+    "input": "pen",
+    "duration_ms": 2000
   }
 }
 ```
 
 ### Drawing a Circle (Approximation)
 
-Use multiple short strokes around the circumference:
+Use multiple short strokes or a high-resolution path:
 
 ```python
-# Python pseudocode for generating circle strokes
+# Python pseudocode for generating circle path
 import math
 
 center_x, center_y = 200, 200
 radius = 50
-segments = 16
+segments = 32
+path = []
 
-strokes = []
-for i in range(segments):
-    angle1 = (i / segments) * 2 * math.pi
-    angle2 = ((i + 1) / segments) * 2 * math.pi
+for i in range(segments + 1):
+    angle = (i / segments) * 2 * math.pi
+    x = center_x + radius * math.cos(angle)
+    y = center_y + radius * math.sin(angle)
+    path.append({ "x": int(x), "y": int(y), "pressure": 512 })
 
-    x1 = center_x + radius * math.cos(angle1)
-    y1 = center_y + radius * math.sin(angle1)
-    x2 = center_x + radius * math.cos(angle2)
-    y2 = center_y + radius * math.sin(angle2)
-
-    strokes.append({
-        "tool": "pen_stroke",
-        "args": { "x1": x1, "y1": y1, "x2": x2, "y2": y2, "pressure": 512 }
-    })
+# Send as one drag command
 ```
 
 ### Swipe to Scroll
 
 ```json
 {
-  "tool": "touch_drag",
+  "tool": "drag",
   "args": {
-    "x1": 300,
-    "y1": 500,
-    "x2": 300,
-    "y2": 200,
-    "steps": 20,
-    "windowTitle": "ScrollableList"
+    "path": [
+      { "x": 300, "y": 500 },
+      { "x": 300, "y": 200 }
+    ],
+    "input": "touch",
+    "duration_ms": 500
   }
 }
 ```
@@ -364,14 +378,14 @@ for i in range(segments):
 
 ```json
 {
-  "tool": "touch_drag",
+  "tool": "drag",
   "args": {
-    "x1": 50,
-    "y1": 300,
-    "x2": 400,
-    "y2": 300,
-    "steps": 10,
-    "windowTitle": "NotificationCard"
+    "path": [
+      { "x": 50, "y": 300 },
+      { "x": 400, "y": 300 }
+    ],
+    "input": "touch",
+    "duration_ms": 300
   }
 }
 ```
@@ -422,7 +436,7 @@ Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
    Check `window_scale_factor` and adjust coordinates accordingly.
 
 2. **Use element-based interactions when possible:**
-   Instead of raw coordinates, use `click_element` or `click_by_automation_id` which handle DPI internally.
+   Instead of raw coordinates, use `click` with `target` (element ID) which handles DPI internally.
 
 3. **Match host DPI in sandbox:**
    Launch sandbox with display settings matching host DPI (not always possible).
@@ -462,11 +476,11 @@ Touch and pen input injection (`InjectTouchInput` API) requires elevated privile
 
 More steps = smoother animation but slower execution.
 
-| Steps | Use Case |
+| Duration | Use Case |
 |-------|----------|
-| 5-10 | Quick gestures, performance testing |
-| 15-20 | Normal UI interactions |
-| 30-50 | Smooth drawing, visual demos |
+| 100-300ms | Quick gestures |
+| 500-1000ms | Normal UI interactions |
+| 2000ms+ | Smooth drawing, visual demos |
 
 ### Delays
 
@@ -478,8 +492,8 @@ Add delays between gestures if the app needs time to respond:
   "args": {
     "script": {
       "steps": [
-        { "tool": "touch_tap", "args": { "x": 100, "y": 100 }, "delay_after_ms": 200 },
-        { "tool": "touch_tap", "args": { "x": 200, "y": 100 }, "delay_after_ms": 200 }
+        { "tool": "click", "args": { "x": 100, "y": 100, "input": "touch" }, "delay_after_ms": 200 },
+        { "tool": "click", "args": { "x": 200, "y": 100, "input": "touch" }, "delay_after_ms": 200 }
       ]
     }
   }
@@ -490,12 +504,12 @@ Add delays between gestures if the app needs time to respond:
 
 ## Best Practices
 
-### 1. Use Window-Relative Coordinates
+### 1. Use Element Targeting When Possible
 
-Always specify `windowTitle` or `windowHandle` to avoid issues with window positioning:
+Use `target` (element ID) instead of coordinates to avoid DPI/resolution issues:
 
 ```json
-{ "windowTitle": "MyApp" }
+{ "tool": "click", "args": { "target": "elem_123", "input": "touch" } }
 ```
 
 ### 2. Verify DPI Scaling
@@ -527,9 +541,8 @@ Batch multiple strokes together to reduce round-trip overhead:
   "args": {
     "script": {
       "steps": [
-        { "tool": "pen_stroke", "args": { ... } },
-        { "tool": "pen_stroke", "args": { ... } },
-        { "tool": "pen_stroke", "args": { ... } }
+        { "tool": "drag", "args": { ... } },
+        { "tool": "drag", "args": { ... } }
       ]
     }
   }
@@ -541,5 +554,5 @@ Batch multiple strokes together to reduce round-trip overhead:
 If a touch gesture fails, try:
 1. Verify window is focused
 2. Check if element is scrolled out of view
-3. Increase step count for smoother gesture
+3. Increase duration for smoother gesture
 4. Add delay before the gesture

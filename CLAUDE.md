@@ -129,6 +129,63 @@ All services are thread-safe and injectable for testing.
 
 Tool responses include a `windows` array with visible windows scoped to tracked processes.
 
+## Windows Sandbox Deployment
+
+### Workspace Structure
+
+```
+C:\WinFormsMcpSandboxWorkspace\
+├── Server/           # MCP server binaries (read-only in sandbox)
+├── App/              # Test app binaries (read-only in sandbox)
+├── DotNet/           # .NET runtime (read-only in sandbox)
+├── Shared/           # Communication folder (read-write)
+│   ├── server.trigger    # Touch to hot-reload server
+│   ├── app.trigger       # Touch to hot-reload app
+│   ├── mcp-ready.signal  # Written by bootstrap when ready
+│   └── *.png             # Screenshots saved here
+└── sandbox-dev.wsb   # Sandbox configuration
+```
+
+### Launching the Sandbox
+
+**From Windows PowerShell** (not WSL):
+```powershell
+# The bridge handles everything: launch, wait, connect, port forwarding
+C:\WinFormsMcpSandboxWorkspace\mcp-sandbox-bridge.ps1 -SetupPortForwarding
+```
+
+Or copy the bridge from the repo first:
+```powershell
+Copy-Item '\\wsl.localhost\Ubuntu\home\jhedin\workspace\magpie-craft\winforms-mcp\mcp-sandbox-bridge.ps1' 'C:\WinFormsMcpSandboxWorkspace\' -Force
+```
+
+### Deploying Server Updates
+
+```powershell
+# 1. Build and publish from Windows (via UNC path to WSL)
+cd '\\wsl.localhost\Ubuntu\home\jhedin\workspace\magpie-craft\winforms-mcp'
+dotnet publish src/Rhombus.WinFormsMcp.Server/Rhombus.WinFormsMcp.Server.csproj -c Release -o 'C:\WinFormsMcpSandboxWorkspace\Server'
+
+# 2. Trigger hot-reload (if sandbox is running)
+New-Item -Path 'C:\WinFormsMcpSandboxWorkspace\Shared\server.trigger' -ItemType File -Force
+```
+
+### How Bootstrap Works
+
+The `sandbox/bootstrap.ps1` script inside the sandbox:
+1. Copies files from mapped folders (`C:\Server`) to local folders (`C:\LocalServer`)
+2. Runs `Unblock-File` on local copies (removes Mark of the Web)
+3. Runs server via `dotnet.exe` (trusted by WDAC) loading the DLL
+4. Monitors for trigger files and hot-reloads on change
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `mcp-sandbox-bridge.ps1` | Bridge script - launches sandbox, connects TCP, forwards MCP |
+| `sandbox/sandbox-dev.wsb` | Sandbox configuration with mapped folders |
+| `sandbox/bootstrap.ps1` | Runs inside sandbox - manages server/app lifecycle |
+
 ## CI/CD
 
 - Version in `VERSION` file, auto-bumped on master commits

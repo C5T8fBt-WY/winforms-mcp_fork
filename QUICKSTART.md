@@ -51,8 +51,9 @@ Send this JSON message to the server:
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "launch_app",
+    "name": "app",
     "arguments": {
+      "action": "launch",
       "path": "notepad.exe"
     }
   }
@@ -61,7 +62,7 @@ Send this JSON message to the server:
 
 ### Step 3: Type Some Text
 
-First, find a text element and interact with it:
+First, interact with the text area (using "type" with no target for focused element):
 
 ```json
 {
@@ -69,9 +70,9 @@ First, find a text element and interact with it:
   "id": 2,
   "method": "tools/call",
   "params": {
-    "name": "send_keys",
+    "name": "type",
     "arguments": {
-      "keys": "Hello from Rhombus.WinFormsMcp!"
+      "text": "Hello from Rhombus.WinFormsMcp!"
     }
   }
 }
@@ -85,9 +86,9 @@ First, find a text element and interact with it:
   "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "take_screenshot",
+    "name": "screenshot",
     "arguments": {
-      "outputPath": "C:\\temp\\my_first_automation.png"
+      "file": "C:\\temp\\my_first_automation.png"
     }
   }
 }
@@ -113,7 +114,7 @@ Launch the server and run:
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "find_element",
+    "name": "find",
     "arguments": {
       "name": "textBox"
     }
@@ -131,11 +132,11 @@ Then type text:
   "id": 2,
   "method": "tools/call",
   "params": {
-    "name": "type_text",
+    "name": "type",
     "arguments": {
-      "elementId": "elem_1",
+      "target": "elem_1",
       "text": "Test input",
-      "clearFirst": true
+      "clear": true
     }
   }
 }
@@ -151,7 +152,7 @@ Then type text:
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "find_element",
+    "name": "find",
     "arguments": {
       "name": "buttonName"
     }
@@ -167,9 +168,9 @@ Then type text:
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "click_element",
+    "name": "click",
     "arguments": {
-      "elementId": "elem_1"
+      "target": "elem_1"
     }
   }
 }
@@ -183,61 +184,11 @@ Then type text:
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "type_text",
+    "name": "type",
     "arguments": {
-      "elementId": "elem_1",
+      "target": "elem_1",
       "text": "Your text here",
-      "clearFirst": true
-    }
-  }
-}
-```
-
-### Wait for Element
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "wait_for_element",
-    "arguments": {
-      "automationId": "successLabel",
-      "timeoutMs": 5000
-    }
-  }
-}
-```
-
-### Check Element Exists
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "element_exists",
-    "arguments": {
-      "automationId": "errorMessage"
-    }
-  }
-}
-```
-
-### Get Element Property
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "get_property",
-    "arguments": {
-      "elementId": "elem_1",
-      "propertyName": "name"
+      "clear": true
     }
   }
 }
@@ -251,9 +202,9 @@ Then type text:
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "take_screenshot",
+    "name": "screenshot",
     "arguments": {
-      "outputPath": "C:\\temp\\screen.png"
+      "file": "C:\\temp\\screen.png"
     }
   }
 }
@@ -267,10 +218,10 @@ Then type text:
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "close_app",
+    "name": "app",
     "arguments": {
-      "pid": 5432,
-      "force": false
+      "action": "close",
+      "pid": 5432
     }
   }
 }
@@ -293,28 +244,22 @@ Rhombus.WinFormsMcp/
 
 ## Available Tools
 
-1. **find_element** - Locate UI element
-2. **click_element** - Click on element
-3. **type_text** - Enter text into field
-4. **set_value** - Set element value
-5. **get_property** - Read element properties
-6. **launch_app** - Start application
-7. **attach_to_process** - Connect to running app
-8. **close_app** - Close application
-9. **take_screenshot** - Capture screen
-10. **element_exists** - Check element presence
-11. **wait_for_element** - Wait for element to appear
-12. **drag_drop** - Drag and drop
-13. **send_keys** - Send keyboard input
+1. **app** - Application lifecycle (launch, attach, close, info)
+2. **find** - Discovery (find element, list children, tree)
+3. **click** - Interaction (mouse, touch, pen tap)
+4. **type** - Input (text entry, key combos)
+5. **drag** - Manipulation (mouse drag, pen stroke)
+6. **gesture** - Multi-touch (pinch, rotate)
+7. **screenshot** - Visual capture
+8. **script** - Batch execution
 
 ## Troubleshooting
 
 ### "Element not found"
 
-1. Use `element_exists` to verify
-2. Use `wait_for_element` to wait for loading
-3. Increase timeout value
-4. Check that the element's Name property is set
+1. Use `find` with `at: "root"` to list all windows
+2. Use `find` with `recursive: true` to dump the tree
+3. Check that the element's Name or AutomationId property is set
 
 ### "Failed to launch application"
 
@@ -338,11 +283,9 @@ Rhombus.WinFormsMcp/
 
 ## Performance Tips
 
-- Use `element_exists` to check before interaction (faster than catching errors)
-- Increase timeouts for slow applications
-- Use `wait_for_element` strategically (don't wait unnecessarily)
-- Batch multiple operations when possible
-- Close applications immediately after use
+- Use `find` to get IDs once, then reuse them
+- Use `script` to batch multiple operations in one round-trip
+- Close applications immediately after use with `app` tool
 
 ## Integration with Claude Code
 
@@ -350,7 +293,7 @@ To use Rhombus.WinFormsMcp with Claude Code, configure it as an MCP server in yo
 
 ```json
 {
-  "mcp": {
+  "mcpServers": {
     "Rhombus.WinFormsMcp": {
       "command": "dotnet",
       "args": ["run", "--project", "path/to/Rhombus.WinFormsMcp.Server/Rhombus.WinFormsMcp.Server.csproj"]
