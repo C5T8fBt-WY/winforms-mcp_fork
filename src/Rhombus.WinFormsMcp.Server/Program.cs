@@ -143,7 +143,17 @@ class Program
             if (tcpPort.HasValue)
             {
                 Log($"Starting TCP server on port {tcpPort.Value}...");
-                await _server.RunTcpAsync(tcpPort.Value, e2ePort);
+                try
+                {
+                    await _server.RunTcpAsync(tcpPort.Value, e2ePort);
+                }
+                catch (SocketException sockEx)
+                {
+                    Log($"FATAL ERROR: Failed to bind TCP port. Is it already in use?");
+                    Log($"  Socket Error: {sockEx.SocketErrorCode} ({sockEx.NativeErrorCode})");
+                    Log($"  Message: {sockEx.Message}");
+                    throw; // Re-throw to trigger fatal exit
+                }
             }
             else
             {

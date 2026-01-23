@@ -493,7 +493,25 @@ public static class InputInjection
     public static bool EnsureTouchInitialized(uint maxContacts = 10)
     {
         if (_touchDevice != IntPtr.Zero) return true;
+
+        // Log devices BEFORE creating synthetic device
+        LogAllPointerDevices("BEFORE touch device creation");
+
         _touchDevice = CreateSyntheticPointerDevice(PT_TOUCH, maxContacts, POINTER_FEEDBACK_DEFAULT);
+        var error = Marshal.GetLastWin32Error();
+
+        var logMsg = _touchDevice != IntPtr.Zero
+            ? $"[TOUCH {PEN_INJECTION_VERSION}] Synthetic touch device created: 0x{_touchDevice:X} (maxContacts={maxContacts})"
+            : $"[TOUCH {PEN_INJECTION_VERSION}] CreateSyntheticPointerDevice(PT_TOUCH) failed, error={error}";
+        System.IO.File.AppendAllText(GetDebugLogPath(), logMsg + "\n");
+
+        // Log devices AFTER creating synthetic device - see if it appears and what type
+        if (_touchDevice != IntPtr.Zero)
+        {
+            QueryAndLogDeviceRects(_touchDevice, "Synthetic TOUCH");
+            LogAllPointerDevices("AFTER touch device creation");
+        }
+
         return _touchDevice != IntPtr.Zero;
     }
 
@@ -503,6 +521,10 @@ public static class InputInjection
     public static bool EnsurePenInitialized()
     {
         if (_penDevice != IntPtr.Zero) return true;
+
+        // Log devices BEFORE creating synthetic device
+        LogAllPointerDevices("BEFORE pen device creation");
+
         _penDevice = CreateSyntheticPointerDevice(PT_PEN, 1, POINTER_FEEDBACK_DEFAULT);
         var error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
         var bitness = Environment.Is64BitProcess ? "x64" : "x86";
@@ -517,6 +539,7 @@ public static class InputInjection
         if (_penDevice != IntPtr.Zero)
         {
             QueryAndLogDeviceRects(_penDevice, "Synthetic PEN");
+            LogAllPointerDevices("AFTER pen device creation");
         }
 
         return _penDevice != IntPtr.Zero;
@@ -557,6 +580,84 @@ public static class InputInjection
         {
             System.IO.File.AppendAllText(GetDebugLogPath(),
                 $"[DEVICE RECTS] Exception querying {deviceName}: {ex.Message}\n");
+        }
+    }
+
+    // POINTER_DEVICE_TYPE enum values (from winuser.h)
+    public const uint POINTER_DEVICE_TYPE_INTEGRATED_PEN = 0x00000001;
+    public const uint POINTER_DEVICE_TYPE_EXTERNAL_PEN = 0x00000002;
+    public const uint POINTER_DEVICE_TYPE_TOUCH = 0x00000003;
+    public const uint POINTER_DEVICE_TYPE_TOUCH_PAD = 0x00000004;
+    public const uint POINTER_DEVICE_TYPE_MAX = 0xFFFFFFFF;
+
+    /// <summary>
+    /// Enumerate all pointer devices and log their types.
+    /// This helps diagnose how Windows reports synthetic devices to WPF.
+    /// </summary>
+    public static void LogAllPointerDevices(string context)
+    {
+        try
+        {
+            uint deviceCount = 0;
+            // First call with null array to get count
+            if (!GetPointerDevices(ref deviceCount, null))
+            {
+                var err = Marshal.GetLastWin32Error();
+                System.IO.File.AppendAllText(GetDebugLogPath(),
+                    $"[POINTER DEVICES] {context}: GetPointerDevices count query failed, error={err}\n");
+                return;
+            }
+
+            if (deviceCount == 0)
+            {
+                System.IO.File.AppendAllText(GetDebugLogPath(),
+                    $"[POINTER DEVICES] {context}: No pointer devices found\n");
+                return;
+            }
+
+            // Second call to get device info
+            var devices = new POINTER_DEVICE_INFO[deviceCount];
+            if (!GetPointerDevices(ref deviceCount, devices))
+            {
+                var err = Marshal.GetLastWin32Error();
+                System.IO.File.AppendAllText(GetDebugLogPath(),
+                    $"[POINTER DEVICES] {context}: GetPointerDevices info query failed, error={err}\n");
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"[POINTER DEVICES] {context}: Found {deviceCount} pointer device(s):");
+
+            for (int i = 0; i < deviceCount; i++)
+            {
+                var dev = devices[i];
+                string typeName = dev.pointerDeviceType switch
+                {
+                    POINTER_DEVICE_TYPE_INTEGRATED_PEN => "INTEGRATED_PEN",
+                    POINTER_DEVICE_TYPE_EXTERNAL_PEN => "EXTERNAL_PEN",
+                    POINTER_DEVICE_TYPE_TOUCH => "TOUCH",
+                    POINTER_DEVICE_TYPE_TOUCH_PAD => "TOUCH_PAD",
+                    _ => $"UNKNOWN({dev.pointerDeviceType})"
+                };
+
+                sb.AppendLine($"  [{i}] Type={typeName} Handle=0x{dev.device:X} MaxContacts={dev.maxActiveContacts}");
+                sb.AppendLine($"      Product=\"{dev.productString}\"");
+                sb.AppendLine($"      Monitor=0x{dev.monitor:X} StartCursorId={dev.startingCursorId} Orientation={dev.displayOrientation}");
+
+                // Also query device rects for each
+                if (dev.device != IntPtr.Zero && GetPointerDeviceRects(dev.device, out RECT deviceRect, out RECT displayRect))
+                {
+                    sb.AppendLine($"      DeviceRect=({deviceRect.left},{deviceRect.top})-({deviceRect.right},{deviceRect.bottom})");
+                    sb.AppendLine($"      DisplayRect=({displayRect.left},{displayRect.top})-({displayRect.right},{displayRect.bottom})");
+                }
+            }
+
+            System.IO.File.AppendAllText(GetDebugLogPath(), sb.ToString());
+        }
+        catch (Exception ex)
+        {
+            System.IO.File.AppendAllText(GetDebugLogPath(),
+                $"[POINTER DEVICES] {context}: Exception: {ex.Message}\n");
         }
     }
 

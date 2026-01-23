@@ -17,7 +17,7 @@
 
 param(
     [int]$Port = 9999,
-    [int]$E2EPort = 0,  # Optional E2E port for test framework connections
+    [int]$E2EPort = 9998,  # Optional E2E port for test framework connections
     [switch]$SetupPortForwarding  # Set up netsh port forwarding for external access
 )
 
@@ -453,6 +453,11 @@ function Invoke-StartSandbox {
 
     # Get tool list from sandbox
     $global:SandboxTools = Get-SandboxToolList
+
+    # Set up port forwarding if requested
+    if ($SetupPortForwarding) {
+        Setup-PortForwarding -SandboxIP $signal.tcp_ip -MainPort $Port -E2EPort $E2EPort | Out-Null
+    }
 
     $elapsed = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 1)
     return @{

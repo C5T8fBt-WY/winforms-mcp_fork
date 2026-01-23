@@ -17,6 +17,7 @@ param(
     [string]$SharedFolder = "C:\Shared",
     [switch]$EnableTcp,
     [int]$TcpPort = 9999,
+    [int]$E2EPort = 0,
     [switch]$LazyStart,  # Skip auto-starting server/app - use triggers instead
     [switch]$EnableCoverage  # Wrap server with dotnet-coverage for code coverage
 )
@@ -232,7 +233,17 @@ function Start-ServerProcess {
         # Use netsh instead of New-NetFirewallRule because CIM isn't available in sandbox
         $ruleName = "MCP Server TCP $TcpPort"
         Write-Output "Creating firewall rule for port $TcpPort..."
-        netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=tcp localport=$TcpPort 2>$null | Out-Null
+        netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=tcp localport=$TcpPort
+    }
+
+    if ($E2EPort -gt 0) {
+        $mcpArgs += "--e2e-port"
+        $mcpArgs += $E2EPort.ToString()
+        Write-Output "Enabling E2E mode on port $E2EPort"
+
+        $ruleName = "MCP Server E2E $E2EPort"
+        Write-Output "Creating firewall rule for E2E port $E2EPort..."
+        netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=tcp localport=$E2EPort
     }
 
     # Use dotnet.exe (trusted by WDAC) to run our DLL instead of exe
@@ -426,6 +437,7 @@ function Update-ReadySignal {
         tcp_enabled = $EnableTcp.IsPresent
         tcp_port = if ($EnableTcp) { $TcpPort } else { $null }
         tcp_ip = $sandboxIp
+        e2e_port = if ($E2EPort -gt 0) { $E2EPort } else { $null }
         coverage_enabled = $global:CoverageEnabled
         coverage_output = if ($global:CoverageEnabled) { $CoverageOutputPath } else { $null }
     } | ConvertTo-Json
@@ -522,12 +534,14 @@ function Handle-Trigger {
 }
 
 function Check-ProcessCrash {
+    $changed = $false
     # Check server
     if ($global:ServerProcess -and $global:ServerProcess.HasExited) {
         $exitCode = $global:ServerProcess.ExitCode
         Write-Warning "[$(Get-Date -Format 'HH:mm:ss')] Server crashed! Exit code: $exitCode (PID was: $global:ServerPid)"
         $global:ServerPid = $null
         $global:ServerProcess = $null
+        $changed = $true
     }
 
     # Check app
@@ -536,6 +550,11 @@ function Check-ProcessCrash {
         Write-Warning "[$(Get-Date -Format 'HH:mm:ss')] App crashed! Exit code: $exitCode (PID was: $global:AppPid)"
         $global:AppPid = $null
         $global:AppProcess = $null
+        $changed = $true
+    }
+
+    if ($changed) {
+        Update-ReadySignal
     }
 }
 #endregion
