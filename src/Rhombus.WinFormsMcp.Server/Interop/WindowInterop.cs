@@ -116,4 +116,25 @@ public static class WindowInterop
     /// </summary>
     [DllImport("user32.dll")]
     public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+    /// <summary>
+    /// Post a message to a window's message queue (non-blocking, safe for background use).
+    /// </summary>
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    /// <summary>
+    /// Pack X and Y coordinates into an lParam for mouse messages.
+    /// </summary>
+    public static IntPtr MakeLParam(int x, int y) => (IntPtr)((y << 16) | (x & 0xFFFF));
+
+    // Standard mouse messages
+    public const uint WM_LBUTTONDOWN = 0x0201;
+    public const uint WM_LBUTTONUP = 0x0202;
+    public const uint WM_LBUTTONDBLCLK = 0x0203;
+    public const uint WM_RBUTTONDOWN = 0x0204;
+    public const uint WM_RBUTTONUP = 0x0205;
+    public const uint WM_CONTEXTMENU = 0x007B;
+    public const uint MK_LBUTTON = 0x0001;
+    public const uint MK_RBUTTON = 0x0002;
 }

@@ -72,6 +72,7 @@ public static class ToolDefinitions
                         action = new { type = "string", description = "launch | attach | close | info" },
                         path = new { type = "string", description = "Executable path (launch)" },
                         args = new { type = "string", description = "Command line args (launch)" },
+                        working_directory = new { type = "string", description = "Working directory (launch, defaults to exe directory)" },
                         pid = new { type = "integer", description = "Process ID (attach/close/info)" },
                         title = new { type = "string", description = "Window title (attach)" },
                         wait_ms = new { type = "integer", description = "Max wait for window (launch/attach)" }
@@ -131,7 +132,7 @@ public static class ToolDefinitions
                         target = new { type = "string", description = "Element ID to click" },
                         x = new { type = "integer", description = "Screen X (if no target)" },
                         y = new { type = "integer", description = "Screen Y (if no target)" },
-                        input = new { type = "string", description = "mouse | touch | pen (default: mouse)" },
+                        input = new { type = "string", description = "uia (default when target given, no mouse movement) | mouse | touch | pen" },
                         right = new { type = "boolean", description = "Right-click or barrel button" },
                         @double = new { type = "boolean", description = "Double-click/tap" },
                         hold_ms = new { type = "integer", description = "Long-press duration" },

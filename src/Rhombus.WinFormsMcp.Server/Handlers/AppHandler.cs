@@ -44,6 +44,7 @@ internal class AppHandler : HandlerBase
             if (string.IsNullOrEmpty(path))
                 return Error("path is required. Example: {\"action\": \"launch\", \"path\": \"C:\\\\App\\\\MyApp.exe\"}");
             var arguments = GetStringArg(args, "args");
+            var workingDir = GetStringArg(args, "working_directory") ?? Path.GetDirectoryName(path);
             var waitMs = GetIntArg(args, "wait_ms", Constants.Timeouts.AppIdle);
 
             var automation = Session.GetAutomation();
@@ -79,7 +80,7 @@ internal class AppHandler : HandlerBase
                 }
             }
 
-            var process = automation.LaunchApp(path, arguments, null, waitMs);
+            var process = automation.LaunchApp(path, arguments, workingDir, waitMs);
 
             Session.CacheProcess(process.Id, process);
             Session.TrackLaunchedApp(path, process.Id);
