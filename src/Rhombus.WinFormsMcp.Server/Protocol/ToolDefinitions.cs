@@ -121,6 +121,23 @@ public static class ToolDefinitions
                 }
             },
 
+            // snapshot - Compact Playwright-style accessibility tree
+            new
+            {
+                name = "snapshot",
+                description = "Compact accessibility snapshot (Playwright-style). Lists interactive elements as YAML. Faster and more readable than find(recursive:true). Use instead of find for initial exploration.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        window_handle = new { type = "string", description = "Scope to specific window HWND (e.g. '0x1A2B3C'). Omit to snapshot all tracked process windows." },
+                        depth = new { type = "integer", description = "Max tree depth (default: 6)" },
+                        timeout_ms = new { type = "integer", description = "Max scan time ms (default: 10000)" }
+                    }
+                }
+            },
+
             // click - Unified click/tap
             new
             {
@@ -132,6 +149,8 @@ public static class ToolDefinitions
                     properties = new
                     {
                         target = new { type = "string", description = "Element ID to click" },
+                        automationId = new { type = "string", description = "AutomationId of element to click directly (no prior find needed)" },
+                        name = new { type = "string", description = "Element name to click directly (no prior find needed)" },
                         x = new { type = "integer", description = "Screen X (if no target)" },
                         y = new { type = "integer", description = "Screen Y (if no target)" },
                         window_handle = new { type = "string", description = "Dialog HWND to accept/cancel via WM_COMMAND (works during MessageBox.Show, no UIA needed)" },

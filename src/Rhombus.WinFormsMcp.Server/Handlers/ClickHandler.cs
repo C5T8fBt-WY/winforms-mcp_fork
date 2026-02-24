@@ -79,6 +79,32 @@ internal class ClickHandler : HandlerBase
                 });
             }
 
+            // Direct automation targeting: click(automationId: "btnOK") or click(name: "OK")
+            // without a prior find step.
+            var directAutoId = GetStringArg(args, "automationId");
+            var directName = GetStringArg(args, "name");
+            if (directAutoId != null || directName != null)
+            {
+                var automation = Session.GetAutomation();
+                string refStr = directAutoId ?? directName!;
+
+                // Search from desktop root (short timeout — element must already exist).
+                var directElement = directAutoId != null
+                    ? automation.FindByAutomationId(directAutoId, timeoutMs: 500)
+                    : automation.FindByName(directName!, timeoutMs: 500);
+
+                if (directElement == null)
+                    return Error($"Element not found with {(directAutoId != null ? "automationId" : "name")}='{refStr}'");
+
+                var (clicked, clickMethod) = ExecuteUiaClick(directElement, right, doubleClick, holdMs);
+                return ScopedSuccess(args, new
+                {
+                    clicked,
+                    input = clickMethod,
+                    @ref = refStr
+                });
+            }
+
             // Default: use UIA when a target element is provided and input not forced
             // to a physical mode. This avoids moving the mouse cursor.
             bool hasElement = !string.IsNullOrEmpty(target);

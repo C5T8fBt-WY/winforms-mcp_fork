@@ -27,10 +27,13 @@ internal class FindHandler : HandlerBase
     {
     }
 
-    public override IEnumerable<string> SupportedTools => new[] { "find" };
+    public override IEnumerable<string> SupportedTools => new[] { "find", "snapshot" };
 
     public override async Task<JsonElement> ExecuteAsync(string toolName, JsonElement args)
     {
+        if (toolName == "snapshot")
+            return await ExecuteSnapshotAsync(args);
+
         try
         {
             var at = GetStringArg(args, "at") ?? "root";
@@ -249,7 +252,7 @@ internal class FindHandler : HandlerBase
 
         AutomationElement? found = null;
 
-        // Search children
+        // Search direct children first (fast path).
         var children = searchRoot.FindAllChildren();
         foreach (var child in children)
         {
@@ -260,8 +263,9 @@ internal class FindHandler : HandlerBase
             }
         }
 
-        // If not found in direct children and at root, search recursively
-        if (found == null && at == "root")
+        // If not found in direct children, search recursively (up to 5 levels deep).
+        // This covers window_handle searches where the target is nested below direct children.
+        if (found == null)
         {
             found = FindInTree(searchRoot, controlType, name, automationId, className, 5);
         }
@@ -517,11 +521,145 @@ internal class FindHandler : HandlerBase
             type = SafeGetProperty(() => element.ControlType.ToString(), "Unknown"),
             name = SafeGetProperty(() => element.Name, "") ?? "",
             automationId = SafeGetProperty(() => element.AutomationId, "") ?? "",
-            className = SafeGetProperty(() => element.ClassName, "") ?? "",
+            // className intentionally omitted: WinForms class strings (e.g. WindowsForms10.Button.app.0...)
+            // are implementation noise with no semantic value for automation agents.
             bounds = GetBounds(element),
             enabled = SafeGetProperty(() => element.IsEnabled, true),
             visible = SafeGetProperty(() => !element.IsOffscreen, true)
         };
+    }
+
+    // ---------------------------------------------------------------------------
+    // Snapshot: compact Playwright-style accessibility snapshot for LLM agents.
+    // ---------------------------------------------------------------------------
+
+    private async Task<JsonElement> ExecuteSnapshotAsync(JsonElement args)
+    {
+        try
+        {
+            var timeoutMs = GetIntArg(args, "timeout_ms", 10000);
+            var depth = GetIntArg(args, "depth", 6);
+            if (depth <= 0) depth = 6;
+            var automation = Session.GetAutomation();
+            var sb = new System.Text.StringBuilder();
+
+            var windowHandleStr = GetStringArg(args, "window_handle");
+            if (windowHandleStr != null)
+            {
+                var hwndPtr = new IntPtr(Convert.ToInt64(windowHandleStr, 16));
+                var elTask = Task.Run(() => automation.GetElementFromHandle(hwndPtr));
+                if (!elTask.Wait(Math.Min(timeoutMs, 2000)) || elTask.Result == null)
+                    return await Error($"Could not resolve window handle {windowHandleStr}");
+                sb.Append(BuildSnapshot(elTask.Result, 0, depth));
+            }
+            else
+            {
+                var trackedPids = Session.GetTrackedProcessIds();
+                var windows = trackedPids.Count > 0
+                    ? GetWindowsForPids(automation, trackedPids)
+                    : GetAllWindows(automation);
+                foreach (var w in windows)
+                    sb.Append(BuildSnapshot(w, 0, depth));
+            }
+
+            return await Success(new { snapshot = sb.ToString() });
+        }
+        catch (Exception ex)
+        {
+            return await Error($"Snapshot failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Build a compact YAML-like accessibility snapshot of the given root element.
+    /// Only interactive and meaningful elements are included; structural containers
+    /// (Pane, Group, TitleBar, ScrollBar) are inlined unless they have a meaningful name.
+    /// The 'ref' identifier uses automationId when available, else the elem_N cache key.
+    /// </summary>
+    private string BuildSnapshot(AutomationElement element, int indent = 0, int maxDepth = 6)
+    {
+        var sb = new System.Text.StringBuilder();
+        BuildSnapshotNode(element, indent, maxDepth, 0, sb);
+        return sb.ToString();
+    }
+
+    private static readonly HashSet<string> _snapshotInteractiveTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Button", "Edit", "ComboBox", "CheckBox", "RadioButton", "ListItem",
+        "MenuItem", "Slider", "Spinner", "Tab", "TabItem", "Hyperlink", "Image"
+    };
+
+    private static readonly HashSet<string> _snapshotSkipTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "TitleBar", "ScrollBar", "MenuBar", "SplitButton"
+    };
+
+    private void BuildSnapshotNode(AutomationElement element, int indent, int maxDepth, int depth, System.Text.StringBuilder sb)
+    {
+        if (depth > maxDepth) return;
+
+        string type = SafeGetProperty(() => element.ControlType.ToString(), "Unknown");
+        string name = (SafeGetProperty(() => element.Name, "") ?? "").Trim();
+        string autoId = (SafeGetProperty(() => element.AutomationId, "") ?? "").Trim();
+        bool enabled = SafeGetProperty(() => element.IsEnabled, true);
+        bool visible = SafeGetProperty(() => !element.IsOffscreen, true);
+
+        if (!visible) return;
+        if (_snapshotSkipTypes.Contains(type)) return;
+
+        // Determine ref: prefer automationId (stable) over cache ID.
+        string ref_id = !string.IsNullOrEmpty(autoId) ? autoId : Session.CacheElement(element);
+        bool isInteractive = _snapshotInteractiveTypes.Contains(type);
+        bool isProgressBar = type.Equals("ProgressBar", StringComparison.OrdinalIgnoreCase);
+        bool hasName = !string.IsNullOrEmpty(name);
+        bool isText = type.Equals("Text", StringComparison.OrdinalIgnoreCase);
+        bool isWindow = type.Equals("Window", StringComparison.OrdinalIgnoreCase);
+        bool isContainer = type is "Pane" or "Group" or "Custom" or "Document" or "List";
+
+        // For containers without a name: skip printing this node but recurse into children.
+        bool printSelf = isInteractive || isProgressBar || isWindow ||
+                         (isText && hasName) ||
+                         (isContainer && hasName);
+
+        if (printSelf)
+        {
+            var prefix = new string(' ', indent * 2);
+            string typeLower = type.ToLowerInvariant();
+
+            // Get value for inputs.
+            string valuePart = "";
+            if (type is "Edit" or "Spinner")
+                valuePart = " value=\"" + (SafeGetProperty(() => element.Patterns.Value.PatternOrDefault?.Value, "") ?? "") + "\"";
+            else if (type is "CheckBox" or "RadioButton")
+                valuePart = SafeGetProperty(() => element.Patterns.Toggle.PatternOrDefault?.ToggleState.ToString(), "") == "On" ? " [checked]" : "";
+
+            string disabledPart = !enabled ? " [disabled]" : "";
+            string refPart = $" [ref={ref_id}]";
+
+            sb.AppendLine($"{prefix}- {typeLower} \"{name}\"{refPart}{valuePart}{disabledPart}");
+        }
+
+        if (depth < maxDepth)
+        {
+            AutomationElement[]? children = null;
+            try
+            {
+                var childTask = Task.Run(() => element.FindAllChildren());
+                if (childTask.Wait(TimeSpan.FromMilliseconds(500)))
+                    children = childTask.Result;
+            }
+            catch { }
+
+            if (children != null)
+            {
+                int childIndent = printSelf ? indent + 1 : indent;
+                foreach (var child in children.Take(100))
+                {
+                    try { BuildSnapshotNode(child, childIndent, maxDepth, depth + 1, sb); }
+                    catch { }
+                }
+            }
+        }
     }
 
     private T SafeGetProperty<T>(Func<T> getter, T defaultValue)
