@@ -46,34 +46,34 @@ internal class ClickHandler : HandlerBase
             var pressure = GetIntArg(args, "pressure", 512);
             var eraser = GetBoolArg(args, "eraser", false);
 
-            // window_handle path: accept/cancel a dialog by HWND via WM_COMMAND PostMessage.
-            // Works even during MessageBox.Show() because it uses Win32 queue, not UIA COM.
+            // window_handle path: accept/cancel a dialog by HWND.
+            // Works even during MessageBox.Show() because it uses Win32 message queue, not UIA COM.
+            // Modern WinForms MessageBox (TaskDialog) assigns OK=id2, so we enumerate buttons by text.
             var windowHandleStr = GetStringArg(args, "window_handle");
             if (windowHandleStr != null)
             {
                 var hwnd = new IntPtr(Convert.ToInt64(windowHandleStr, 16));
                 var cancel = GetBoolArg(args, "cancel", false);
 
-                // Try WM_COMMAND first (accept/cancel the dialog's default button).
-                int commandId = cancel ? WindowInterop.IDCANCEL : WindowInterop.IDOK;
-                bool sent = WindowInterop.PostMessage(hwnd, WindowInterop.WM_COMMAND,
-                    new IntPtr(commandId), IntPtr.Zero);
-
-                // If WM_COMMAND didn't work, PostMessage WM_LBUTTONDOWN/UP to center.
-                if (!sent)
+                // Find the button child by text (most reliable across Win32 and TaskDialog).
+                var btnHwnd = FindDialogButton(hwnd, cancel);
+                if (btnHwnd != IntPtr.Zero)
                 {
-                    WindowInterop.GetClientRect(hwnd, out var rcClient);
-                    int cx = rcClient.Width / 2, cy = rcClient.Height / 2;
-                    var lp = WindowInterop.MakeLParam(cx, cy);
-                    var wp = (IntPtr)WindowInterop.MK_LBUTTON;
-                    WindowInterop.PostMessage(hwnd, WindowInterop.WM_LBUTTONDOWN, wp, lp);
-                    WindowInterop.PostMessage(hwnd, WindowInterop.WM_LBUTTONUP, IntPtr.Zero, lp);
+                    // BM_CLICK simulates a button press: highlights + fires WM_COMMAND + dismisses dialog.
+                    WindowInterop.PostMessage(btnHwnd, WindowInterop.BM_CLICK, IntPtr.Zero, IntPtr.Zero);
+                }
+                else
+                {
+                    // Fallback: WM_KEYDOWN with Enter or Escape to the dialog window.
+                    uint vKey = cancel ? WindowInterop.VK_ESCAPE : WindowInterop.VK_RETURN;
+                    WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYDOWN, new IntPtr(vKey), IntPtr.Zero);
+                    WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYUP, new IntPtr(vKey), IntPtr.Zero);
                 }
 
                 return ScopedSuccess(args, new
                 {
                     clicked = true,
-                    input = "postmessage:wm_command",
+                    input = "postmessage:dialog",
                     window_handle = windowHandleStr,
                     button = cancel ? "cancel" : "ok"
                 });
@@ -163,6 +163,59 @@ internal class ClickHandler : HandlerBase
         {
             return Error($"Click failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Find the accept or cancel button in a dialog by enumerating child Button windows and
+    /// matching by text first (most reliable across Win32 and WinForms/TaskDialog which may
+    /// assign non-standard control IDs). Falls back to well-known dialog control IDs.
+    /// </summary>
+    private static IntPtr FindDialogButton(IntPtr hwnd, bool cancel)
+    {
+        // Text patterns for accept/cancel direction (case-insensitive).
+        var acceptTexts = new[] { "ok", "yes", "はい", "확인", "oui", "ja", "sì", "sim", "да" };
+        var cancelTexts = new[] { "cancel", "no", "いいえ", "キャンセル", "취소", "non", "nein", "não", "нет" };
+        var targetTexts = cancel ? cancelTexts : acceptTexts;
+
+        // Collect all Button children and score them by text match.
+        var buttons = new List<IntPtr>();
+        WindowInterop.EnumChildWindows(hwnd, (child, _) =>
+        {
+            var cls = new System.Text.StringBuilder(64);
+            WindowInterop.GetClassName(child, cls, cls.Capacity);
+            if (cls.ToString().Equals("Button", StringComparison.OrdinalIgnoreCase))
+                buttons.Add(child);
+            return true; // continue enumeration
+        }, IntPtr.Zero);
+
+        // First pass: match by button text.
+        foreach (var btn in buttons)
+        {
+            var sb = new System.Text.StringBuilder(256);
+            WindowInterop.GetWindowText(btn, sb, sb.Capacity);
+            var text = sb.ToString().Trim();
+            if (targetTexts.Any(t => text.Equals(t, StringComparison.OrdinalIgnoreCase)))
+                return btn;
+        }
+
+        // Second pass: no text match; use fallback control IDs.
+        // Classic Win32 MessageBox: IDOK=1, IDCANCEL=2, IDYES=6, IDNO=7.
+        // WinForms/TaskDialog maps OK-only dialogs to ID=2 instead of 1.
+        int[] fallbackIds = cancel
+            ? new[] { WindowInterop.IDCANCEL, 7 }  // IDCANCEL=2, IDNO=7
+            : new[] { WindowInterop.IDOK, 2, 6 };   // IDOK=1, then ID=2 (WinForms OK), IDYES=6
+        foreach (var id in fallbackIds)
+        {
+            var btn = WindowInterop.GetDlgItem(hwnd, id);
+            if (btn != IntPtr.Zero)
+                return btn;
+        }
+
+        // Last resort: for a single-button OK dialog, return the only button found.
+        if (!cancel && buttons.Count == 1)
+            return buttons[0];
+
+        return IntPtr.Zero;
     }
 
     /// <summary>

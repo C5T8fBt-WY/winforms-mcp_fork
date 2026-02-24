@@ -138,6 +138,15 @@ public static class WindowInterop
     public const uint MK_LBUTTON = 0x0001;
     public const uint MK_RBUTTON = 0x0002;
 
+    // Keyboard messages (for dialog dismissal via PostMessage)
+    public const uint WM_KEYDOWN = 0x0100;
+    public const uint WM_KEYUP = 0x0101;
+    public const uint VK_RETURN = 0x0D;
+    public const uint VK_ESCAPE = 0x1B;
+
+    // Button message (simulates a button click — triggers WM_COMMAND internally)
+    public const uint BM_CLICK = 0x00F5;
+
     // WM_COMMAND: used to accept/cancel dialogs programmatically via PostMessage.
     // Works even when UIA is blocked by a Win32 MessageBox's message loop.
     public const uint WM_COMMAND = 0x0111;
@@ -149,4 +158,11 @@ public static class WindowInterop
     /// </summary>
     [DllImport("user32.dll")]
     public static extern IntPtr GetDlgItem(IntPtr hDlg, int nIDDlgItem);
+
+    /// <summary>
+    /// Enumerate child windows of a parent window.
+    /// Used to find dialog buttons by class/text when control IDs are unknown.
+    /// </summary>
+    [DllImport("user32.dll")]
+    public static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
 }

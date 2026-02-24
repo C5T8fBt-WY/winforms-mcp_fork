@@ -114,7 +114,8 @@ public static class ToolDefinitions
                             },
                             description = "Find near anchor element"
                         },
-                        wait_ms = new { type = "integer", description = "Max wait for element" },
+                        wait_ms = new { type = "integer", description = "Max wait for element (polling interval 100ms)" },
+                        timeout_ms = new { type = "integer", description = "Max time (ms) for the whole find scan. Default: 10000" },
                         window_handle = new { type = "string", description = "Scope search to a specific window HWND (e.g. '0x1A2B3C')" }
                     }
                 }
