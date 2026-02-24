@@ -143,14 +143,27 @@ internal class ClickHandler : HandlerBase
         if (!right && !doubleClick && holdMs == 0)
         {
             // InvokePattern: buttons, hyperlinks, menu items.
-            // Fire on a background thread so modal dialogs don't block us.
+            // Fire on a background thread so the MCP handler is never blocked by the target
+            // app's UI thread (e.g. when the button handler opens a MessageBox/dialog).
             var invoke = element.Patterns.Invoke.PatternOrDefault;
             if (invoke != null)
             {
                 var invokeTask = Task.Run(() => invoke.Invoke());
-                // Give it a short window; a timeout here is normal when a dialog opens.
-                invokeTask.Wait(TimeSpan.FromMilliseconds(2000));
-                return (true, "uia:invoke");
+                try
+                {
+                    bool completed = invokeTask.Wait(TimeSpan.FromMilliseconds(2000));
+                    if (!completed)
+                    {
+                        // Timed out — button handler is blocked (e.g., opened a MessageBox).
+                        // The click WAS dispatched. Observe the eventual UIA_E_TIMEOUT silently.
+                        _ = invokeTask.ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnFaulted);
+                    }
+                    return (true, "uia:invoke");
+                }
+                catch
+                {
+                    // InvokePattern failed immediately; fall through to next pattern.
+                }
             }
 
             // TogglePattern: checkboxes, toggle buttons

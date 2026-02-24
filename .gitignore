@@ -14,6 +14,9 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+# Shadow-copy publish output (used by winforms-mcp-launcher.ps1 as a deploy target)
+serve/
+
 # Visual Studio cache/options
 .vs/
 
