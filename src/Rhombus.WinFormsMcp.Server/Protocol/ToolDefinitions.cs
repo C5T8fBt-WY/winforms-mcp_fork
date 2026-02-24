@@ -222,7 +222,22 @@ public static class ToolDefinitions
                             items = new
                             {
                                 type = "object",
-                                properties = new { path = new { type = "array" } }
+                                properties = new
+                                {
+                                    path = new
+                                    {
+                                        type = "array",
+                                        items = new
+                                        {
+                                            type = "object",
+                                            properties = new
+                                            {
+                                                x = new { type = "integer" },
+                                                y = new { type = "integer" }
+                                            }
+                                        }
+                                    }
+                                }
                             },
                             description = "Custom finger paths"
                         },
