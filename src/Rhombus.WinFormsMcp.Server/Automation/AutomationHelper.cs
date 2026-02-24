@@ -46,7 +46,24 @@ public class AutomationHelper : IAutomationHelper
             UseShellExecute = false
         };
 
-        var process = Process.Start(psi) ?? throw new InvalidOperationException($"Failed to launch {path}");
+        Process? process;
+        try
+        {
+            process = Process.Start(psi) ?? throw new InvalidOperationException($"Failed to launch {path}");
+        }
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 740)
+        {
+            // ERROR_ELEVATION_REQUIRED: retry via ShellExecute which can show the UAC prompt.
+            var psiElevated = new ProcessStartInfo
+            {
+                FileName = path,
+                Arguments = arguments ?? string.Empty,
+                WorkingDirectory = workingDirectory ?? string.Empty,
+                UseShellExecute = true
+            };
+            process = Process.Start(psiElevated) ?? throw new InvalidOperationException($"Failed to launch {path}");
+        }
+
         process.WaitForInputIdle(idleTimeoutMs);
 
         lock (_lock)
