@@ -114,7 +114,8 @@ public static class ToolDefinitions
                             },
                             description = "Find near anchor element"
                         },
-                        wait_ms = new { type = "integer", description = "Max wait for element" }
+                        wait_ms = new { type = "integer", description = "Max wait for element" },
+                        window_handle = new { type = "string", description = "Scope search to a specific window HWND (e.g. '0x1A2B3C')" }
                     }
                 }
             },
@@ -132,6 +133,8 @@ public static class ToolDefinitions
                         target = new { type = "string", description = "Element ID to click" },
                         x = new { type = "integer", description = "Screen X (if no target)" },
                         y = new { type = "integer", description = "Screen Y (if no target)" },
+                        window_handle = new { type = "string", description = "Dialog HWND to accept/cancel via WM_COMMAND (works during MessageBox.Show, no UIA needed)" },
+                        cancel = new { type = "boolean", description = "When using window_handle: send IDCANCEL instead of IDOK (default: false = accept/OK)" },
                         input = new { type = "string", description = "uia (default when target given, no mouse movement) | mouse | touch | pen" },
                         right = new { type = "boolean", description = "Right-click or barrel button" },
                         @double = new { type = "boolean", description = "Double-click/tap" },

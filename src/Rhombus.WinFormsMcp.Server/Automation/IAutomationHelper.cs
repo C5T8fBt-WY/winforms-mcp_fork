@@ -37,6 +37,11 @@ public interface IAutomationHelper : IDisposable
     AutomationElement? GetMainWindow(int pid);
 
     /// <summary>
+    /// Get an AutomationElement from a native window handle (HWND).
+    /// </summary>
+    AutomationElement? GetElementFromHandle(IntPtr hwnd);
+
+    /// <summary>
     /// Find element by AutomationId
     /// </summary>
     /// <param name="automationId">The AutomationId to search for</param>

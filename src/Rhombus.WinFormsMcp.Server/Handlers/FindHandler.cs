@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -9,6 +10,7 @@ using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
 using Rhombus.WinFormsMcp.Server.Abstractions;
 using Rhombus.WinFormsMcp.Server.Automation;
+using Rhombus.WinFormsMcp.Server.Interop;
 
 namespace Rhombus.WinFormsMcp.Server.Handlers;
 
@@ -32,6 +34,24 @@ internal class FindHandler : HandlerBase
         try
         {
             var at = GetStringArg(args, "at") ?? "root";
+
+            // window_handle: "0xABCD" → resolve to element ID so FindRecursive/FindSingle can use it as `at`
+            var windowHandleStr = GetStringArg(args, "window_handle");
+            if (windowHandleStr != null)
+            {
+                try
+                {
+                    var hval = Convert.ToInt64(windowHandleStr, 16);
+                    var el = Session.GetAutomation().GetElementFromHandle(new IntPtr(hval));
+                    if (el != null)
+                    {
+                        var wId = Session.CacheElement(el);
+                        at = wId;
+                    }
+                }
+                catch { /* invalid handle string, fall back to at=root */ }
+            }
+
             var recursive = GetBoolArg(args, "recursive", false);
             var depth = GetIntArg(args, "depth", 3);
             var waitMs = GetIntArg(args, "wait_ms", 0);
@@ -288,48 +308,95 @@ internal class FindHandler : HandlerBase
 
     private List<AutomationElement> GetWindowsForPids(AutomationHelper automation, IReadOnlySet<int> pids)
     {
-        var desktop = automation.GetDesktop();
+        // Use Win32 EnumWindows + GetWindowThreadProcessId to enumerate windows by PID.
+        // This is pure Win32 (no UIA COM calls), so it never blocks even if the target
+        // process UI thread is stuck in MessageBox.Show() or ShowDialog().
+        var hwndList = GetVisibleHwndsForPids(pids);
         var windows = new List<AutomationElement>();
 
-        foreach (var child in desktop.FindAllChildren())
+        foreach (var hwnd in hwndList)
         {
+            AutomationElement? element = null;
             try
             {
-                var pid = child.Properties.ProcessId.ValueOrDefault;
-                if (pids.Contains(pid) && child.ControlType == ControlType.Window)
-                {
-                    windows.Add(child);
-                }
+                // GetElementFromHandle IS a UIA call; timeout-protect it per window.
+                var task = Task.Run(() => automation.GetElementFromHandle(hwnd));
+                if (task.Wait(TimeSpan.FromMilliseconds(500)))
+                    element = task.Result;
             }
-            catch { /* Skip inaccessible elements */ }
+            catch { /* skip unresponsive window */ }
+
+            if (element != null)
+                windows.Add(element);
         }
 
         return windows;
     }
 
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(WindowInterop.EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    private static List<IntPtr> GetVisibleHwndsForPids(IReadOnlySet<int> pids)
+    {
+        var result = new List<IntPtr>();
+        EnumWindows((hwnd, _) =>
+        {
+            GetWindowThreadProcessId(hwnd, out uint pid);
+            if (pids.Contains((int)pid) && WindowInterop.IsWindowVisible(hwnd))
+                result.Add(hwnd);
+            return true; // continue enumeration
+        }, IntPtr.Zero);
+        return result;
+    }
+
     private List<AutomationElement> GetAllWindows(AutomationHelper automation)
     {
-        var desktop = automation.GetDesktop();
-        var windows = new List<AutomationElement>();
-
-        foreach (var child in desktop.FindAllChildren())
+        // Enumerate all visible top-level HWNDs via Win32 (no UIA), then convert to
+        // AutomationElement with a per-window timeout to avoid blocking.
+        var result = new List<IntPtr>();
+        EnumWindows((hwnd, _) =>
         {
+            if (WindowInterop.IsWindowVisible(hwnd))
+                result.Add(hwnd);
+            return true;
+        }, IntPtr.Zero);
+
+        var windows = new List<AutomationElement>();
+        foreach (var hwnd in result)
+        {
+            AutomationElement? element = null;
             try
             {
-                if (child.ControlType == ControlType.Window)
-                {
-                    windows.Add(child);
-                }
+                var task = Task.Run(() => automation.GetElementFromHandle(hwnd));
+                if (task.Wait(TimeSpan.FromMilliseconds(500)))
+                    element = task.Result;
             }
-            catch { /* Skip inaccessible elements */ }
-        }
+            catch { }
 
+            if (element != null)
+                windows.Add(element);
+        }
         return windows;
     }
 
     private object BuildTree(AutomationElement element, string elementId, int maxDepth, int currentDepth)
     {
-        var info = BuildElementInfo(element, elementId);
+        // Wrap the entire element info + children build in a timeout-protected block
+        // so a window whose thread is blocked (MessageBox, ShowDialog) appears as a leaf
+        // with minimal info rather than hanging the whole tree walk.
+        object? info = null;
+        try
+        {
+            var infoTask = Task.Run(() => BuildElementInfo(element, elementId));
+            if (infoTask.Wait(TimeSpan.FromMilliseconds(500)))
+                info = infoTask.Result;
+        }
+        catch { }
+
+        info ??= new { id = elementId, type = "Unknown", name = "", automationId = "", className = "", bounds = (object?)null, inaccessible = true };
 
         if (currentDepth >= maxDepth)
             return info;
@@ -337,15 +404,25 @@ internal class FindHandler : HandlerBase
         var childrenList = new List<object>();
         try
         {
-            var children = element.FindAllChildren();
-            foreach (var child in children.Take(50)) // Limit children
+            // Run FindAllChildren on a background thread with a per-element timeout.
+            // A modal dialog (e.g. ShowDialog/MessageBox) blocks its own UI thread, so a raw
+            // FindAllChildren() call on that window would time out and stall the whole tree walk.
+            AutomationElement[]? children = null;
+            var childTask = Task.Run(() => element.FindAllChildren());
+            if (childTask.Wait(TimeSpan.FromMilliseconds(1000)))
+                children = childTask.Result;
+
+            if (children != null)
             {
-                try
+                foreach (var child in children.Take(50)) // Limit children
                 {
-                    var childId = Session.CacheElement(child);
-                    childrenList.Add(BuildTree(child, childId, maxDepth, currentDepth + 1));
+                    try
+                    {
+                        var childId = Session.CacheElement(child);
+                        childrenList.Add(BuildTree(child, childId, maxDepth, currentDepth + 1));
+                    }
+                    catch { /* Skip inaccessible children */ }
                 }
-                catch { /* Skip inaccessible children */ }
             }
         }
         catch { /* Element might not support children */ }

@@ -106,6 +106,13 @@ public class AutomationHelper : IAutomationHelper
         }
     }
 
+    public AutomationElement? GetElementFromHandle(IntPtr hwnd)
+    {
+        if (_automation == null)
+            throw new ObjectDisposedException(nameof(AutomationHelper));
+        return _automation.FromHandle(hwnd);
+    }
+
     /// <summary>
     /// Find element by AutomationId
     /// </summary>

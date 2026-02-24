@@ -137,4 +137,16 @@ public static class WindowInterop
     public const uint WM_CONTEXTMENU = 0x007B;
     public const uint MK_LBUTTON = 0x0001;
     public const uint MK_RBUTTON = 0x0002;
+
+    // WM_COMMAND: used to accept/cancel dialogs programmatically via PostMessage.
+    // Works even when UIA is blocked by a Win32 MessageBox's message loop.
+    public const uint WM_COMMAND = 0x0111;
+    public const int IDOK = 1;
+    public const int IDCANCEL = 2;
+
+    /// <summary>
+    /// Find a control in a dialog by its dialog control ID (e.g. IDOK=1, IDCANCEL=2).
+    /// </summary>
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetDlgItem(IntPtr hDlg, int nIDDlgItem);
 }

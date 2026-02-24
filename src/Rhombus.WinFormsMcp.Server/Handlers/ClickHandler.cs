@@ -46,6 +46,39 @@ internal class ClickHandler : HandlerBase
             var pressure = GetIntArg(args, "pressure", 512);
             var eraser = GetBoolArg(args, "eraser", false);
 
+            // window_handle path: accept/cancel a dialog by HWND via WM_COMMAND PostMessage.
+            // Works even during MessageBox.Show() because it uses Win32 queue, not UIA COM.
+            var windowHandleStr = GetStringArg(args, "window_handle");
+            if (windowHandleStr != null)
+            {
+                var hwnd = new IntPtr(Convert.ToInt64(windowHandleStr, 16));
+                var cancel = GetBoolArg(args, "cancel", false);
+
+                // Try WM_COMMAND first (accept/cancel the dialog's default button).
+                int commandId = cancel ? WindowInterop.IDCANCEL : WindowInterop.IDOK;
+                bool sent = WindowInterop.PostMessage(hwnd, WindowInterop.WM_COMMAND,
+                    new IntPtr(commandId), IntPtr.Zero);
+
+                // If WM_COMMAND didn't work, PostMessage WM_LBUTTONDOWN/UP to center.
+                if (!sent)
+                {
+                    WindowInterop.GetClientRect(hwnd, out var rcClient);
+                    int cx = rcClient.Width / 2, cy = rcClient.Height / 2;
+                    var lp = WindowInterop.MakeLParam(cx, cy);
+                    var wp = (IntPtr)WindowInterop.MK_LBUTTON;
+                    WindowInterop.PostMessage(hwnd, WindowInterop.WM_LBUTTONDOWN, wp, lp);
+                    WindowInterop.PostMessage(hwnd, WindowInterop.WM_LBUTTONUP, IntPtr.Zero, lp);
+                }
+
+                return ScopedSuccess(args, new
+                {
+                    clicked = true,
+                    input = "postmessage:wm_command",
+                    window_handle = windowHandleStr,
+                    button = cancel ? "cancel" : "ok"
+                });
+            }
+
             // Default: use UIA when a target element is provided and input not forced
             // to a physical mode. This avoids moving the mouse cursor.
             bool hasElement = !string.IsNullOrEmpty(target);
