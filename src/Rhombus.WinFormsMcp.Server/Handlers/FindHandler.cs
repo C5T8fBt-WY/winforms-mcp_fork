@@ -91,7 +91,7 @@ internal class FindHandler : HandlerBase
             }
             while ((DateTime.UtcNow - startTime).TotalMilliseconds < waitMs);
 
-            return await Error($"Element not found within {waitMs}ms timeout. Try increasing wait_ms or verify the element exists.");
+            return await Error($"Element not found within {waitMs}ms timeout. Try snapshot to see visible elements — modal dialogs may block UIA and appear with hwnd= refs instead.");
         }
         catch (FlaUI.Core.Exceptions.PropertyNotSupportedException)
         {
@@ -288,7 +288,7 @@ internal class FindHandler : HandlerBase
         }
 
         if (found == null)
-            return Error("Element not found matching criteria");
+            return Error("Element not found matching criteria. Try snapshot to see all visible elements — modal dialogs may need click(window_handle:) instead.");
 
         var elementId = Session.CacheElement(found);
         return Success(BuildElementInfo(found, elementId));
@@ -771,13 +771,13 @@ internal class FindHandler : HandlerBase
     /// </summary>
     private static string MapClassNameToType(string className)
     {
-        if (className.StartsWith("WindowsForms10.Edit",    StringComparison.OrdinalIgnoreCase) || className.Equals("Edit",    StringComparison.OrdinalIgnoreCase)) return "edit";
-        if (className.StartsWith("WindowsForms10.Button",  StringComparison.OrdinalIgnoreCase) || className.Equals("Button",  StringComparison.OrdinalIgnoreCase)) return "button";
-        if (className.StartsWith("WindowsForms10.ComboBox",StringComparison.OrdinalIgnoreCase) || className.Equals("ComboBox",StringComparison.OrdinalIgnoreCase)) return "combobox";
+        if (className.StartsWith("WindowsForms10.Edit", StringComparison.OrdinalIgnoreCase) || className.Equals("Edit", StringComparison.OrdinalIgnoreCase)) return "edit";
+        if (className.StartsWith("WindowsForms10.Button", StringComparison.OrdinalIgnoreCase) || className.Equals("Button", StringComparison.OrdinalIgnoreCase)) return "button";
+        if (className.StartsWith("WindowsForms10.ComboBox", StringComparison.OrdinalIgnoreCase) || className.Equals("ComboBox", StringComparison.OrdinalIgnoreCase)) return "combobox";
         if (className.StartsWith("WindowsForms10.ListBox", StringComparison.OrdinalIgnoreCase) || className.Equals("ListBox", StringComparison.OrdinalIgnoreCase)) return "list";
-        if (className.StartsWith("WindowsForms10.ScrollBar",StringComparison.OrdinalIgnoreCase)|| className.Equals("ScrollBar",StringComparison.OrdinalIgnoreCase)) return "scrollbar";
+        if (className.StartsWith("WindowsForms10.ScrollBar", StringComparison.OrdinalIgnoreCase) || className.Equals("ScrollBar", StringComparison.OrdinalIgnoreCase)) return "scrollbar";
         if (className.Equals("Static", StringComparison.OrdinalIgnoreCase)) return "text";
-        if (className.StartsWith("WindowsForms10.Window",  StringComparison.OrdinalIgnoreCase)) return "pane";
+        if (className.StartsWith("WindowsForms10.Window", StringComparison.OrdinalIgnoreCase)) return "pane";
         return "window";
     }
 

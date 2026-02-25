@@ -95,7 +95,7 @@ internal class ClickHandler : HandlerBase
                     : automation.FindByName(directName!, timeoutMs: 500);
 
                 if (directElement == null)
-                    return Error($"Element not found with {(directAutoId != null ? "automationId" : "name")}='{refStr}'");
+                    return Error($"Element not found with {(directAutoId != null ? "automationId" : "name")}='{refStr}'. If targeting a native dialog (MessageBox), use click(window_handle:\"0xHWND\") instead — run snapshot to find the dialog's hwnd.");
 
                 var (clicked, clickMethod) = ExecuteUiaClick(directElement, right, doubleClick, holdMs);
                 return ScopedSuccess(args, new
@@ -115,7 +115,7 @@ internal class ClickHandler : HandlerBase
             {
                 element = Session.GetElement(target!);
                 if (element == null)
-                    return Error($"Element not found: {target}");
+                    return Error($"Element not found: {target}. If a modal dialog is blocking, use snapshot to find hwnd= refs, then click(window_handle:).");
 
                 if (Session.IsElementStale(target!))
                     return Error($"Element is stale: {target}. Use find to locate it again.");

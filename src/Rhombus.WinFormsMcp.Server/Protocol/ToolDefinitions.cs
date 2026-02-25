@@ -63,7 +63,7 @@ public static class ToolDefinitions
             new
             {
                 name = "app",
-                description = "Manage application lifecycle: launch, attach, close, or get info",
+                description = "Manage application lifecycle: launch, attach, close, or get info. For modal dialogs (e.g. MessageBox), use close with handle parameter to send WM_CLOSE.",
                 inputSchema = new
                 {
                     type = "object",
@@ -74,6 +74,7 @@ public static class ToolDefinitions
                         args = new { type = "string", description = "Command line args (launch)" },
                         working_directory = new { type = "string", description = "Working directory (launch, defaults to exe directory)" },
                         pid = new { type = "integer", description = "Process ID (attach/close/info)" },
+                        handle = new { type = "string", description = "Window HWND to close via WM_CLOSE, e.g. '0x1A2B3C' (close). Use for modal dialogs that block UIA." },
                         title = new { type = "string", description = "Window title (attach)" },
                         wait_ms = new { type = "integer", description = "Max wait for window (launch/attach)" }
                     },
@@ -85,7 +86,7 @@ public static class ToolDefinitions
             new
             {
                 name = "find",
-                description = "Find UI elements. Use at:'root' for all windows, at:elementId for subtree",
+                description = "Find UI elements via UIA. Use at:'root' for all windows, at:elementId for subtree. If a modal dialog blocks UIA, use snapshot instead — it falls back to Win32 and returns hwnd= refs you can pass to click(window_handle:).",
                 inputSchema = new
                 {
                     type = "object",
@@ -125,7 +126,7 @@ public static class ToolDefinitions
             new
             {
                 name = "snapshot",
-                description = "Compact accessibility snapshot (Playwright-style). Lists interactive elements as YAML. Faster and more readable than find(recursive:true). Use instead of find for initial exploration.",
+                description = "Compact accessibility snapshot (Playwright-style). Lists interactive elements as YAML with [ref=elem_XX] IDs. When modal dialogs block UIA, automatically falls back to Win32 and shows [hwnd=0xNNNN] refs instead. Use click(window_handle:'0xNNNN') or app(action:'close', handle:'0xNNNN') to interact with those.",
                 inputSchema = new
                 {
                     type = "object",
@@ -142,7 +143,7 @@ public static class ToolDefinitions
             new
             {
                 name = "click",
-                description = "Click element or coordinates programmatically (UIA patterns + PostMessage, never moves physical mouse)",
+                description = "Click element or coordinates programmatically (UIA patterns + PostMessage, never moves physical mouse). For native dialogs (MessageBox), use window_handle to dismiss via Win32 — no UIA needed.",
                 inputSchema = new
                 {
                     type = "object",
