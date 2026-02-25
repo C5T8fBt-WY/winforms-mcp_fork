@@ -9,10 +9,10 @@ Collected during a full end-to-end test session covering: complete measurement c
 | # | Point | Impl Cost | Impact | Priority |
 |---|-------|-----------|--------|----------|
 | 3 | HWND target for `type` tool | ✅ Done (S) | H — unblocks all modal dialogs | **Done** |
-| 5 | `click` tool: send WM_CLOSE for dialogs without buttons | S (1-2h) | H — no more PowerShell workaround needed | 🔥 High |
-| 4 | `find(point)`: search owned/modal dialogs via EnumWindows | S (2-3h) | H — coordinate-based find works for modals | 🔥 High |
-| 1 | Modal dialog UIA fallback via EnumChildWindows | M (1-2d) | H — `snapshot`/`find` work for modal dialogs | 🔥 High |
-| 6 | `snapshot` empty during ShowDialog | M (1-2d) | H — blocked on #1 | 🔥 High |
+| 5 | `click` tool: send WM_CLOSE for dialogs without buttons | ✅ Done (S) | H — no more PowerShell workaround needed | **Done** |
+| 4 | `find(point)`: Win32 `WindowFromPoint` fallback for modals | ✅ Done (S) | H — coordinate-based find works for modals | **Done** |
+| 1 | Modal dialog UIA fallback via EnumChildWindows | ✅ Done (M) | H — `snapshot`/`find` work for modal dialogs | **Done** |
+| 6 | `snapshot` empty during ShowDialog | ✅ Done (M) | H — fixed by #1 | **Done** |
 | 10 | UIA Name = adjacent label text (doc/guidance) | XS (30m) | M — guidance for app developers | Medium |
 | 7 | Inconsistency: `windows[]` shows dialog but `find` misses it | M (1d) | M — confusing for LLM agents | Medium |
 | 8 | `elem_N` IDs reset on MCP restart | M (1d) | M — inconvenient for multi-restart workflows | Medium |
