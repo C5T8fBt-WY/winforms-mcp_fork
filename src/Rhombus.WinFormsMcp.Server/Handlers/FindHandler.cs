@@ -607,8 +607,9 @@ internal class FindHandler : HandlerBase
         if (!visible) return;
         if (_snapshotSkipTypes.Contains(type)) return;
 
-        // Determine ref: prefer automationId (stable) over cache ID.
-        string ref_id = !string.IsNullOrEmpty(autoId) ? autoId : Session.CacheElement(element);
+        // Always cache the element so the ref resolves correctly in subsequent click/find calls.
+        // (automationId for WinForms controls is the decimal HWND — not a cache key.)
+        string ref_id = Session.CacheElement(element);
         bool isInteractive = _snapshotInteractiveTypes.Contains(type);
         bool isProgressBar = type.Equals("ProgressBar", StringComparison.OrdinalIgnoreCase);
         bool hasName = !string.IsNullOrEmpty(name);

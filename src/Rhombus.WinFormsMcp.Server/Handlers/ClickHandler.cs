@@ -5,24 +5,18 @@ using System.Threading;
 using System.Threading.Tasks;
 using FlaUI.Core.AutomationElements;
 using Rhombus.WinFormsMcp.Server.Abstractions;
-using Rhombus.WinFormsMcp.Server.Automation;
-using Rhombus.WinFormsMcp.Server.Input;
 using Rhombus.WinFormsMcp.Server.Interop;
 using static Rhombus.WinFormsMcp.Server.Interop.Win32Types;
 
 namespace Rhombus.WinFormsMcp.Server.Handlers;
 
 /// <summary>
-/// Unified handler for click/tap operations with multiple input types.
+/// Unified handler for click/tap operations.
 ///
-/// Input mode selection:
-///   - When a target element ID is provided and input is not explicitly set to
-///     "mouse"/"touch"/"pen", the default is "uia": programmatic UIA patterns are
-///     used (InvokePattern → TogglePattern → SelectionItemPattern → PostMessage).
-///     This does NOT move the physical mouse cursor.
-///   - When only coordinates are given, or when input is explicitly "mouse",
-///     "touch", or "pen", physical input injection is used (moves cursor / injects
-///     touch/pen events).
+/// All clicks are programmatic — UIA patterns first (InvokePattern → TogglePattern →
+/// SelectionItemPattern → ExpandCollapsePattern → LegacyIAccessiblePattern), then
+/// PostMessage WM_LBUTTON/WM_RBUTTON to the control's HWND.
+/// Physical mouse/cursor movement is never used to prevent interfering with the user.
 /// </summary>
 internal class ClickHandler : HandlerBase
 {
@@ -37,14 +31,10 @@ internal class ClickHandler : HandlerBase
     {
         try
         {
-            var inputArg = GetStringArg(args, "input");
             var target = GetStringArg(args, "target");
             var right = GetBoolArg(args, "right", false);
-            var barrel = GetBoolArg(args, "barrel", false);
             var doubleClick = GetBoolArg(args, "double", false);
             var holdMs = GetIntArg(args, "hold_ms", 0);
-            var pressure = GetIntArg(args, "pressure", 512);
-            var eraser = GetBoolArg(args, "eraser", false);
 
             // window_handle path: accept/cancel a dialog by HWND.
             // Works even during MessageBox.Show() because it uses Win32 message queue, not UIA COM.
@@ -105,11 +95,7 @@ internal class ClickHandler : HandlerBase
                 });
             }
 
-            // Default: use UIA when a target element is provided and input not forced
-            // to a physical mode. This avoids moving the mouse cursor.
             bool hasElement = !string.IsNullOrEmpty(target);
-            bool physicalForced = inputArg is "mouse" or "touch" or "pen";
-            string input = inputArg ?? (hasElement ? "uia" : "mouse");
 
             AutomationElement? element = null;
             int x = 0, y = 0;
@@ -135,35 +121,10 @@ internal class ClickHandler : HandlerBase
                 y = GetIntArg(args, "y");
             }
 
-            string method;
-            bool success;
-
-            switch (input.ToLower())
-            {
-                case "uia":
-                    // Programmatic: UIA patterns first, PostMessage fallback.
-                    // Never moves the physical mouse cursor.
-                    (success, method) = ExecuteUiaClick(element!, right, doubleClick, holdMs);
-                    break;
-
-                case "mouse":
-                    success = ExecuteMouseClick(x, y, right, doubleClick, holdMs);
-                    method = "mouse";
-                    break;
-
-                case "touch":
-                    success = InputFacade.TouchTap(x, y, holdMs);
-                    method = "touch";
-                    break;
-
-                case "pen":
-                    success = InputInjection.PenTap(x, y, (uint)pressure, holdMs, eraser, right || barrel);
-                    method = "pen";
-                    break;
-
-                default:
-                    throw new ArgumentException($"Unknown input type: {input}. Expected: uia, mouse, touch, pen");
-            }
+            // All clicks are programmatic: UIA patterns first, PostMessage fallback.
+            var (success, method) = hasElement
+                ? ExecuteUiaClick(element!, right, doubleClick, holdMs)
+                : PostMessageClickAtScreen(x, y, right, doubleClick, holdMs);
 
             if (!success)
                 return Error($"Click failed via '{method}' at ({x}, {y}). The control may not support this interaction.");
@@ -179,7 +140,7 @@ internal class ClickHandler : HandlerBase
         }
         catch (FlaUI.Core.Exceptions.PropertyNotSupportedException)
         {
-            return Error("Element does not support click. Try using coordinates with input='mouse'.");
+            return Error("Element does not support click. Try using coordinates (x, y) with PostMessage.");
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("offscreen"))
         {
@@ -305,16 +266,43 @@ internal class ClickHandler : HandlerBase
                     expand.Collapse();
                 return (true, "uia:expandcollapse");
             }
+
+            // LegacyIAccessiblePattern (MSAA/IAccessible): WinForms buttons in UIA2 are
+            // often reported as ControlType.Pane without InvokePattern, but they DO expose
+            // LegacyIAccessiblePattern wrapping IAccessible::accDoDefaultAction().
+            // Critically, this is a COM out-of-process call that Windows routes through
+            // UIAutomationCore, so it crosses UAC elevation boundaries unlike PostMessage.
+            try
+            {
+                var legacyIa = element.Patterns.LegacyIAccessible.PatternOrDefault;
+                if (legacyIa != null)
+                {
+                    var laTask = Task.Run(() => legacyIa.DoDefaultAction());
+                    bool completed = laTask.Wait(TimeSpan.FromMilliseconds(2000));
+                    if (!completed)
+                        _ = laTask.ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnFaulted);
+                    return (true, "uia:msaa");
+                }
+            }
+            catch
+            {
+                // LegacyIAccessiblePattern not supported by this element or framework version.
+                // Fall through to PostMessage / physical mouse.
+            }
         }
 
         // Fallback: PostMessage WM_LBUTTON/WM_RBUTTON to the control's HWND.
-        // This is still programmatic — does not move the mouse cursor.
+        // Programmatic — does not move the mouse cursor.
+        // Note: UIPI blocks PostMessage when the target runs at higher integrity (elevated).
+        // In that case the click will fail and an error is returned.
         return PostMessageClick(element, right, doubleClick, holdMs);
     }
 
     /// <summary>
     /// PostMessage fallback: sends WM_LBUTTONDOWN/UP (or WM_RBUTTONDOWN/UP) directly
     /// to the control's HWND using coordinates local to the control's client area.
+    /// Uses DeepChildFromClientPoint to resolve the actual child HWND from the container
+    /// window, fixing WinForms buttons that UIA2 reports as Pane with parent-window HWND.
     /// Does NOT move the physical mouse cursor.
     /// </summary>
     private static (bool success, string method) PostMessageClick(
@@ -322,19 +310,29 @@ internal class ClickHandler : HandlerBase
     {
         try
         {
-            var hwnd = element.Properties.NativeWindowHandle.ValueOrDefault;
-            if (hwnd == IntPtr.Zero)
+            var containerHwnd = element.Properties.NativeWindowHandle.ValueOrDefault;
+            if (containerHwnd == IntPtr.Zero)
                 return (false, "postmessage");
 
-            // Compute center in screen coords, then convert to client coords
+            // Compute center in screen coords
             var bounds = element.BoundingRectangle;
-            var screenPt = new POINT
+            var screenCenter = new POINT
             {
                 x = (int)(bounds.X + bounds.Width / 2),
                 y = (int)(bounds.Y + bounds.Height / 2)
             };
-            WindowInterop.ScreenToClient(hwnd, ref screenPt);
-            var lParam = WindowInterop.MakeLParam(screenPt.x, screenPt.y);
+
+            // Convert to client coords of the container and drill down to actual child.
+            // This handles WinForms controls (e.g. Button) that UIA2 reports as "Pane"
+            // with the parent Form's HWND as NativeWindowHandle.
+            var clientPt = screenCenter;
+            WindowInterop.ScreenToClient(containerHwnd, ref clientPt);
+            var hwnd = WindowInterop.DeepChildFromClientPoint(containerHwnd, clientPt);
+
+            // Recompute client coords for the resolved HWND
+            var localPt = screenCenter;
+            WindowInterop.ScreenToClient(hwnd, ref localPt);
+            var lParam = WindowInterop.MakeLParam(localPt.x, localPt.y);
 
             if (right)
             {
@@ -364,30 +362,54 @@ internal class ClickHandler : HandlerBase
     }
 
     /// <summary>
-    /// Physical mouse click — moves the cursor. Used only when input='mouse' is explicit.
+    /// PostMessage click at screen coordinates (no element). Resolves the HWND at the
+    /// given screen point using WindowFromPoint and DeepChildFromClientPoint.
+    /// Does NOT move the physical mouse cursor.
     /// </summary>
-    private static bool ExecuteMouseClick(int x, int y, bool right, bool doubleClick, int holdMs)
+    private static (bool success, string method) PostMessageClickAtScreen(
+        int screenX, int screenY, bool right, bool doubleClick, int holdMs)
     {
-        if (holdMs > 0)
+        try
         {
-            FlaUI.Core.Input.Mouse.MoveTo(x, y);
-            var btn = right ? FlaUI.Core.Input.MouseButton.Right : FlaUI.Core.Input.MouseButton.Left;
-            FlaUI.Core.Input.Mouse.Down(btn);
-            Thread.Sleep(holdMs);
-            FlaUI.Core.Input.Mouse.Up(btn);
-            return true;
+            var screenPt = new POINT { x = screenX, y = screenY };
+            var hwnd = WindowInterop.WindowFromPoint(screenPt);
+            if (hwnd == IntPtr.Zero)
+                return (false, "postmessage");
+
+            // Drill down to actual child HWND
+            var clientPt = screenPt;
+            WindowInterop.ScreenToClient(hwnd, ref clientPt);
+            hwnd = WindowInterop.DeepChildFromClientPoint(hwnd, clientPt);
+
+            // Recompute client coords for the resolved HWND
+            var localPt = screenPt;
+            WindowInterop.ScreenToClient(hwnd, ref localPt);
+            var lParam = WindowInterop.MakeLParam(localPt.x, localPt.y);
+
+            if (right)
+            {
+                var wParam = (IntPtr)WindowInterop.MK_RBUTTON;
+                WindowInterop.PostMessage(hwnd, WindowInterop.WM_RBUTTONDOWN, wParam, lParam);
+                if (holdMs > 0) Thread.Sleep(holdMs);
+                WindowInterop.PostMessage(hwnd, WindowInterop.WM_RBUTTONUP, IntPtr.Zero, lParam);
+            }
+            else
+            {
+                var wParam = (IntPtr)WindowInterop.MK_LBUTTON;
+                WindowInterop.PostMessage(hwnd, WindowInterop.WM_LBUTTONDOWN, wParam, lParam);
+                if (holdMs > 0) Thread.Sleep(holdMs);
+                WindowInterop.PostMessage(hwnd, WindowInterop.WM_LBUTTONUP, IntPtr.Zero, lParam);
+                if (doubleClick)
+                {
+                    WindowInterop.PostMessage(hwnd, WindowInterop.WM_LBUTTONDBLCLK, wParam, lParam);
+                    WindowInterop.PostMessage(hwnd, WindowInterop.WM_LBUTTONUP, IntPtr.Zero, lParam);
+                }
+            }
+            return (true, "postmessage");
         }
-
-        if (doubleClick)
-            return InputFacade.MouseClick(x, y, doubleClick: true);
-
-        if (right)
+        catch
         {
-            FlaUI.Core.Input.Mouse.MoveTo(x, y);
-            FlaUI.Core.Input.Mouse.RightClick();
-            return true;
+            return (false, "postmessage");
         }
-
-        return InputFacade.MouseClick(x, y);
     }
 }

@@ -94,6 +94,17 @@ public static class WindowInterop
     public static extern IntPtr GetParent(IntPtr hWnd);
 
     /// <summary>
+    /// Get an ancestor window. gaFlags: GA_PARENT=1, GA_ROOT=2, GA_ROOTOWNER=3.
+    /// Use GA_ROOT (2) to walk up to the topmost non-child ancestor (the top-level window).
+    /// Required by SetForegroundWindow which silently ignores child windows.
+    /// </summary>
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+
+    /// <summary>GA_ROOT — walk up to the topmost non-child ancestor.</summary>
+    public const uint GA_ROOT = 2;
+
+    /// <summary>
     /// Get the window at a specific point.
     /// </summary>
     [DllImport("user32.dll")]
@@ -122,6 +133,34 @@ public static class WindowInterop
     /// </summary>
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    /// <summary>
+    /// Find the deepest child window at client-relative coordinates.
+    /// CWP_SKIPINVISIBLE (0x01) | CWP_SKIPDISABLED (0x02) — only enabled, visible children.
+    /// </summary>
+    [DllImport("user32.dll")]
+    public static extern IntPtr ChildWindowFromPointEx(IntPtr hWndParent, POINT Point, uint uFlags);
+
+    public const uint CWP_SKIPINVISIBLE = 0x01;
+    public const uint CWP_SKIPDISABLED = 0x02;
+
+    /// <summary>
+    /// Recursively find the deepest visible child HWND at a given client-relative point.
+    /// Falls back to parent if no child is found at the point.
+    /// </summary>
+    public static IntPtr DeepChildFromClientPoint(IntPtr parent, POINT clientPt)
+    {
+        var child = ChildWindowFromPointEx(parent, clientPt, CWP_SKIPINVISIBLE | CWP_SKIPDISABLED);
+        if (child == IntPtr.Zero || child == parent) return parent;
+        // Convert to child's client coords for deeper search
+        var screenPt = clientPt;
+        ClientToScreen(parent, ref screenPt);
+        var childClientPt = screenPt;
+        ScreenToClient(child, ref childClientPt);
+        var deeper = ChildWindowFromPointEx(child, childClientPt, CWP_SKIPINVISIBLE | CWP_SKIPDISABLED);
+        if (deeper != IntPtr.Zero && deeper != child) return deeper;
+        return child;
+    }
 
     /// <summary>
     /// Pack X and Y coordinates into an lParam for mouse messages.
@@ -165,4 +204,85 @@ public static class WindowInterop
     /// </summary>
     [DllImport("user32.dll")]
     public static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    /// <summary>
+    /// Attaches or detaches the input processing mechanism of one thread to another.
+    /// Allows SetForegroundWindow to work from a background process by borrowing the
+    /// foreground thread's input permission.
+    /// </summary>
+    [DllImport("user32.dll")]
+    public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    /// <summary>Get the thread ID of the calling thread (kernel32).</summary>
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
+
+    // ── UIPI / integrity-level helpers ─────────────────────────────────────
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, uint dwProcessId);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool GetTokenInformation(IntPtr TokenHandle, uint TokenInformationClass,
+        IntPtr TokenInformation, uint TokenInformationLength, out uint ReturnLength);
+
+    [DllImport("kernel32.dll")]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+    private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    private const uint TOKEN_QUERY = 0x0008;
+    private const uint TokenIntegrityLevel = 25; // TOKEN_INFORMATION_CLASS
+
+    /// <summary>
+    /// Returns true when the window's host process is running at High or System integrity
+    /// (i.e., elevated via UAC). In that case UIPI will silently drop PostMessage calls
+    /// from a normal medium-integrity MCP server process, and we must use physical input.
+    /// </summary>
+    public static bool IsWindowProcessElevated(IntPtr hwnd)
+    {
+        GetWindowThreadProcessId(hwnd, out uint pid);
+        if (pid == 0) return false;
+
+        var hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (hProcess == IntPtr.Zero)
+        {
+            // Cannot open even with LIMITED_INFORMATION → likely System or higher
+            return true;
+        }
+
+        try
+        {
+            if (!OpenProcessToken(hProcess, TOKEN_QUERY, out var hToken))
+                return false;
+            try
+            {
+                // First call: get required buffer size
+                GetTokenInformation(hToken, TokenIntegrityLevel, IntPtr.Zero, 0, out uint size);
+                if (size == 0) return false;
+
+                var buf = Marshal.AllocHGlobal((int)size);
+                try
+                {
+                    if (!GetTokenInformation(hToken, TokenIntegrityLevel, buf, size, out _))
+                        return false;
+
+                    // TOKEN_MANDATORY_LABEL: { SID_AND_ATTRIBUTES Sid, DWORD Attributes }
+                    // The SID pointer is the first IntPtr in the structure.
+                    var sidPtr = Marshal.ReadIntPtr(buf);
+                    // SID layout: Revision(1), SubAuthorityCount(1), IdentifierAuthority(6), SubAuthority[n](4 each)
+                    byte subAuthorityCount = Marshal.ReadByte(sidPtr, 1);
+                    // Last sub-authority holds the integrity RID
+                    int rid = Marshal.ReadInt32(sidPtr, 8 + (subAuthorityCount - 1) * 4);
+                    // High integrity = 0x3000, System = 0x4000
+                    return rid >= 0x3000;
+                }
+                finally { Marshal.FreeHGlobal(buf); }
+            }
+            finally { CloseHandle(hToken); }
+        }
+        finally { CloseHandle(hProcess); }
+    }
 }

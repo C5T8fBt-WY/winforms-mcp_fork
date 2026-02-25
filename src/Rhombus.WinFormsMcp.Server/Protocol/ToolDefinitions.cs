@@ -142,7 +142,7 @@ public static class ToolDefinitions
             new
             {
                 name = "click",
-                description = "Click, tap, or pen-tap at element or coordinates",
+                description = "Click element or coordinates programmatically (UIA patterns + PostMessage, never moves physical mouse)",
                 inputSchema = new
                 {
                     type = "object",
@@ -155,12 +155,9 @@ public static class ToolDefinitions
                         y = new { type = "integer", description = "Screen Y (if no target)" },
                         window_handle = new { type = "string", description = "Dialog HWND to accept/cancel via WM_COMMAND (works during MessageBox.Show, no UIA needed)" },
                         cancel = new { type = "boolean", description = "When using window_handle: send IDCANCEL instead of IDOK (default: false = accept/OK)" },
-                        input = new { type = "string", description = "uia (default when target given, no mouse movement) | mouse | touch | pen" },
-                        right = new { type = "boolean", description = "Right-click or barrel button" },
-                        @double = new { type = "boolean", description = "Double-click/tap" },
-                        hold_ms = new { type = "integer", description = "Long-press duration" },
-                        pressure = new { type = "integer", description = "Pen pressure 0-1024" },
-                        eraser = new { type = "boolean", description = "Pen eraser tip" }
+                        right = new { type = "boolean", description = "Right-click" },
+                        @double = new { type = "boolean", description = "Double-click" },
+                        hold_ms = new { type = "integer", description = "Long-press duration" }
                     }
                 }
             },
