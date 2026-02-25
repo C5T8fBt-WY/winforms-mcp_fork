@@ -166,7 +166,7 @@ public static class ToolDefinitions
             new
             {
                 name = "type",
-                description = "Type text into element or send keystrokes globally",
+                description = "Type text into element or send keystrokes globally (UIA ValuePattern + PostMessage WM_CHAR, never uses physical keyboard input)",
                 inputSchema = new
                 {
                     type = "object",

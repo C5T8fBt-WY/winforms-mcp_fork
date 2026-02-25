@@ -177,11 +177,18 @@ public static class WindowInterop
     public const uint MK_LBUTTON = 0x0001;
     public const uint MK_RBUTTON = 0x0002;
 
-    // Keyboard messages (for dialog dismissal via PostMessage)
+    // Keyboard messages (for dialog dismissal and programmatic text input via PostMessage)
     public const uint WM_KEYDOWN = 0x0100;
     public const uint WM_KEYUP = 0x0101;
+    public const uint WM_CHAR = 0x0102;
+    public const uint VK_BACK = 0x08;
     public const uint VK_RETURN = 0x0D;
+    public const uint VK_SHIFT = 0x10;
+    public const uint VK_CONTROL = 0x11;
+    public const uint VK_MENU = 0x12;  // Alt
     public const uint VK_ESCAPE = 0x1B;
+    public const uint VK_DELETE = 0x2E;
+    public const uint VK_A = 0x41;
 
     // Button message (simulates a button click — triggers WM_COMMAND internally)
     public const uint BM_CLICK = 0x00F5;

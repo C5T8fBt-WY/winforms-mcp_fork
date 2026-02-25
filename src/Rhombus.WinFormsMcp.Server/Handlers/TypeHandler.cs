@@ -3,17 +3,19 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.WindowsAPI;
 using Rhombus.WinFormsMcp.Server.Abstractions;
 using Rhombus.WinFormsMcp.Server.Automation;
+using Rhombus.WinFormsMcp.Server.Interop;
 
 namespace Rhombus.WinFormsMcp.Server.Handlers;
 
 /// <summary>
 /// Unified handler for text input and keyboard operations.
 /// Replaces: type_text, set_value, send_keys
+/// All input is programmatic — UIA ValuePattern first, PostMessage WM_CHAR/WM_KEYDOWN fallback.
+/// Physical keyboard input (SendKeys/SendInput) is never used to prevent interfering with the user.
 /// </summary>
 internal class TypeHandler : HandlerBase
 {
@@ -84,17 +86,7 @@ internal class TypeHandler : HandlerBase
             catch { /* Continue anyway */ }
         }
 
-        // Clear existing content if requested
-        if (clear)
-        {
-            // Select all and delete
-            System.Windows.Forms.SendKeys.SendWait("^a");
-            Thread.Sleep(50);
-            System.Windows.Forms.SendKeys.SendWait("{DELETE}");
-            Thread.Sleep(50);
-        }
-
-        // Try ValuePattern first for reliability
+        // Try ValuePattern first (UIA: no physical keyboard required)
         try
         {
             if (element.Patterns.Value.IsSupported)
@@ -111,44 +103,147 @@ internal class TypeHandler : HandlerBase
                 return ScopedSuccess(default, new { typed = true, target = elementId, length = text.Length });
             }
         }
-        catch { /* Fall through to keyboard input */ }
+        catch { /* Fall through to PostMessage fallback */ }
 
-        // Fall back to keyboard simulation
-        // Escape special characters for SendKeys
-        var escaped = EscapeSendKeys(text);
-        System.Windows.Forms.SendKeys.SendWait(escaped);
+        // Fallback: PostMessage WM_CHAR per character (no physical keyboard input)
+        var hwnd = GetElementHwnd(element);
+        if (hwnd == IntPtr.Zero)
+            return Error($"Cannot send input to element: {elementId}. No window handle and ValuePattern not supported.");
+
+        if (clear)
+            PostSelectAllDelete(hwnd);
+
+        foreach (char c in text)
+            WindowInterop.PostMessage(hwnd, WindowInterop.WM_CHAR, new IntPtr(c), IntPtr.Zero);
 
         return ScopedSuccess(default, new { typed = true, target = elementId, length = text.Length });
     }
 
     private Task<JsonElement> SendKeys(string keySequence)
     {
-        // Parse and send key codes
-        // Supports: Ctrl+S, Alt+F4, Enter, Tab, etc.
-        System.Windows.Forms.SendKeys.SendWait(keySequence);
+        // Send key sequence to foreground window via PostMessage (no physical keyboard).
+        var hwnd = WindowInterop.GetForegroundWindow();
+        PostKeySequence(hwnd, keySequence);
         return ScopedSuccess(default, new { sent = true, keys = keySequence });
     }
 
     private Task<JsonElement> SendText(string text)
     {
-        var escaped = EscapeSendKeys(text);
-        System.Windows.Forms.SendKeys.SendWait(escaped);
+        // Send text to foreground window via PostMessage WM_CHAR (no physical keyboard).
+        var hwnd = WindowInterop.GetForegroundWindow();
+        foreach (char c in text)
+            WindowInterop.PostMessage(hwnd, WindowInterop.WM_CHAR, new IntPtr(c), IntPtr.Zero);
         return ScopedSuccess(default, new { typed = true, length = text.Length });
     }
 
-    private string EscapeSendKeys(string text)
+    /// <summary>Get the HWND for a UI element (for PostMessage fallback).</summary>
+    private static IntPtr GetElementHwnd(AutomationElement element)
     {
-        // Escape special SendKeys characters: + ^ % ~ { } [ ] ( )
-        return text
-            .Replace("{", "{{}")
-            .Replace("}", "{}}")
-            .Replace("[", "{[}")
-            .Replace("]", "{]}")
-            .Replace("(", "{(}")
-            .Replace(")", "{)}")
-            .Replace("+", "{+}")
-            .Replace("^", "{^}")
-            .Replace("%", "{%}")
-            .Replace("~", "{~}");
+        try
+        {
+            var handle = element.Properties.NativeWindowHandle.Value;
+            if (handle != 0) return new IntPtr(handle);
+        }
+        catch { }
+        return IntPtr.Zero;
     }
+
+    /// <summary>PostMessage Ctrl+A, Delete to clear all text in a control.</summary>
+    private static void PostSelectAllDelete(IntPtr hwnd)
+    {
+        // Ctrl+A
+        WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYDOWN, new IntPtr(WindowInterop.VK_CONTROL), IntPtr.Zero);
+        WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYDOWN, new IntPtr(WindowInterop.VK_A), IntPtr.Zero);
+        WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYUP, new IntPtr(WindowInterop.VK_A), IntPtr.Zero);
+        WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYUP, new IntPtr(WindowInterop.VK_CONTROL), IntPtr.Zero);
+        Thread.Sleep(50);
+        // Delete
+        WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYDOWN, new IntPtr(WindowInterop.VK_DELETE), IntPtr.Zero);
+        WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYUP, new IntPtr(WindowInterop.VK_DELETE), IntPtr.Zero);
+        Thread.Sleep(50);
+    }
+
+    /// <summary>
+    /// Parse SendKeys-style key sequence and post to window via WM_KEYDOWN/WM_KEYUP.
+    /// Supports: ^X (Ctrl+X), +X (Shift+X), %X (Alt+X), ~ (Enter),
+    ///           {TAB}, {ENTER}, {ESC}, {DELETE}, {BACK}, {UP}, {DOWN}, {LEFT}, {RIGHT},
+    ///           {HOME}, {END}, {PGUP}, {PGDN}, {F1}-{F12}
+    /// </summary>
+    private static void PostKeySequence(IntPtr hwnd, string keySequence)
+    {
+        bool ctrl = false, shift = false, alt = false;
+        int i = 0;
+        while (i < keySequence.Length)
+        {
+            char c = keySequence[i];
+            if (c == '^') { ctrl = true; i++; continue; }
+            if (c == '+') { shift = true; i++; continue; }
+            if (c == '%') { alt = true; i++; continue; }
+
+            uint vk;
+            if (c == '~')
+            {
+                vk = WindowInterop.VK_RETURN;
+                i++;
+            }
+            else if (c == '{')
+            {
+                int end = keySequence.IndexOf('}', i);
+                if (end < 0) { i++; continue; }
+                var key = keySequence.Substring(i + 1, end - i - 1).ToUpperInvariant();
+                vk = ParseNamedKey(key);
+                i = end + 1;
+            }
+            else
+            {
+                vk = (uint)char.ToUpper(c);
+                i++;
+            }
+
+            if (vk == 0) { ctrl = shift = alt = false; continue; }
+
+            if (ctrl) WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYDOWN, new IntPtr(WindowInterop.VK_CONTROL), IntPtr.Zero);
+            if (shift) WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYDOWN, new IntPtr(WindowInterop.VK_SHIFT), IntPtr.Zero);
+            if (alt) WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYDOWN, new IntPtr(WindowInterop.VK_MENU), IntPtr.Zero);
+
+            WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYDOWN, new IntPtr(vk), IntPtr.Zero);
+            WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYUP, new IntPtr(vk), IntPtr.Zero);
+
+            if (alt) WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYUP, new IntPtr(WindowInterop.VK_MENU), IntPtr.Zero);
+            if (shift) WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYUP, new IntPtr(WindowInterop.VK_SHIFT), IntPtr.Zero);
+            if (ctrl) WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYUP, new IntPtr(WindowInterop.VK_CONTROL), IntPtr.Zero);
+
+            ctrl = shift = alt = false;
+        }
+    }
+
+    private static uint ParseNamedKey(string name) => name switch
+    {
+        "TAB" => 0x09,
+        "ENTER" => WindowInterop.VK_RETURN,
+        "ESC" or "ESCAPE" => WindowInterop.VK_ESCAPE,
+        "DELETE" or "DEL" => WindowInterop.VK_DELETE,
+        "BACK" or "BACKSPACE" or "BS" => WindowInterop.VK_BACK,
+        "UP" => 0x26,
+        "DOWN" => 0x28,
+        "LEFT" => 0x25,
+        "RIGHT" => 0x27,
+        "HOME" => 0x24,
+        "END" => 0x23,
+        "PGUP" => 0x21,
+        "PGDN" => 0x22,
+        "F1" => 0x70,
+        "F2" => 0x71,
+        "F3" => 0x72,
+        "F4" => 0x73,
+        "F5" => 0x74,
+        "F6" => 0x75,
+        "F7" => 0x76,
+        "F8" => 0x77,
+        "F9" => 0x78,
+        "F10" => 0x79,
+        "F11" => 0x7A,
+        "F12" => 0x7B,
+        _ => 0
+    };
 }
