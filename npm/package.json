@@ -3,6 +3,13 @@
   "version": "1.0.6",
   "description": "WinForms automation MCP server with headless UI automation capabilities",
   "main": "index.js",
+  "files": [
+    "dist",
+    "bin",
+    "index.js",
+    "install.js",
+    "README.md"
+  ],
   "bin": {
     "winforms-mcp": "./bin/winforms-mcp.js"
   },
