@@ -53,7 +53,7 @@ jobs:
         id: get_version
         run: |
           # Get the latest version tag (e.g., v1.2.3)
-          LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -n 1)
+          LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -n 1 || echo '')
 
           if [ -z "$LATEST_TAG" ]; then
             # No tags yet — seed from VERSION file
@@ -67,8 +67,8 @@ jobs:
             CURRENT_VERSION=${LATEST_TAG#v}
             echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
-            # Check if HEAD is already tagged
-            HEAD_TAG=$(git tag --points-at HEAD | grep '^v' | head -n 1)
+            # Check if HEAD is already tagged (|| echo '' avoids pipefail on grep-no-match)
+            HEAD_TAG=$(git tag --points-at HEAD | grep '^v' | head -n 1 || echo '')
             if [ -n "$HEAD_TAG" ]; then
               echo "new=$CURRENT_VERSION" >> $GITHUB_OUTPUT
               echo "tag_exists=true" >> $GITHUB_OUTPUT
