@@ -88,7 +88,7 @@ jobs:
           fi
 
           echo "Latest tag: $LATEST_TAG"
-          echo "New version: $(cat $GITHUB_OUTPUT | grep '^new=' | cut -d= -f2)"
+          echo "New version will be: $NEW_VERSION"
         shell: bash
 
       - name: Restore, Build, Test
