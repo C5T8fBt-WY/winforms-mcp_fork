@@ -135,6 +135,20 @@ public static class WindowInterop
     public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
     /// <summary>
+    /// Send a message to a window synchronously (waits for processing).
+    /// String overload: lParam is a Unicode string, used for WM_SETTEXT.
+    /// </summary>
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, string lParam);
+
+    /// <summary>
+    /// Send a message to a window synchronously.
+    /// StringBuilder overload: used for WM_GETTEXT to receive a string result.
+    /// </summary>
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, System.Text.StringBuilder lParam);
+
+    /// <summary>
     /// Find the deepest child window at client-relative coordinates.
     /// CWP_SKIPINVISIBLE (0x01) | CWP_SKIPDISABLED (0x02) — only enabled, visible children.
     /// </summary>
@@ -166,6 +180,10 @@ public static class WindowInterop
     /// Pack X and Y coordinates into an lParam for mouse messages.
     /// </summary>
     public static IntPtr MakeLParam(int x, int y) => (IntPtr)((y << 16) | (x & 0xFFFF));
+
+    // Text control messages (for WinForms controls that don't support UIA ValuePattern)
+    public const uint WM_SETTEXT = 0x000C;  // Replace control text directly (synchronous)
+    public const uint WM_GETTEXT = 0x000D;  // Read control text (synchronous)
 
     // Standard mouse messages
     public const uint WM_LBUTTONDOWN = 0x0201;

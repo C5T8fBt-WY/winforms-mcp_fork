@@ -40,7 +40,15 @@ internal class TypeHandler : HandlerBase
 
             if (!string.IsNullOrEmpty(target))
             {
-                // Type into specific element
+                // Raw HWND format (e.g., "0x007C1A7E") — bypass UIA, use Win32 WM_SETTEXT directly.
+                // Used for controls inside modal dialogs where UIA returns empty trees
+                // (e.g., WinForms PropertyGrid inline editor during ShowDialog).
+                if (target.StartsWith("0x", StringComparison.OrdinalIgnoreCase) &&
+                    long.TryParse(target.AsSpan(2), System.Globalization.NumberStyles.HexNumber, null, out long hval))
+                {
+                    return TypeIntoHwnd(new IntPtr(hval), text, clear);
+                }
+                // Type into specific element (elem_N cache)
                 return TypeIntoElement(target, text, clear);
             }
             else if (keys)
@@ -58,6 +66,40 @@ internal class TypeHandler : HandlerBase
         {
             return Error($"Type failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Type text into a control identified by its raw Win32 HWND.
+    /// Uses WM_SETTEXT (synchronous) to set the control's text, then sends Enter to commit.
+    /// Works for WinForms PropertyGrid inline editors that block UIA during ShowDialog().
+    /// </summary>
+    private Task<JsonElement> TypeIntoHwnd(IntPtr hwnd, string text, bool clear)
+    {
+        if (hwnd == IntPtr.Zero)
+            return Error("Invalid HWND: zero");
+
+        if (clear)
+        {
+            // WM_SETTEXT replaces the entire control text. Synchronous so the edit control
+            // is updated before we send the Enter key to commit the new value.
+            WindowInterop.SendMessage(hwnd, WindowInterop.WM_SETTEXT, IntPtr.Zero, text);
+        }
+        else
+        {
+            // Append: read current text, then set combined value
+            var sb = new System.Text.StringBuilder(1024);
+            var len = (int)WindowInterop.SendMessage(hwnd, WindowInterop.WM_GETTEXT,
+                new IntPtr(sb.Capacity), sb);
+            var current = sb.ToString(0, Math.Max(0, Math.Min(len, sb.Length)));
+            WindowInterop.SendMessage(hwnd, WindowInterop.WM_SETTEXT, IntPtr.Zero, current + text);
+        }
+
+        // Commit: send Enter to the edit control so PropertyGrid / WinForms reads the new value
+        Thread.Sleep(50);
+        WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYDOWN, new IntPtr(WindowInterop.VK_RETURN), IntPtr.Zero);
+        WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYUP, new IntPtr(WindowInterop.VK_RETURN), IntPtr.Zero);
+
+        return ScopedSuccess(default, new { typed = true, hwnd = $"0x{hwnd.ToInt64():X8}", length = text.Length });
     }
 
     private Task<JsonElement> TypeIntoElement(string elementId, string text, bool clear)
