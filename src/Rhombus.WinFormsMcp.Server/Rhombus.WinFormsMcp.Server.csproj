@@ -14,7 +14,7 @@
 
     <!-- NuGet Package Configuration -->
     <PackageId>Rhombus.WinFormsMcp</PackageId>
-    <Version>1.0.0</Version>
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\VERSION').Trim())</Version>
     <Authors>butler.software</Authors>
     <Company>butler.software</Company>
     <Product>Rhombus.WinFormsMcp</Product>

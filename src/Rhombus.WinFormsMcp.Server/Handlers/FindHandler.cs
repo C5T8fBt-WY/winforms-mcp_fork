@@ -620,7 +620,7 @@ internal class FindHandler : HandlerBase
                 }
             }
 
-            return await Success(new { snapshot = sb.ToString() });
+            return await ScopedSuccess(args, new { snapshot = sb.ToString() });
         }
         catch (Exception ex)
         {

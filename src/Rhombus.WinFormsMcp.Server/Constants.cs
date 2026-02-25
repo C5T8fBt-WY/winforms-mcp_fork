@@ -93,8 +93,9 @@ public static class Constants
         /// <summary>Server name for MCP identification.</summary>
         public const string ServerName = "winforms-mcp";
 
-        /// <summary>Server version.</summary>
-        public const string ServerVersion = "1.0.0";
+        /// <summary>Server version (from assembly, set by VERSION file at build time).</summary>
+        public static readonly string ServerVersion =
+            typeof(Protocol).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
     }
 
     /// <summary>

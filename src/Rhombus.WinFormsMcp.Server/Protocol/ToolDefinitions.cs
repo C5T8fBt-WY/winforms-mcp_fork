@@ -154,7 +154,7 @@ public static class ToolDefinitions
                         name = new { type = "string", description = "Element name to click directly (no prior find needed)" },
                         x = new { type = "integer", description = "Screen X (if no target)" },
                         y = new { type = "integer", description = "Screen Y (if no target)" },
-                        window_handle = new { type = "string", description = "Dialog HWND to accept/cancel via WM_COMMAND (works during MessageBox.Show, no UIA needed)" },
+                        window_handle = new { type = "string", description = "Parent dialog HWND (not the button's) to accept/cancel via WM_COMMAND. Works during MessageBox.Show without UIA. Get the dialog hwnd from snapshot's [hwnd=0xNNNN] output." },
                         cancel = new { type = "boolean", description = "When using window_handle: send IDCANCEL instead of IDOK (default: false = accept/OK)" },
                         right = new { type = "boolean", description = "Right-click" },
                         @double = new { type = "boolean", description = "Double-click" },
