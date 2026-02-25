@@ -36,6 +36,11 @@ internal class ClickHandler : HandlerBase
             var doubleClick = GetBoolArg(args, "double", false);
             var holdMs = GetIntArg(args, "hold_ms", 0);
 
+            // Validate input type when explicit; all types are unified under PostMessage now.
+            var input = GetStringArg(args, "input");
+            if (input != null && input is not ("mouse" or "touch" or "pen"))
+                return Error($"Unknown input type: {input}. Supported values: mouse, touch, pen");
+
             // window_handle path: accept/cancel a dialog by HWND.
             // Works even during MessageBox.Show() because it uses Win32 message queue, not UIA COM.
             // Modern WinForms MessageBox (TaskDialog) assigns OK=id2, so we enumerate buttons by text.
