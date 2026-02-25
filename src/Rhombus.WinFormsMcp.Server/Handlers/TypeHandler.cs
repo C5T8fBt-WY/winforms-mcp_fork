@@ -111,24 +111,7 @@ internal class TypeHandler : HandlerBase
         if (Session.IsElementStale(elementId))
             return Error($"Element is stale: {elementId}. Use find to locate it again.");
 
-        // Focus the element first
-        try
-        {
-            element.Focus();
-            Thread.Sleep(50);
-        }
-        catch
-        {
-            // Some elements don't support Focus, try clicking instead
-            try
-            {
-                element.Click();
-                Thread.Sleep(50);
-            }
-            catch { /* Continue anyway */ }
-        }
-
-        // Try ValuePattern first (UIA: no physical keyboard required)
+        // Try ValuePattern first (UIA: no focus or foreground activation required)
         try
         {
             if (element.Patterns.Value.IsSupported)
@@ -142,7 +125,7 @@ internal class TypeHandler : HandlerBase
                     var current = element.Patterns.Value.Pattern.Value ?? "";
                     element.Patterns.Value.Pattern.SetValue(current + text);
                 }
-                return ScopedSuccess(default, new { typed = true, target = elementId, length = text.Length });
+                return ScopedSuccess(default, new { typed = true, target = elementId, length = text.Length, method = "ValuePattern" });
             }
         }
         catch { /* Fall through to PostMessage fallback */ }
@@ -152,13 +135,21 @@ internal class TypeHandler : HandlerBase
         if (hwnd == IntPtr.Zero)
             return Error($"Cannot send input to element: {elementId}. No window handle and ValuePattern not supported.");
 
+        // Focus only needed for PostMessage path — some controls need focus to process WM_CHAR
+        try { element.Focus(); Thread.Sleep(50); }
+        catch
+        {
+            try { element.Click(); Thread.Sleep(50); }
+            catch { /* Continue anyway */ }
+        }
+
         if (clear)
             PostSelectAllDelete(hwnd);
 
         foreach (char c in text)
             WindowInterop.PostMessage(hwnd, WindowInterop.WM_CHAR, new IntPtr(c), IntPtr.Zero);
 
-        return ScopedSuccess(default, new { typed = true, target = elementId, length = text.Length });
+        return ScopedSuccess(default, new { typed = true, target = elementId, length = text.Length, method = "PostMessage" });
     }
 
     private Task<JsonElement> SendKeys(string keySequence)
