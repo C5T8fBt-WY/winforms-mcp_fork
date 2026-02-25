@@ -13,14 +13,14 @@ const os = require('os');
 
 // Verify we're on Windows
 if (os.platform() !== 'win32') {
-  console.error('Error: @rhom6us/winforms-mcp requires Windows (x64)');
+  console.error('Error: @c5t8fbt-wy/winforms-mcp requires Windows (x64)');
   console.error(`Detected platform: ${os.platform()} ${os.arch()}`);
   process.exit(1);
 }
 
 // Verify we're on x64
 if (os.arch() !== 'x64') {
-  console.error('Error: @rhom6us/winforms-mcp requires Windows x64');
+  console.error('Error: @c5t8fbt-wy/winforms-mcp requires Windows x64');
   console.error(`Detected architecture: ${os.arch()}`);
   process.exit(1);
 }
@@ -32,7 +32,7 @@ const exePath = path.join(distDir, 'Rhombus.WinFormsMcp.Server.exe');
 if (!fs.existsSync(exePath)) {
   console.error('Error: Rhombus.WinFormsMcp.Server executable not found');
   console.error(`Expected at: ${exePath}`);
-  console.error('\nTry reinstalling: npm install @rhom6us/winforms-mcp');
+  console.error('\nTry reinstalling: npm install @c5t8fbt-wy/winforms-mcp');
   process.exit(1);
 }
 

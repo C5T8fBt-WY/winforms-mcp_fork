@@ -11,7 +11,7 @@
     "README.md"
   ],
   "bin": {
-    "winforms-mcp": "./bin/winforms-mcp.js"
+    "winforms-mcp": "./index.js"
   },
   "scripts": {
     "postinstall": "node install.js"
