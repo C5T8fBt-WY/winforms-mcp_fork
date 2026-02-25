@@ -1,5 +1,5 @@
 {
-  "name": "@rhom6us/winforms-mcp",
+  "name": "@c5t8fbt-wy/winforms-mcp",
   "version": "1.0.0",
   "description": "WinForms automation MCP server with headless UI automation capabilities",
   "main": "index.js",
@@ -20,16 +20,16 @@
     "windows",
     "testing"
   ],
-  "author": "rhom6us",
+  "author": "c5t8fbt-wy",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rhom6us/winforms-mcp.git"
+    "url": "https://github.com/C5T8fBt-WY/winforms-mcp_fork.git"
   },
   "bugs": {
-    "url": "https://github.com/rhom6us/winforms-mcp/issues"
+    "url": "https://github.com/C5T8fBt-WY/winforms-mcp_fork/issues"
   },
-  "homepage": "https://github.com/rhom6us/winforms-mcp",
+  "homepage": "https://github.com/C5T8fBt-WY/winforms-mcp_fork",
   "engines": {
     "node": ">=14.0.0"
   },
