@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Rhombus.WinFormsMcp.Server.Abstractions;
 using Rhombus.WinFormsMcp.Server.Automation;
+using Rhombus.WinFormsMcp.Server.Interop;
 
 namespace Rhombus.WinFormsMcp.Server.Handlers;
 
@@ -183,9 +184,19 @@ internal class AppHandler : HandlerBase
     {
         try
         {
+            // Direct HWND close: closes a modal dialog or any window without needing a PID boundary.
+            // Use this when a ShowDialog-based form has no PID mapping (e.g. config panels).
+            var handle = GetStringArg(args, "handle");
+            if (handle != null && handle.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                var hwnd = new IntPtr(Convert.ToInt64(handle, 16));
+                WindowInterop.PostMessage(hwnd, WindowInterop.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                return ScopedSuccess(args, new { closed = true, hwnd = handle });
+            }
+
             var pid = GetIntArg(args, "pid");
             if (pid <= 0)
-                return Error("pid is required for close");
+                return Error("Either handle (\"0xHWND\") or pid is required for close");
 
             var automation = Session.GetAutomation();
             automation.CloseApp(pid, false, Constants.Timeouts.CloseApp);

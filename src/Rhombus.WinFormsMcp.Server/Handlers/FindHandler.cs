@@ -139,6 +139,23 @@ internal class FindHandler : HandlerBase
         }
         catch { }
 
+        // Win32 fallback: WindowFromPoint bypasses UIA entirely so it works even for
+        // modal dialogs whose UI thread is blocked in ShowDialog / MessageBox.Show.
+        if (found == null)
+        {
+            var pt = new Win32Types.POINT { x = x, y = y };
+            var winHwnd = WindowInterop.WindowFromPoint(pt);
+            if (winHwnd != IntPtr.Zero)
+            {
+                var elTask = Task.Run(() => Session.GetAutomation().GetElementFromHandle(winHwnd));
+                if (elTask.Wait(TimeSpan.FromMilliseconds(2000)) && elTask.Result != null)
+                    found = elTask.Result;
+                else
+                    // UIA unavailable (modal dialog) — return Win32 HWND info for direct use.
+                    return Success(BuildWin32HwndInfo(winHwnd));
+            }
+        }
+
         if (found == null)
             return Error($"No element at point ({x}, {y})");
 
@@ -284,19 +301,29 @@ internal class FindHandler : HandlerBase
 
         if (at == "root")
         {
-            // Get all tracked windows or all windows
             var trackedPids = Session.GetTrackedProcessIds();
-            var windows = trackedPids.Count > 0
-                ? GetWindowsForPids(automation, trackedPids)
-                : GetAllWindows(automation);
+            List<AutomationElement> windows;
+            List<IntPtr> failedHwnds;
+
+            if (trackedPids.Count > 0)
+                (windows, failedHwnds) = GetWindowsAndFailedHwndsForPids(automation, trackedPids);
+            else
+            {
+                windows = GetAllWindows(automation);
+                failedHwnds = new List<IntPtr>();
+            }
 
             var windowTrees = new List<object>();
             foreach (var window in windows)
             {
                 var windowId = Session.CacheElement(window);
-                var tree = BuildTree(window, windowId, maxDepth, 0);
-                windowTrees.Add(tree);
+                windowTrees.Add(BuildTree(window, windowId, maxDepth, 0));
             }
+
+            // Add Win32 stubs for windows whose UIA timed out (e.g. ShowDialog modal dialogs).
+            // These include the window's HWND and child controls so the agent can interact directly.
+            foreach (var hwnd in failedHwnds)
+                windowTrees.Add(BuildWin32WindowStub(hwnd, maxDepth));
 
             return Success(new { windows = windowTrees });
         }
@@ -313,27 +340,37 @@ internal class FindHandler : HandlerBase
     }
 
     private static List<AutomationElement> GetWindowsForPids(AutomationHelper automation, IReadOnlySet<int> pids)
-    {
-        // Use Win32 EnumWindows to collect HWNDs (no UIA, never blocks).
-        var hwndList = GetVisibleHwndsForPids(pids);
+        => GetWindowsAndFailedHwndsForPids(automation, pids).resolved;
 
-        // Resolve all HWNDs to AutomationElements in PARALLEL so that blocked windows
-        // (e.g. stuck in MessageBox.Show) don't serialize delays — all windows time out
-        // concurrently instead of 500ms × N sequentially.
-        var tasks = hwndList
-            .Select(h => Task.Run<AutomationElement?>(() =>
-            {
-                try { return automation.GetElementFromHandle(h); }
-                catch { return null; }
-            }))
-            .ToList();
+    /// <summary>
+    /// Resolves HWNDs for tracked PIDs to UIA elements in parallel.
+    /// Returns both the successfully resolved elements and the HWNDs that timed out
+    /// (e.g. windows whose thread is blocked in ShowDialog / MessageBox.Show).
+    /// </summary>
+    private static (List<AutomationElement> resolved, List<IntPtr> failed) GetWindowsAndFailedHwndsForPids(
+        AutomationHelper automation, IReadOnlySet<int> pids)
+    {
+        var hwndArray = GetVisibleHwndsForPids(pids).ToArray();
+
+        // Resolve all in PARALLEL so blocked windows time out concurrently, not serially.
+        var tasks = hwndArray.Select(h => Task.Run<AutomationElement?>(() =>
+        {
+            try { return automation.GetElementFromHandle(h); }
+            catch { return null; }
+        })).ToArray();
 
         Task.WhenAll(tasks).Wait(TimeSpan.FromMilliseconds(2000));
 
-        return tasks
-            .Where(t => t.IsCompletedSuccessfully && t.Result != null)
-            .Select(t => t.Result!)
-            .ToList();
+        var resolved = new List<AutomationElement>();
+        var failed = new List<IntPtr>();
+        for (int i = 0; i < hwndArray.Length; i++)
+        {
+            if (tasks[i].IsCompletedSuccessfully && tasks[i].Result != null)
+                resolved.Add(tasks[i].Result!);
+            else
+                failed.Add(hwndArray[i]);
+        }
+        return (resolved, failed);
     }
 
     [DllImport("user32.dll")]
@@ -548,18 +585,39 @@ internal class FindHandler : HandlerBase
             {
                 var hwndPtr = new IntPtr(Convert.ToInt64(windowHandleStr, 16));
                 var elTask = Task.Run(() => automation.GetElementFromHandle(hwndPtr));
-                if (!elTask.Wait(Math.Min(timeoutMs, 2000)) || elTask.Result == null)
-                    return await Error($"Could not resolve window handle {windowHandleStr}");
-                sb.Append(BuildSnapshot(elTask.Result, 0, depth));
+                if (elTask.Wait(Math.Min(timeoutMs, 2000)) && elTask.Result != null)
+                {
+                    // UIA resolved — try snapshot; fall back to Win32 if tree is empty
+                    // (happens when ShowDialog blocks the window's message loop).
+                    var uiaSnapshot = BuildSnapshot(elTask.Result, 0, depth);
+                    sb.Append(string.IsNullOrWhiteSpace(uiaSnapshot)
+                        ? BuildWin32Snapshot(hwndPtr, 0, depth)
+                        : uiaSnapshot);
+                }
+                else
+                {
+                    // UIA timed out — use Win32 directly.
+                    sb.Append(BuildWin32Snapshot(hwndPtr, 0, depth));
+                }
             }
             else
             {
                 var trackedPids = Session.GetTrackedProcessIds();
-                var windows = trackedPids.Count > 0
-                    ? GetWindowsForPids(automation, trackedPids)
-                    : GetAllWindows(automation);
-                foreach (var w in windows)
-                    sb.Append(BuildSnapshot(w, 0, depth));
+                if (trackedPids.Count > 0)
+                {
+                    var (resolvedWindows, failedHwnds) = GetWindowsAndFailedHwndsForPids(automation, trackedPids);
+                    foreach (var w in resolvedWindows)
+                        sb.Append(BuildSnapshot(w, 0, depth));
+                    // Include Win32 snapshots for modal dialogs that UIA couldn't resolve.
+                    foreach (var hwnd in failedHwnds)
+                        sb.Append(BuildWin32Snapshot(hwnd, 0, depth));
+                }
+                else
+                {
+                    var windows = GetAllWindows(automation);
+                    foreach (var w in windows)
+                        sb.Append(BuildSnapshot(w, 0, depth));
+                }
             }
 
             return await Success(new { snapshot = sb.ToString() });
@@ -685,6 +743,138 @@ internal class FindHandler : HandlerBase
         catch
         {
             return null;
+        }
+    }
+
+    // ── Win32 fallback helpers ───────────────────────────────────────────────────
+    // Used when UIA times out for ShowDialog / MessageBox modal windows.
+    // Returns HWND-based info so the agent can still interact via type/click/app(close).
+
+    private static string GetHwndClassName(IntPtr hwnd)
+    {
+        var sb = new System.Text.StringBuilder(256);
+        WindowInterop.GetClassName(hwnd, sb, 256);
+        return sb.ToString();
+    }
+
+    private static string GetHwndText(IntPtr hwnd)
+    {
+        var len = WindowInterop.GetWindowTextLength(hwnd);
+        if (len == 0) return "";
+        var sb = new System.Text.StringBuilder(len + 1);
+        WindowInterop.GetWindowText(hwnd, sb, len + 1);
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Maps Win32 / WinForms class names to semantic type labels for agent readability.
+    /// </summary>
+    private static string MapClassNameToType(string className)
+    {
+        if (className.StartsWith("WindowsForms10.Edit",    StringComparison.OrdinalIgnoreCase) || className.Equals("Edit",    StringComparison.OrdinalIgnoreCase)) return "edit";
+        if (className.StartsWith("WindowsForms10.Button",  StringComparison.OrdinalIgnoreCase) || className.Equals("Button",  StringComparison.OrdinalIgnoreCase)) return "button";
+        if (className.StartsWith("WindowsForms10.ComboBox",StringComparison.OrdinalIgnoreCase) || className.Equals("ComboBox",StringComparison.OrdinalIgnoreCase)) return "combobox";
+        if (className.StartsWith("WindowsForms10.ListBox", StringComparison.OrdinalIgnoreCase) || className.Equals("ListBox", StringComparison.OrdinalIgnoreCase)) return "list";
+        if (className.StartsWith("WindowsForms10.ScrollBar",StringComparison.OrdinalIgnoreCase)|| className.Equals("ScrollBar",StringComparison.OrdinalIgnoreCase)) return "scrollbar";
+        if (className.Equals("Static", StringComparison.OrdinalIgnoreCase)) return "text";
+        if (className.StartsWith("WindowsForms10.Window",  StringComparison.OrdinalIgnoreCase)) return "pane";
+        return "window";
+    }
+
+    /// <summary>
+    /// Returns only the DIRECT child HWNDs of <paramref name="parent"/>.
+    /// EnumChildWindows enumerates all descendants; this filter limits to depth=1.
+    /// </summary>
+    private static List<IntPtr> EnumDirectChildHwnds(IntPtr parent)
+    {
+        var result = new List<IntPtr>();
+        WindowInterop.EnumChildWindows(parent, (hwnd, _) =>
+        {
+            if (WindowInterop.GetParent(hwnd) == parent)
+                result.Add(hwnd);
+            return true;
+        }, IntPtr.Zero);
+        return result;
+    }
+
+    /// <summary>
+    /// Returns Win32-based element info for <see cref="FindAtPoint"/> when UIA is unavailable.
+    /// The agent can use the returned <c>hwnd</c> with <c>type</c>, <c>click</c>, <c>app(close)</c>.
+    /// </summary>
+    private static object BuildWin32HwndInfo(IntPtr hwnd)
+    {
+        var className = GetHwndClassName(hwnd);
+        var windowText = GetHwndText(hwnd);
+        WindowInterop.GetWindowRect(hwnd, out var rect);
+        var hwndStr = $"0x{hwnd.ToInt64():X8}";
+        return new
+        {
+            hwnd = hwndStr,
+            type = MapClassNameToType(className),
+            className,
+            name = windowText,
+            bounds = new { x = rect.left, y = rect.top, width = rect.Width, height = rect.Height },
+            win32_fallback = true,
+            note = $"UIA unavailable (ShowDialog window). Interact via hwnd: type(target:\"{hwndStr}\"), app(action:\"close\", handle:\"{hwndStr}\")"
+        };
+    }
+
+    /// <summary>
+    /// Builds a Win32 window stub (with recursive children) for <see cref="FindRecursive"/>
+    /// when UIA resolution times out for a modal dialog.
+    /// </summary>
+    private static object BuildWin32WindowStub(IntPtr hwnd, int maxDepth)
+        => BuildWin32TreeNode(hwnd, 0, maxDepth);
+
+    private static object BuildWin32TreeNode(IntPtr hwnd, int depth, int maxDepth)
+    {
+        var className = GetHwndClassName(hwnd);
+        var windowText = GetHwndText(hwnd);
+        WindowInterop.GetWindowRect(hwnd, out var rect);
+        var hwndStr = $"0x{hwnd.ToInt64():X8}";
+        var bounds = new { x = rect.left, y = rect.top, width = rect.Width, height = rect.Height };
+
+        if (depth >= maxDepth)
+            return new { hwnd = hwndStr, type = MapClassNameToType(className), className, name = windowText, bounds, win32_fallback = true };
+
+        var children = EnumDirectChildHwnds(hwnd)
+            .Where(WindowInterop.IsWindowVisible)
+            .Select(h => BuildWin32TreeNode(h, depth + 1, maxDepth))
+            .ToList();
+
+        return new { hwnd = hwndStr, type = MapClassNameToType(className), className, name = windowText, bounds, win32_fallback = true, children };
+    }
+
+    /// <summary>
+    /// Builds a compact snapshot string from Win32 APIs, matching the UIA snapshot format.
+    /// Used when <c>snapshot(window_handle:...)</c> returns empty because UIA is blocked.
+    /// </summary>
+    private static string BuildWin32Snapshot(IntPtr hwnd, int indent, int maxDepth)
+    {
+        var sb = new System.Text.StringBuilder();
+        BuildWin32SnapshotNode(hwnd, indent, maxDepth, 0, sb);
+        return sb.ToString();
+    }
+
+    private static void BuildWin32SnapshotNode(IntPtr hwnd, int indent, int maxDepth, int depth, System.Text.StringBuilder sb)
+    {
+        if (!WindowInterop.IsWindowVisible(hwnd)) return;
+        if (depth > maxDepth) return;
+
+        var className = GetHwndClassName(hwnd);
+        var type = MapClassNameToType(className);
+        if (type == "scrollbar") return; // skip scrollbar noise
+
+        var windowText = GetHwndText(hwnd);
+        var hwndStr = $"0x{hwnd.ToInt64():X8}";
+        var prefix = new string(' ', indent * 2);
+
+        sb.AppendLine($"{prefix}- {type} \"{windowText}\" [hwnd={hwndStr}]");
+
+        if (depth < maxDepth)
+        {
+            foreach (var child in EnumDirectChildHwnds(hwnd).Where(WindowInterop.IsWindowVisible))
+                BuildWin32SnapshotNode(child, indent + 1, maxDepth, depth + 1, sb);
         }
     }
 }

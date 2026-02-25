@@ -184,6 +184,7 @@ public static class WindowInterop
     // Text control messages (for WinForms controls that don't support UIA ValuePattern)
     public const uint WM_SETTEXT = 0x000C;  // Replace control text directly (synchronous)
     public const uint WM_GETTEXT = 0x000D;  // Read control text (synchronous)
+    public const uint WM_CLOSE  = 0x0010;  // Request window close (safe for modal dialogs)
 
     // Standard mouse messages
     public const uint WM_LBUTTONDOWN = 0x0201;

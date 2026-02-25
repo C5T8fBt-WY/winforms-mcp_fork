@@ -54,10 +54,16 @@ internal class ClickHandler : HandlerBase
                 }
                 else
                 {
-                    // Fallback: WM_KEYDOWN with Enter or Escape to the dialog window.
+                    // VK_ESCAPE/VK_RETURN first, then WM_CLOSE as final fallback for dialogs
+                    // without cancel buttons (e.g. WinForms PropertyGrid shown via ShowDialog).
                     uint vKey = cancel ? WindowInterop.VK_ESCAPE : WindowInterop.VK_RETURN;
                     WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYDOWN, new IntPtr(vKey), IntPtr.Zero);
                     WindowInterop.PostMessage(hwnd, WindowInterop.WM_KEYUP, new IntPtr(vKey), IntPtr.Zero);
+                    if (cancel)
+                    {
+                        Thread.Sleep(50);
+                        WindowInterop.PostMessage(hwnd, WindowInterop.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                    }
                 }
 
                 return ScopedSuccess(args, new
