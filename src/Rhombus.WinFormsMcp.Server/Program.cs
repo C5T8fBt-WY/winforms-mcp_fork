@@ -95,7 +95,7 @@ class Program
 
         try
         {
-            Log("Server startup begin");
+            Log($"winforms-mcp v{Constants.Protocol.ServerVersion} started");
             Log($"  Working directory: {Environment.CurrentDirectory}");
             Log($"  Assembly location: {Assembly.GetExecutingAssembly().Location}");
             Log($"  .NET version: {Environment.Version}");
