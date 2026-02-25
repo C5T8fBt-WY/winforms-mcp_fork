@@ -118,10 +118,15 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path "npm/dist" | Out-Null
           $outDir = "src/Rhombus.WinFormsMcp.Server/bin/Release/net8.0-windows"
+          # Copy all runtime-required files (exe, dll, json config, runtimes/ dir)
           Get-ChildItem -Path $outDir -Filter "*.exe" | Copy-Item -Destination "npm/dist/" -Force
           Get-ChildItem -Path $outDir -Filter "*.dll" | Copy-Item -Destination "npm/dist/" -Force
+          Get-ChildItem -Path $outDir -Filter "*.json" | Copy-Item -Destination "npm/dist/" -Force
+          if (Test-Path "$outDir/runtimes") {
+            Copy-Item -Path "$outDir/runtimes" -Destination "npm/dist/runtimes" -Recurse -Force
+          }
           Write-Host "Binaries copied to npm/dist:"
-          Get-ChildItem -Path "npm/dist" | Select-Object Name, Length
+          Get-ChildItem -Path "npm/dist" -Recurse | Select-Object FullName, Length
         shell: pwsh
 
       - name: Create and push new tag
