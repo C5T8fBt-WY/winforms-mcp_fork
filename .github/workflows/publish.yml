@@ -40,7 +40,7 @@ jobs:
 
       # Ensure npm 11.5.1+ for trusted publishing
       - name: Upgrade npm
-        run: npm install -g npm@latest
+        run: npm install -g npm@latest || echo "npm upgrade failed (non-critical), continuing with bundled version"
         shell: bash
 
       - name: Configure Git
