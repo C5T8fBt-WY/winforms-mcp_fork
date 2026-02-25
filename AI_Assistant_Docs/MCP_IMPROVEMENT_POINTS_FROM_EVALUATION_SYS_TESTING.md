@@ -4,6 +4,26 @@ Collected during a full end-to-end test session covering: complete measurement c
 
 ---
 
+## Quick-Win Matrix
+
+| # | Point | Impl Cost | Impact | Priority |
+|---|-------|-----------|--------|----------|
+| 3 | HWND target for `type` tool | ✅ Done (S) | H — unblocks all modal dialogs | **Done** |
+| 5 | `click` tool: send WM_CLOSE for dialogs without buttons | S (1-2h) | H — no more PowerShell workaround needed | 🔥 High |
+| 4 | `find(point)`: search owned/modal dialogs via EnumWindows | S (2-3h) | H — coordinate-based find works for modals | 🔥 High |
+| 1 | Modal dialog UIA fallback via EnumChildWindows | M (1-2d) | H — `snapshot`/`find` work for modal dialogs | 🔥 High |
+| 6 | `snapshot` empty during ShowDialog | M (1-2d) | H — blocked on #1 | 🔥 High |
+| 10 | UIA Name = adjacent label text (doc/guidance) | XS (30m) | M — guidance for app developers | Medium |
+| 7 | Inconsistency: `windows[]` shows dialog but `find` misses it | M (1d) | M — confusing for LLM agents | Medium |
+| 8 | `elem_N` IDs reset on MCP restart | M (1d) | M — inconvenient for multi-restart workflows | Medium |
+| 9 | New process on "Back to Menu" (EvaluationSys behavior) | XS (1h) | M — `app auto-reattach` feature | Medium |
+| 2 | WinForms PropertyGrid no UIA representation | L (3-5d) | M — complex custom UIA provider | Low |
+
+**Cost legend**: XS < 1h, S < day, M < week, L > week  
+**Impact**: H = currently blocks/workarounds needed, M = quality-of-life, L = edge case
+
+---
+
 ## 1. Modal Dialogs (ShowDialog) Return Empty UIA Tree
 
 **Symptom**: `snapshot()` and `find(recursive:true)` return empty results for forms shown via `Form.ShowDialog(parent)`.
