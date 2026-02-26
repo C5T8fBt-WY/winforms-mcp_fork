@@ -273,7 +273,7 @@ public static class ToolDefinitions
             new
             {
                 name = "screenshot",
-                description = "Capture screenshot of window or element. Use handle to capture a specific window by HWND without bringing it to the foreground (works even when behind other windows).",
+                description = "Capture screenshot. Omitting all parameters captures the FULL DESKTOP (everything on screen) — NOT just the active window. To capture a specific window regardless of Z-order, always use handle with the window HWND.",
                 inputSchema = new
                 {
                     type = "object",

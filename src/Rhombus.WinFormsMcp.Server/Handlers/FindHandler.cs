@@ -652,7 +652,7 @@ internal class FindHandler : HandlerBase
         "TitleBar", "ScrollBar", "MenuBar", "SplitButton"
     };
 
-    private void BuildSnapshotNode(AutomationElement element, int indent, int maxDepth, int depth, System.Text.StringBuilder sb)
+    private void BuildSnapshotNode(AutomationElement element, int indent, int maxDepth, int depth, System.Text.StringBuilder sb, string? labelHint = null)
     {
         if (depth > maxDepth) return;
 
@@ -670,6 +670,18 @@ internal class FindHandler : HandlerBase
         string ref_id = Session.CacheElement(element);
         bool isInteractive = _snapshotInteractiveTypes.Contains(type);
         bool isProgressBar = type.Equals("ProgressBar", StringComparison.OrdinalIgnoreCase);
+
+        // For unnamed interactive elements: infer a display name from the adjacent text label
+        // (Playwright-style accessible-name resolution) or fall back to the automationId.
+        // This lets agents identify inputs by their visible label rather than an empty string.
+        if (isInteractive && string.IsNullOrEmpty(name))
+        {
+            if (labelHint != null)
+                name = labelHint;
+            else if (!string.IsNullOrEmpty(autoId))
+                name = $"({autoId})";
+        }
+
         bool hasName = !string.IsNullOrEmpty(name);
         bool isText = type.Equals("Text", StringComparison.OrdinalIgnoreCase);
         bool isWindow = type.Equals("Window", StringComparison.OrdinalIgnoreCase);
@@ -711,14 +723,58 @@ internal class FindHandler : HandlerBase
 
             if (children != null)
             {
+                // Infer display-name hints for unnamed interactive siblings from adjacent labels
+                var labelHints = InferLabelHints(children);
                 int childIndent = printSelf ? indent + 1 : indent;
                 foreach (var child in children.Take(100))
                 {
-                    try { BuildSnapshotNode(child, childIndent, maxDepth, depth + 1, sb); }
+                    try
+                    {
+                        var hint = labelHints.Find(h => ReferenceEquals(h.el, child)).label;
+                        BuildSnapshotNode(child, childIndent, maxDepth, depth + 1, sb, hint);
+                    }
                     catch { }
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// For a set of sibling elements, returns display-name hints for unnamed interactive
+    /// controls by pairing each one with the nearest preceding text/label sibling
+    /// (sorted by screen position). Mirrors Playwright's ARIA label inference.
+    /// </summary>
+    private List<(AutomationElement el, string label)> InferLabelHints(AutomationElement[] siblings)
+    {
+        var hints = new List<(AutomationElement el, string label)>();
+
+        // Sort siblings by screen position (top-to-bottom, left-to-right)
+        var ordered = siblings.Select(el =>
+        {
+            double y = 0, x = 0;
+            try { var b = el.BoundingRectangle; y = b.Y; x = b.X; } catch { }
+            return (el, y, x);
+        }).OrderBy(t => t.y).ThenBy(t => t.x).ToList();
+
+        string? pendingLabel = null;
+        foreach (var (el, _, _) in ordered)
+        {
+            string etype = SafeGetProperty(() => el.ControlType.ToString(), "Unknown");
+            string ename = (SafeGetProperty(() => el.Name, "") ?? "").Trim();
+
+            if (etype.Equals("Text", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(ename))
+            {
+                pendingLabel = ename;
+            }
+            else if (_snapshotInteractiveTypes.Contains(etype))
+            {
+                if (string.IsNullOrEmpty(ename) && pendingLabel != null)
+                    hints.Add((el, pendingLabel));
+                pendingLabel = null; // consume label after any interactive element
+            }
+        }
+
+        return hints;
     }
 
     private T SafeGetProperty<T>(Func<T> getter, T defaultValue)
