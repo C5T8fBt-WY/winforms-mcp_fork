@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using C5T8fBtWY.WinFormsMcp.Server.Abstractions;
+using C5T8fBtWY.WinFormsMcp.Server.Interop;
 using FlaUI.Core.AutomationElements;
-using Rhombus.WinFormsMcp.Server.Abstractions;
-using Rhombus.WinFormsMcp.Server.Interop;
-using static Rhombus.WinFormsMcp.Server.Interop.Win32Types;
+using static C5T8fBtWY.WinFormsMcp.Server.Interop.Win32Types;
 
-namespace Rhombus.WinFormsMcp.Server.Handlers;
+namespace C5T8fBtWY.WinFormsMcp.Server.Handlers;
 
 /// <summary>
 /// Unified handler for click/tap operations.
@@ -334,7 +334,7 @@ internal class ClickHandler : HandlerBase
 
             // Compute center in screen coords
             var bounds = element.BoundingRectangle;
-            var screenCenter = new POINT
+            var screenCenter = new Win32Types.POINT
             {
                 x = (int)(bounds.X + bounds.Width / 2),
                 y = (int)(bounds.Y + bounds.Height / 2)
@@ -389,7 +389,7 @@ internal class ClickHandler : HandlerBase
     {
         try
         {
-            var screenPt = new POINT { x = screenX, y = screenY };
+            var screenPt = new Win32Types.POINT { x = screenX, y = screenY };
             var hwnd = WindowInterop.WindowFromPoint(screenPt);
             if (hwnd == IntPtr.Zero)
                 return (false, "postmessage");

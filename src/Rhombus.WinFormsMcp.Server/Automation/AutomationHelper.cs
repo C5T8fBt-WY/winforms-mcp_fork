@@ -13,7 +13,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Rhombus.WinFormsMcp.Server.Automation;
+namespace C5T8fBtWY.WinFormsMcp.Server.Automation;
 
 /// <summary>
 /// Helper class for WinForms UI automation using FlaUI with UIA2 backend

@@ -1,9 +1,9 @@
 using System;
 using System.Runtime.InteropServices;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
 using NUnit.Framework;
-using Rhombus.WinFormsMcp.Server.Automation;
 
-namespace Rhombus.WinFormsMcp.Tests;
+namespace C5T8fBtWY.WinFormsMcp.Tests;
 
 /// <summary>
 /// Tests to verify that pointer injection struct layouts match Windows SDK expectations.

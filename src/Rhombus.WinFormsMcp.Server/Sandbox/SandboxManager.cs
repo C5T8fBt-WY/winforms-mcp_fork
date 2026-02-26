@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Rhombus.WinFormsMcp.Server.Sandbox;
+namespace C5T8fBtWY.WinFormsMcp.Server.Sandbox;
 
 /// <summary>
 /// Manages Windows Sandbox lifecycle including launch, communication, and shutdown.

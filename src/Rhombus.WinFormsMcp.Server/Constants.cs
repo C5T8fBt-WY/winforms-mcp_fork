@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.Server;
+namespace C5T8fBtWY.WinFormsMcp.Server;
 
 /// <summary>
 /// Centralized constants for the WinForms MCP server.

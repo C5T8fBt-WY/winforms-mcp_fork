@@ -1,6 +1,6 @@
 using FlaUI.Core.AutomationElements;
 
-namespace Rhombus.WinFormsMcp.Server.Services;
+namespace C5T8fBtWY.WinFormsMcp.Server.Services;
 
 /// <summary>
 /// Interface for caching UI Automation elements with staleness detection.

@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.Server.Utilities;
+namespace C5T8fBtWY.WinFormsMcp.Server.Utilities;
 
 /// <summary>
 /// Token estimation utilities for UI tree budget management.

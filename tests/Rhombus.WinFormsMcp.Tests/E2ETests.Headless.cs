@@ -1,6 +1,8 @@
-namespace Rhombus.WinFormsMcp.Tests;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
 
-using Rhombus.WinFormsMcp.Server.Automation;
+namespace C5T8fBtWY.WinFormsMcp.Tests;
+
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
 using Moq;
 
 /// <summary>

@@ -26,8 +26,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/Rhombus.WinFormsMcp.Server/Rhombus.WinFormsMcp.Server.csproj" />
-    <ProjectReference Include="../../src/Rhombus.WinFormsMcp.TestApp/Rhombus.WinFormsMcp.TestApp.csproj" />
+    <ProjectReference Include="..\..\src\Rhombus.WinFormsMcp.Server\C5T8fBtWY.WinFormsMcp.Server.csproj" />
+    <ProjectReference Include="..\..\src\Rhombus.WinFormsMcp.TestApp\C5T8fBtWY.WinFormsMcp.TestApp.csproj" />
   </ItemGroup>
 
 </Project>

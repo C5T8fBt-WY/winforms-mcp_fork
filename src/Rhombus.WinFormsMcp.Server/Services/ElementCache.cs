@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using FlaUI.Core.AutomationElements;
 
-namespace Rhombus.WinFormsMcp.Server.Services;
+namespace C5T8fBtWY.WinFormsMcp.Server.Services;
 
 /// <summary>
 /// Thread-safe cache for UI Automation elements.

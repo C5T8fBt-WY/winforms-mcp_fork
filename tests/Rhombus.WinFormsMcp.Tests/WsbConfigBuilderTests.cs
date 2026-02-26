@@ -1,6 +1,6 @@
-using Rhombus.WinFormsMcp.Server.Sandbox;
+using C5T8fBtWY.WinFormsMcp.Server.Sandbox;
 
-namespace Rhombus.WinFormsMcp.Tests;
+namespace C5T8fBtWY.WinFormsMcp.Tests;
 
 /// <summary>
 /// Unit tests for WsbConfigBuilder - validates .wsb generation and security checks.

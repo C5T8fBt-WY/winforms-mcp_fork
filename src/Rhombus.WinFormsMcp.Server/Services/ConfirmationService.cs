@@ -1,7 +1,7 @@
 using System.Text.Json;
-using Rhombus.WinFormsMcp.Server.Abstractions;
+using C5T8fBtWY.WinFormsMcp.Server.Abstractions;
 
-namespace Rhombus.WinFormsMcp.Server.Services;
+namespace C5T8fBtWY.WinFormsMcp.Server.Services;
 
 /// <summary>
 /// Thread-safe service for managing pending confirmations for destructive actions.

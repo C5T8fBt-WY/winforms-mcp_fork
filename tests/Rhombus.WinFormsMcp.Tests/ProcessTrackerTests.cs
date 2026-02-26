@@ -1,7 +1,7 @@
+using C5T8fBtWY.WinFormsMcp.Server.Services;
 using NUnit.Framework;
-using Rhombus.WinFormsMcp.Server.Services;
 
-namespace Rhombus.WinFormsMcp.Tests;
+namespace C5T8fBtWY.WinFormsMcp.Tests;
 
 [TestFixture]
 public class ProcessTrackerTests

@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using C5T8fBtWY.WinFormsMcp.Server.Abstractions;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
+using C5T8fBtWY.WinFormsMcp.Server.Sandbox;
 using FlaUI.Core.AutomationElements;
-using Rhombus.WinFormsMcp.Server.Abstractions;
-using Rhombus.WinFormsMcp.Server.Automation;
-using Rhombus.WinFormsMcp.Server.Sandbox;
 
-namespace Rhombus.WinFormsMcp.Tests.Mocks;
+namespace C5T8fBtWY.WinFormsMcp.Tests.Mocks;
 
 /// <summary>
 /// Mock implementation of ISessionManager for unit testing handlers.

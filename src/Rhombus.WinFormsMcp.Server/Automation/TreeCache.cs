@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 
-namespace Rhombus.WinFormsMcp.Server.Automation;
+namespace C5T8fBtWY.WinFormsMcp.Server.Automation;
 
 /// <summary>
 /// Caches UI tree results to reduce repeated expensive tree traversals.

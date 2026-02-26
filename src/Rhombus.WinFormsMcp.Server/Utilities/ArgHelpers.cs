@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 
-namespace Rhombus.WinFormsMcp.Server.Utilities;
+namespace C5T8fBtWY.WinFormsMcp.Server.Utilities;
 
 /// <summary>
 /// Static helper methods for extracting typed arguments from JsonElement.

@@ -1,6 +1,6 @@
-using Rhombus.WinFormsMcp.Server.Models;
+using C5T8fBtWY.WinFormsMcp.Server.Models;
 
-namespace Rhombus.WinFormsMcp.Server.Utilities;
+namespace C5T8fBtWY.WinFormsMcp.Server.Utilities;
 
 /// <summary>
 /// Utility for filtering windows by process ID.

@@ -1,7 +1,7 @@
-using Rhombus.WinFormsMcp.Server;
-using Rhombus.WinFormsMcp.Server.Services;
+using C5T8fBtWY.WinFormsMcp.Server;
+using C5T8fBtWY.WinFormsMcp.Server.Services;
 
-namespace Rhombus.WinFormsMcp.Tests;
+namespace C5T8fBtWY.WinFormsMcp.Tests;
 
 /// <summary>
 /// Unit tests for EventService.

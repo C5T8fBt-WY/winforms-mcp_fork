@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.TestApp;
+namespace C5T8fBtWY.WinFormsMcp.TestApp;
 
 partial class Form1
 {

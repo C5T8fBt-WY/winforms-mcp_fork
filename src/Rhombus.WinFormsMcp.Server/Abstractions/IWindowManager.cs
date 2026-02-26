@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using Rhombus.WinFormsMcp.Server.Models;
+using C5T8fBtWY.WinFormsMcp.Server.Models;
 
-namespace Rhombus.WinFormsMcp.Server.Abstractions;
+namespace C5T8fBtWY.WinFormsMcp.Server.Abstractions;
 
 /// <summary>
 /// Interface for window management, enabling testability of handlers.

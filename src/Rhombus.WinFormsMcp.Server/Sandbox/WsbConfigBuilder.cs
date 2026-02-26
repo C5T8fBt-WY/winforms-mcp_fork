@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using System.Xml;
 
-namespace Rhombus.WinFormsMcp.Server.Sandbox;
+namespace C5T8fBtWY.WinFormsMcp.Server.Sandbox;
 
 /// <summary>
 /// Builds Windows Sandbox (.wsb) configuration files with security validation.

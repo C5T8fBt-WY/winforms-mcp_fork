@@ -1,10 +1,10 @@
-using Rhombus.WinFormsMcp.Server;
-using Rhombus.WinFormsMcp.Server.Automation;
-using Rhombus.WinFormsMcp.Server.Models;
 using System.Diagnostics;
 using System.Text.Json;
+using C5T8fBtWY.WinFormsMcp.Server;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
+using C5T8fBtWY.WinFormsMcp.Server.Models;
 
-namespace Rhombus.WinFormsMcp.Tests;
+namespace C5T8fBtWY.WinFormsMcp.Tests;
 
 /// <summary>
 /// Tests for WindowManager and ToolResponse functionality.

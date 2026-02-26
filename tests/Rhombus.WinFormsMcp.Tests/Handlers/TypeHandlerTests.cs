@@ -1,9 +1,9 @@
 using System.Text.Json;
+using C5T8fBtWY.WinFormsMcp.Server.Handlers;
+using C5T8fBtWY.WinFormsMcp.Tests.Mocks;
 using NUnit.Framework;
-using Rhombus.WinFormsMcp.Server.Handlers;
-using Rhombus.WinFormsMcp.Tests.Mocks;
 
-namespace Rhombus.WinFormsMcp.Tests.Handlers;
+namespace C5T8fBtWY.WinFormsMcp.Tests.Handlers;
 
 [TestFixture]
 public class TypeHandlerTests

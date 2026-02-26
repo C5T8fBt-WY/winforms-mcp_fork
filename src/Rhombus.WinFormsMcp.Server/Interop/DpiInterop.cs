@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Rhombus.WinFormsMcp.Server.Interop;
+namespace C5T8fBtWY.WinFormsMcp.Server.Interop;
 
 /// <summary>
 /// P/Invoke declarations for DPI-related APIs.

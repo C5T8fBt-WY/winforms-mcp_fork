@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.Server.Services;
+namespace C5T8fBtWY.WinFormsMcp.Server.Services;
 
 /// <summary>
 /// Interface for tracking process IDs for window scoping.

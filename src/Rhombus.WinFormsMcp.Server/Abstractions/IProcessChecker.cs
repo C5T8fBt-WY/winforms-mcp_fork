@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.Server.Abstractions;
+namespace C5T8fBtWY.WinFormsMcp.Server.Abstractions;
 
 /// <summary>
 /// Abstraction for process-related queries to enable testing.

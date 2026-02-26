@@ -1,7 +1,7 @@
 using System;
 using System.Text.Json.Serialization;
 
-namespace Rhombus.WinFormsMcp.Server.Models;
+namespace C5T8fBtWY.WinFormsMcp.Server.Models;
 
 /// <summary>
 /// Information about a visible window for agent context.

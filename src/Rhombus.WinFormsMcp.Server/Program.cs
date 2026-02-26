@@ -9,15 +9,15 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using C5T8fBtWY.WinFormsMcp.Server.Abstractions;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
+using C5T8fBtWY.WinFormsMcp.Server.Handlers;
+using C5T8fBtWY.WinFormsMcp.Server.Protocol;
+using C5T8fBtWY.WinFormsMcp.Server.Sandbox;
+using C5T8fBtWY.WinFormsMcp.Server.Services;
 using FlaUI.Core.AutomationElements;
-using Rhombus.WinFormsMcp.Server.Automation;
-using Rhombus.WinFormsMcp.Server.Handlers;
-using Rhombus.WinFormsMcp.Server.Protocol;
-using Rhombus.WinFormsMcp.Server.Sandbox;
-using Rhombus.WinFormsMcp.Server.Services;
-using Rhombus.WinFormsMcp.Server.Abstractions;
 
-namespace Rhombus.WinFormsMcp.Server;
+namespace C5T8fBtWY.WinFormsMcp.Server;
 
 /// <summary>
 /// Rhombus.WinFormsMcp - MCP Server for WinForms Automation

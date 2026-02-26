@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Rhombus.WinFormsMcp.Server.Interop;
+namespace C5T8fBtWY.WinFormsMcp.Server.Interop;
 
 /// <summary>
 /// Win32 API structure definitions for input injection and window management.
