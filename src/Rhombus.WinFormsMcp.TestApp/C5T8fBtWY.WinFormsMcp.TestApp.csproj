@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -7,8 +7,8 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>Rhombus.WinFormsMcp.TestApp</RootNamespace>
-    <AssemblyName>Rhombus.WinFormsMcp.TestApp</AssemblyName>
+    <RootNamespace>C5T8fBtWY.WinFormsMcp.TestApp</RootNamespace>
+    <AssemblyName>C5T8fBtWY.WinFormsMcp.TestApp</AssemblyName>
   </PropertyGroup>
 
 </Project>

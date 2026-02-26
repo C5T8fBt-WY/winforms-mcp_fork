@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Rhombus.WinFormsMcp NPM Wrapper
+ * C5T8fBtWY.WinFormsMcp NPM Wrapper
  *
  * This module provides a Node.js wrapper for the .NET-based WinForms automation MCP server.
  * It handles downloading platform-specific binaries and exposing the executable for npx usage.
@@ -26,11 +26,11 @@ if (os.arch() !== 'x64') {
 }
 
 const distDir = path.join(__dirname, 'dist');
-const exePath = path.join(distDir, 'Rhombus.WinFormsMcp.Server.exe');
+const exePath = path.join(distDir, 'C5T8fBtWY.WinFormsMcp.Server.exe');
 
 // Check if executable exists
 if (!fs.existsSync(exePath)) {
-  console.error('Error: Rhombus.WinFormsMcp.Server executable not found');
+  console.error('Error: C5T8fBtWY.WinFormsMcp.Server executable not found');
   console.error(`Expected at: ${exePath}`);
   console.error('\nTry reinstalling: npm install @c5t8fbt-wy/winforms-mcp');
   process.exit(1);
@@ -51,7 +51,7 @@ if (require.main === module) {
   });
 
   child.on('error', (err) => {
-    console.error('Failed to start Rhombus.WinFormsMcp.Server:', err);
+    console.error('Failed to start C5T8fBtWY.WinFormsMcp.Server:', err);
     process.exit(1);
   });
 

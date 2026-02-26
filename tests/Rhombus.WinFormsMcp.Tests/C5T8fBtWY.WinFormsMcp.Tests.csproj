@@ -8,8 +8,8 @@
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <RootNamespace>Rhombus.WinFormsMcp.Tests</RootNamespace>
-    <AssemblyName>Rhombus.WinFormsMcp.Tests</AssemblyName>
+    <RootNamespace>C5T8fBtWY.WinFormsMcp.Tests</RootNamespace>
+    <AssemblyName>C5T8fBtWY.WinFormsMcp.Tests</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

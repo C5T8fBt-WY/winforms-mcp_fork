@@ -2,16 +2,16 @@
 
 ## Project Overview
 
-**Rhombus.WinFormsMcp** - MCP server for headless WinForms automation using FlaUI (UIA2 backend).
+**C5T8fBtWY.WinFormsMcp** - MCP server for headless WinForms automation using FlaUI (UIA2 backend).
 
 ## Commands
 
 ```bash
-dotnet build Rhombus.WinFormsMcp.sln                    # Build
-dotnet test Rhombus.WinFormsMcp.sln                     # Test
-dotnet run --project src/Rhombus.WinFormsMcp.Server/Rhombus.WinFormsMcp.Server.csproj  # Run server
-dotnet run --project src/Rhombus.WinFormsMcp.TestApp/Rhombus.WinFormsMcp.TestApp.csproj # Run test app
-dotnet publish src/Rhombus.WinFormsMcp.Server/Rhombus.WinFormsMcp.Server.csproj -c Release -o publish
+dotnet build C5T8fBtWY.WinFormsMcp.sln                    # Build
+dotnet test C5T8fBtWY.WinFormsMcp.sln                     # Test
+dotnet run --project src/Rhombus.WinFormsMcp.Server/C5T8fBtWY.WinFormsMcp.Server.csproj  # Run server
+dotnet run --project src/Rhombus.WinFormsMcp.TestApp/C5T8fBtWY.WinFormsMcp.TestApp.csproj # Run test app
+dotnet publish src/Rhombus.WinFormsMcp.Server/C5T8fBtWY.WinFormsMcp.Server.csproj -c Release -o publish
 ```
 
 ## Architecture
@@ -164,7 +164,7 @@ Copy-Item '\\wsl.localhost\Ubuntu\home\jhedin\workspace\magpie-craft\winforms-mc
 ```powershell
 # 1. Build and publish from Windows (via UNC path to WSL)
 cd '\\wsl.localhost\Ubuntu\home\jhedin\workspace\magpie-craft\winforms-mcp'
-dotnet publish src/Rhombus.WinFormsMcp.Server/Rhombus.WinFormsMcp.Server.csproj -c Release -o 'C:\WinFormsMcpSandboxWorkspace\Server'
+dotnet publish src/Rhombus.WinFormsMcp.Server/C5T8fBtWY.WinFormsMcp.Server.csproj -c Release -o 'C:\WinFormsMcpSandboxWorkspace\Server'
 
 # 2. Trigger hot-reload (if sandbox is running)
 New-Item -Path 'C:\WinFormsMcpSandboxWorkspace\Shared\server.trigger' -ItemType File -Force
@@ -189,4 +189,4 @@ The `sandbox/bootstrap.ps1` script inside the sandbox:
 ## CI/CD
 
 - Version in `VERSION` file, auto-bumped on master commits
-- Publishes to NuGet (`Rhombus.WinFormsMcp`) and NPM (`@rhom6us/winforms-mcp`)
+- Publishes to NuGet (`C5T8fBtWY.WinFormsMcp`) and NPM (`@c5t8fbt-wy/winforms-mcp`)

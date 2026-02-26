@@ -20,14 +20,14 @@ using FlaUI.Core.AutomationElements;
 namespace C5T8fBtWY.WinFormsMcp.Server;
 
 /// <summary>
-/// Rhombus.WinFormsMcp - MCP Server for WinForms Automation
+/// C5T8fBtWY.WinFormsMcp - MCP Server for WinForms Automation
 ///
 /// This server provides tools for automating WinForms applications in a headless manner.
 /// It communicates via JSON-RPC over stdio (default) or TCP (with --tcp flag).
 ///
 /// Usage:
-///   Rhombus.WinFormsMcp.Server.exe              # stdio mode (default)
-///   Rhombus.WinFormsMcp.Server.exe --tcp 9999   # TCP mode on port 9999
+///   C5T8fBtWY.WinFormsMcp.Server.exe              # stdio mode (default)
+///   C5T8fBtWY.WinFormsMcp.Server.exe --tcp 9999   # TCP mode on port 9999
 /// </summary>
 class Program
 {

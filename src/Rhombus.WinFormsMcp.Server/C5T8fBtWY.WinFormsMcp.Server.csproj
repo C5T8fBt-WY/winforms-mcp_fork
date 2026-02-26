@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -6,21 +6,21 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Rhombus.WinFormsMcp.Server</RootNamespace>
-    <AssemblyName>Rhombus.WinFormsMcp.Server</AssemblyName>
+    <RootNamespace>C5T8fBtWY.WinFormsMcp.Server</RootNamespace>
+    <AssemblyName>C5T8fBtWY.WinFormsMcp.Server</AssemblyName>
     <!-- Force 64-bit to ensure correct POINTER_INFO struct alignment -->
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
 
     <!-- NuGet Package Configuration -->
-    <PackageId>Rhombus.WinFormsMcp</PackageId>
+    <PackageId>C5T8fBtWY.WinFormsMcp</PackageId>
     <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\VERSION').Trim())</Version>
-    <Authors>butler.software</Authors>
-    <Company>butler.software</Company>
-    <Product>Rhombus.WinFormsMcp</Product>
+    <Authors>c5t8fbt-wy</Authors>
+    <Company>c5t8fbt-wy</Company>
+    <Product>C5T8fBtWY.WinFormsMcp</Product>
     <Description>WinForms automation MCP server using FlaUI with UIA2 backend for headless Windows Forms application testing and automation</Description>
-    <PackageProjectUrl>https://github.com/rhom6us/winforms-mcp</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/rhom6us/winforms-mcp.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/c5t8fbt-wy/winforms-mcp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/c5t8fbt-wy/winforms-mcp.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>winforms;automation;flaui;ui-testing;mcp;model-context-protocol;headless</PackageTags>
@@ -29,7 +29,7 @@
 
   <!-- Expose internals to test project -->
   <ItemGroup>
-    <InternalsVisibleTo Include="Rhombus.WinFormsMcp.Tests" />
+    <InternalsVisibleTo Include="C5T8fBtWY.WinFormsMcp.Tests" />
   </ItemGroup>
 
   <ItemGroup>

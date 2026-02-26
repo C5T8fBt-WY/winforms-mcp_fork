@@ -54,7 +54,7 @@ function Start-ServerInstance {
     Copy-Item "$ScriptPath\*" $LocalMcpDir -Recurse -Force -ErrorAction SilentlyContinue
     
     # 3. Determine Executable
-    $McpExe = Join-Path $LocalMcpDir "Rhombus.WinFormsMcp.Server.exe"
+    $McpExe = Join-Path $LocalMcpDir "C5T8fBtWY.WinFormsMcp.Server.exe"
     $TestClient = Join-Path $LocalMcpDir "SharedFolderClient.exe"
     
     $proc = $null

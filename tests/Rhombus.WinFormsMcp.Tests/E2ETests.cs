@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Text;
 
 /// <summary>
-/// End-to-End (E2E) tests for Rhombus.WinFormsMcp
+/// End-to-End (E2E) tests for C5T8fBtWY.WinFormsMcp
 /// These tests verify complete real-world automation workflows that users might perform
 /// </summary>
 public class E2ETests

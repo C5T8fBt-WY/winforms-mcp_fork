@@ -222,8 +222,8 @@ function Start-ServerProcess {
 
     # Find the DLL to run (use dotnet.exe to bypass WDAC on unsigned exe)
     # WDAC trusts Microsoft-signed dotnet.exe, which can then load our unsigned DLL
-    $McpDll = Join-Path $LocalServerDir "Rhombus.WinFormsMcp.Server.dll"
-    $McpExe = Join-Path $LocalServerDir "Rhombus.WinFormsMcp.Server.exe"
+    $McpDll = Join-Path $LocalServerDir "C5T8fBtWY.WinFormsMcp.Server.dll"
+    $McpExe = Join-Path $LocalServerDir "C5T8fBtWY.WinFormsMcp.Server.exe"
 
     if (!(Test-Path $McpDll)) {
         Write-Warning "Server DLL not found at $McpDll"
@@ -355,7 +355,7 @@ function Start-AppProcess {
 
     # Fall back to test app if no specific app found or requested
     if (!$AppDll) {
-        $AppDll = Join-Path $LocalAppDir "Rhombus.WinFormsMcp.TestApp.dll"
+        $AppDll = Join-Path $LocalAppDir "C5T8fBtWY.WinFormsMcp.TestApp.dll"
         if ($AppName) {
             Write-Warning "Could not find $AppName.dll, falling back to TestApp"
         }

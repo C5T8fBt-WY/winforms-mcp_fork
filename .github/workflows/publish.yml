@@ -109,9 +109,9 @@ jobs:
 
       - name: Restore, Build, Test
         run: |
-          dotnet restore Rhombus.WinFormsMcp.sln
-          dotnet build Rhombus.WinFormsMcp.sln --configuration Release --no-restore
-          dotnet test Rhombus.WinFormsMcp.sln --configuration Release --no-build --logger "console;verbosity=minimal"
+          dotnet restore C5T8fBtWY.WinFormsMcp.sln
+          dotnet build C5T8fBtWY.WinFormsMcp.sln --configuration Release --no-restore
+          dotnet test C5T8fBtWY.WinFormsMcp.sln --configuration Release --no-build --logger "console;verbosity=minimal"
         shell: pwsh
 
       - name: Copy binaries to npm/dist
