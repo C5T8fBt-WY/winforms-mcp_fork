@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.Loader;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -733,6 +734,24 @@ class AutomationServer
 
             var result = await _tools[toolName](toolArgs);
 
+            // If the handler signaled native image content, emit it as MCP image+text pair
+            if (result.TryGetProperty("__mcpImageData__", out var imgData) &&
+                result.TryGetProperty("__mcpImageMime__", out var imgMime))
+            {
+                var imageBase64 = imgData.GetString()!;
+                var imageMime = imgMime.GetString()!;
+                var textContent = StripImageSentinels(result);
+
+                return _protocol.FormatSuccess(requestId, new
+                {
+                    content = new object[]
+                    {
+                        new { type = "image", data = imageBase64, mimeType = imageMime },
+                        new { type = "text", text = textContent }
+                    }
+                });
+            }
+
             return _protocol.FormatSuccess(requestId, new
             {
                 content = new[]
@@ -757,4 +776,23 @@ class AutomationServer
     }
 
     private object GetToolDefinitions() => ToolDefinitions.GetAll();
+
+    /// <summary>
+    /// Re-serialize a JsonElement without the image sentinel fields (__mcpImageData__, __mcpImageMime__).
+    /// Called when building the text content item of an image tool response.
+    /// </summary>
+    private static string StripImageSentinels(JsonElement element)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new Utf8JsonWriter(ms);
+        writer.WriteStartObject();
+        foreach (var prop in element.EnumerateObject())
+        {
+            if (prop.Name != "__mcpImageData__" && prop.Name != "__mcpImageMime__")
+                prop.WriteTo(writer);
+        }
+        writer.WriteEndObject();
+        writer.Flush();
+        return Encoding.UTF8.GetString(ms.ToArray());
+    }
 }

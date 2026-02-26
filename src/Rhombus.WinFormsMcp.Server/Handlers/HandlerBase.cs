@@ -147,6 +147,36 @@ internal abstract class HandlerBase : IToolHandler
     }
 
     /// <summary>
+    /// Create a scoped success response carrying image data for MCP protocol delivery.
+    /// The protocol layer will transmit the image as a native MCP image content item
+    /// (type=&quot;image&quot;) so the LLM can directly analyze it, rather than receiving a raw
+    /// base64 string embedded in JSON text.
+    /// </summary>
+    protected Task<JsonElement> ScopedImageSuccess(JsonElement args, string imageBase64, string imageMimeType, object? metadata = null)
+    {
+        var includeAllWindows = GetBoolArg(args, "includeAllWindows", false);
+        var (scope, windows) = GetScopedWindows(includeAllWindows);
+
+        var toolResponse = ToolResponse.OkScoped(metadata, scope, windows);
+        var json = toolResponse.ToJson();
+
+        // Attach image sentinel fields at root-level for the protocol layer to extract.
+        // These are stripped before text serialization and emitted as a separate image content item.
+        using var doc = JsonDocument.Parse(json);
+        using var ms = new MemoryStream();
+        using var writer = new Utf8JsonWriter(ms);
+        writer.WriteStartObject();
+        foreach (var prop in doc.RootElement.EnumerateObject())
+            prop.WriteTo(writer);
+        writer.WriteString("__mcpImageData__", imageBase64);
+        writer.WriteString("__mcpImageMime__", imageMimeType);
+        writer.WriteEndObject();
+        writer.Flush();
+
+        return Task.FromResult(JsonDocument.Parse(ms.ToArray()).RootElement);
+    }
+
+    /// <summary>
     /// Get windows scoped to tracked processes, or all if no tracking.
     /// </summary>
     protected (WindowScope scope, List<WindowInfo> windows) GetScopedWindows(bool includeAllWindows)

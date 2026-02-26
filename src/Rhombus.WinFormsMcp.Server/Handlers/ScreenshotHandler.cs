@@ -75,7 +75,8 @@ internal class ScreenshotHandler : HandlerBase
                 return ScopedSuccess(args, new { saved = true, path = file });
             }
 
-            return ScopedSuccess(args, new { image = base64, format = "png", encoding = "base64" });
+            // Return as MCP native image content so the LLM can directly analyze it
+            return ScopedImageSuccess(args, base64, "image/png", new { format = "png" });
         }
         catch (UnauthorizedAccessException)
         {
