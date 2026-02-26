@@ -46,6 +46,14 @@ internal class ScreenshotHandler : HandlerBase
             {
                 // Capture active window or desktop
                 base64 = CaptureDesktopToBase64();
+                // Return with warning since no handle was specified
+                if (!string.IsNullOrEmpty(file))
+                {
+                    var bytes = Convert.FromBase64String(base64);
+                    File.WriteAllBytes(file, bytes);
+                    return ScopedSuccess(args, new { saved = true, path = file, warning = "No handle specified — captured FULL DESKTOP. Use handle:'0xHHHH' (from snapshot output) to capture a specific window." });
+                }
+                return ScopedImageSuccess(args, base64, "image/png", new { format = "png", warning = "No handle specified — captured FULL DESKTOP. Use handle:'0xHHHH' (from snapshot output) to capture a specific window." });
             }
             else if (target.StartsWith("elem_"))
             {

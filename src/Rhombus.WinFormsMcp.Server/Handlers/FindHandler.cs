@@ -620,6 +620,8 @@ internal class FindHandler : HandlerBase
                 }
             }
 
+            if (windowHandleStr == null)
+                return await ScopedSuccess(args, new { snapshot = sb.ToString(), warning = "No window_handle specified — snapshotted all tracked process windows. Always specify window_handle:'0xHHHH' for targeted snapshot." });
             return await ScopedSuccess(args, new { snapshot = sb.ToString() });
         }
         catch (Exception ex)

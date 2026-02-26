@@ -126,13 +126,13 @@ public static class ToolDefinitions
             new
             {
                 name = "snapshot",
-                description = "Compact accessibility snapshot (Playwright-style). Lists interactive elements as YAML with [ref=elem_XX] IDs. When modal dialogs block UIA, automatically falls back to Win32 and shows [hwnd=0xNNNN] refs instead. Use click(window_handle:'0xNNNN') or app(action:'close', handle:'0xNNNN') to interact with those.",
+                description = "Compact accessibility snapshot (Playwright-style). PREFER THIS OVER screenshot() for UI analysis — gives [ref=elem_XX] IDs usable with click/type/find, and [id=automationId] for reliable element identification. When modal dialogs block UIA, automatically falls back to Win32 and shows [hwnd=0xNNNN] refs instead. Use click(window_handle:'0xNNNN') or app(action:'close', handle:'0xNNNN') to interact with those.",
                 inputSchema = new
                 {
                     type = "object",
                     properties = new
                     {
-                        window_handle = new { type = "string", description = "Scope to specific window HWND (e.g. '0x1A2B3C'). Omit to snapshot all tracked process windows." },
+                        window_handle = new { type = "string", description = "Scope to specific window HWND (e.g. '0x1A2B3C'). ALWAYS specify this for targeted snapshot; omitting it snapshots all tracked process windows which may be confusing." },
                         depth = new { type = "integer", description = "Max tree depth (default: 6)" },
                         timeout_ms = new { type = "integer", description = "Max scan time ms (default: 10000)" }
                     }
@@ -273,7 +273,7 @@ public static class ToolDefinitions
             new
             {
                 name = "screenshot",
-                description = "Capture screenshot. Omitting all parameters captures the FULL DESKTOP (everything on screen) — NOT just the active window. To capture a specific window regardless of Z-order, always use handle with the window HWND.",
+                description = "Capture screenshot for VISUAL INSPECTION. For discovering and interacting with UI elements use snapshot() instead — it gives structured element IDs without needing to see the screen. Omitting all parameters captures the FULL DESKTOP (everything on screen) — NOT just the active window. Always specify handle with the window HWND for targeted capture.",
                 inputSchema = new
                 {
                     type = "object",
