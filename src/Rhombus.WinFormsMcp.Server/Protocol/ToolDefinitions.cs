@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.Server.Protocol;
+namespace C5T8fBtWY.WinFormsMcp.Server.Protocol;
 
 /// <summary>
 /// MCP tool definitions - Minimal API (8 tools) + Sandbox (3 tools) = 11 total.

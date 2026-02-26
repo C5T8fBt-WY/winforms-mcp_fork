@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace Rhombus.WinFormsMcp.Server.Services;
+namespace C5T8fBtWY.WinFormsMcp.Server.Services;
 
 /// <summary>
 /// Thread-safe tracker for process IDs used in window scoping.

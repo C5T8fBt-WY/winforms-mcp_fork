@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Xml;
 
-namespace Rhombus.WinFormsMcp.Server.Automation;
+namespace C5T8fBtWY.WinFormsMcp.Server.Automation;
 
 /// <summary>
 /// Builds XML representation of UI element trees with configurable depth,

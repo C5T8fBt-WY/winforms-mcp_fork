@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.Server.Utilities;
+namespace C5T8fBtWY.WinFormsMcp.Server.Utilities;
 
 /// <summary>
 /// Pure coordinate calculations for DPI scaling and HIMETRIC conversion.

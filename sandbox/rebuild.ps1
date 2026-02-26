@@ -15,8 +15,8 @@ $AppPath = Join-Path $WinFormsMcpSandboxWorkspacePath "App"
 $SharedPath = Join-Path $WinFormsMcpSandboxWorkspacePath "Shared"
 
 $RepoRoot = Split-Path $PSScriptRoot -Parent
-$ServerProject = Join-Path $RepoRoot "src\Rhombus.WinFormsMcp.Server\Rhombus.WinFormsMcp.Server.csproj"
-$AppProject = Join-Path $RepoRoot "src\Rhombus.WinFormsMcp.TestApp\Rhombus.WinFormsMcp.TestApp.csproj"
+$ServerProject = Join-Path $RepoRoot "src\Rhombus.WinFormsMcp.Server\C5T8fBtWY.WinFormsMcp.Server.csproj"
+$AppProject = Join-Path $RepoRoot "src\Rhombus.WinFormsMcp.TestApp\C5T8fBtWY.WinFormsMcp.TestApp.csproj"
 
 Write-Host "=== Quick Rebuild ===" -ForegroundColor Cyan
 

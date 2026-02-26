@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.Server.Interop;
+namespace C5T8fBtWY.WinFormsMcp.Server.Interop;
 
 /// <summary>
 /// Win32 API constants for pointer input injection.

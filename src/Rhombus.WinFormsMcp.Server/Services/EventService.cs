@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.Server.Services;
+namespace C5T8fBtWY.WinFormsMcp.Server.Services;
 
 /// <summary>
 /// Thread-safe service for managing UI event subscriptions and queuing.

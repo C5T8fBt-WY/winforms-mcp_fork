@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.Server.Input;
+namespace C5T8fBtWY.WinFormsMcp.Server.Input;
 
 /// <summary>
 /// Static facade for input injection that uses the new Input classes.

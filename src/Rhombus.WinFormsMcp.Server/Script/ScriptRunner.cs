@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Rhombus.WinFormsMcp.Server.Automation;
-using Rhombus.WinFormsMcp.Server.Utilities;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
+using C5T8fBtWY.WinFormsMcp.Server.Utilities;
 
-namespace Rhombus.WinFormsMcp.Server.Script;
+namespace C5T8fBtWY.WinFormsMcp.Server.Script;
 
 /// <summary>
 /// Executes multi-step scripts with variable binding between steps.

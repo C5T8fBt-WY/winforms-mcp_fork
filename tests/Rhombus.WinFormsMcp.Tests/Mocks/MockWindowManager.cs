@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using Rhombus.WinFormsMcp.Server.Abstractions;
-using Rhombus.WinFormsMcp.Server.Models;
+using C5T8fBtWY.WinFormsMcp.Server.Abstractions;
+using C5T8fBtWY.WinFormsMcp.Server.Models;
 
-namespace Rhombus.WinFormsMcp.Tests.Mocks;
+namespace C5T8fBtWY.WinFormsMcp.Tests.Mocks;
 
 /// <summary>
 /// Mock implementation of IWindowManager for unit testing handlers.

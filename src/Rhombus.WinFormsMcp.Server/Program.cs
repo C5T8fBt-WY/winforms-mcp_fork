@@ -9,25 +9,25 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using C5T8fBtWY.WinFormsMcp.Server.Abstractions;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
+using C5T8fBtWY.WinFormsMcp.Server.Handlers;
+using C5T8fBtWY.WinFormsMcp.Server.Protocol;
+using C5T8fBtWY.WinFormsMcp.Server.Sandbox;
+using C5T8fBtWY.WinFormsMcp.Server.Services;
 using FlaUI.Core.AutomationElements;
-using Rhombus.WinFormsMcp.Server.Automation;
-using Rhombus.WinFormsMcp.Server.Handlers;
-using Rhombus.WinFormsMcp.Server.Protocol;
-using Rhombus.WinFormsMcp.Server.Sandbox;
-using Rhombus.WinFormsMcp.Server.Services;
-using Rhombus.WinFormsMcp.Server.Abstractions;
 
-namespace Rhombus.WinFormsMcp.Server;
+namespace C5T8fBtWY.WinFormsMcp.Server;
 
 /// <summary>
-/// Rhombus.WinFormsMcp - MCP Server for WinForms Automation
+/// C5T8fBtWY.WinFormsMcp - MCP Server for WinForms Automation
 ///
 /// This server provides tools for automating WinForms applications in a headless manner.
 /// It communicates via JSON-RPC over stdio (default) or TCP (with --tcp flag).
 ///
 /// Usage:
-///   Rhombus.WinFormsMcp.Server.exe              # stdio mode (default)
-///   Rhombus.WinFormsMcp.Server.exe --tcp 9999   # TCP mode on port 9999
+///   C5T8fBtWY.WinFormsMcp.Server.exe              # stdio mode (default)
+///   C5T8fBtWY.WinFormsMcp.Server.exe --tcp 9999   # TCP mode on port 9999
 /// </summary>
 class Program
 {

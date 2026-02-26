@@ -5,11 +5,11 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using C5T8fBtWY.WinFormsMcp.Server.Abstractions;
 using FlaUI.Core.AutomationElements;
-using Rhombus.WinFormsMcp.Server.Abstractions;
-using Rhombus.WinFormsMcp.Server.Automation;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
 
-namespace Rhombus.WinFormsMcp.Server.Handlers;
+namespace C5T8fBtWY.WinFormsMcp.Server.Handlers;
 
 /// <summary>
 /// Handler for capturing screenshots of windows or elements.

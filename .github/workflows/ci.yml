@@ -19,13 +19,13 @@ jobs:
         dotnet-version: '8.0.x'
 
     - name: Restore dependencies
-      run: dotnet restore Rhombus.WinFormsMcp.sln
+      run: dotnet restore C5T8fBtWY.WinFormsMcp.sln
 
     - name: Build
-      run: dotnet build Rhombus.WinFormsMcp.sln --configuration Release --no-restore
+      run: dotnet build C5T8fBtWY.WinFormsMcp.sln --configuration Release --no-restore
 
     - name: Run tests with coverage
-      run: dotnet test Rhombus.WinFormsMcp.sln --configuration Release --no-build --logger "console;verbosity=minimal" --collect:"XPlat Code Coverage" --results-directory ./TestResults
+      run: dotnet test C5T8fBtWY.WinFormsMcp.sln --configuration Release --no-build --logger "console;verbosity=minimal" --collect:"XPlat Code Coverage" --results-directory ./TestResults
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v5

@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using FlaUI.Core.Input;
 using FlaUI.Core.WindowsAPI;
 
-namespace Rhombus.WinFormsMcp.Server.Automation;
+namespace C5T8fBtWY.WinFormsMcp.Server.Automation;
 
 /// <summary>
 /// Windows Touch, Pen, and Mouse input injection APIs for simulating user input.

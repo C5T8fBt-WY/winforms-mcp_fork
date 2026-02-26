@@ -1,7 +1,7 @@
 using System;
 using System.Text.Json;
 
-namespace Rhombus.WinFormsMcp.Server.Protocol;
+namespace C5T8fBtWY.WinFormsMcp.Server.Protocol;
 
 /// <summary>
 /// Handles MCP/JSON-RPC 2.0 protocol parsing and formatting.

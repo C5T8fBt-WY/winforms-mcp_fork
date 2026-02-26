@@ -1,6 +1,6 @@
-using Rhombus.WinFormsMcp.Server.Automation;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
 
-namespace Rhombus.WinFormsMcp.Server.Services;
+namespace C5T8fBtWY.WinFormsMcp.Server.Services;
 
 /// <summary>
 /// Interface for caching UI tree snapshots.

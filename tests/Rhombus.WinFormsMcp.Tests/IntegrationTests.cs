@@ -1,11 +1,13 @@
-namespace Rhombus.WinFormsMcp.Tests;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
 
-using Rhombus.WinFormsMcp.Server.Automation;
+namespace C5T8fBtWY.WinFormsMcp.Tests;
+
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
 using System.Diagnostics;
 using System.Text.Json;
 
 /// <summary>
-/// Integration tests for the Rhombus.WinFormsMcp server
+/// Integration tests for the C5T8fBtWY.WinFormsMcp server
 /// These tests verify the complete JSON-RPC protocol flow and MCP server functionality
 /// </summary>
 public class IntegrationTests

@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
+using C5T8fBtWY.WinFormsMcp.Server.Sandbox;
 using FlaUI.Core.AutomationElements;
-using Rhombus.WinFormsMcp.Server.Automation;
-using Rhombus.WinFormsMcp.Server.Sandbox;
 
-namespace Rhombus.WinFormsMcp.Server.Abstractions;
+namespace C5T8fBtWY.WinFormsMcp.Server.Abstractions;
 
 /// <summary>
 /// Interface for session management, enabling testability of handlers.

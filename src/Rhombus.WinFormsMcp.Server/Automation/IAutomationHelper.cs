@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-namespace Rhombus.WinFormsMcp.Server.Automation;
+namespace C5T8fBtWY.WinFormsMcp.Server.Automation;
 
 /// <summary>
 /// Interface for WinForms UI automation

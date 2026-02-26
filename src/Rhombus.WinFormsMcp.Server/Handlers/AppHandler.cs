@@ -4,11 +4,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Rhombus.WinFormsMcp.Server.Abstractions;
-using Rhombus.WinFormsMcp.Server.Automation;
-using Rhombus.WinFormsMcp.Server.Interop;
+using C5T8fBtWY.WinFormsMcp.Server.Abstractions;
+using C5T8fBtWY.WinFormsMcp.Server.Interop;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
 
-namespace Rhombus.WinFormsMcp.Server.Handlers;
+namespace C5T8fBtWY.WinFormsMcp.Server.Handlers;
 
 /// <summary>
 /// Unified handler for application lifecycle: launch, attach, close, info.

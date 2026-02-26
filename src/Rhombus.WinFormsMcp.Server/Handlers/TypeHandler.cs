@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using C5T8fBtWY.WinFormsMcp.Server.Abstractions;
+using C5T8fBtWY.WinFormsMcp.Server.Interop;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.WindowsAPI;
-using Rhombus.WinFormsMcp.Server.Abstractions;
-using Rhombus.WinFormsMcp.Server.Automation;
-using Rhombus.WinFormsMcp.Server.Interop;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
 
-namespace Rhombus.WinFormsMcp.Server.Handlers;
+namespace C5T8fBtWY.WinFormsMcp.Server.Handlers;
 
 /// <summary>
 /// Unified handler for text input and keyboard operations.

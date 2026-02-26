@@ -1,7 +1,9 @@
-namespace Rhombus.WinFormsMcp.Tests;
+using C5T8fBtWY.WinFormsMcp.Server.Utilities;
+
+namespace C5T8fBtWY.WinFormsMcp.Tests;
 
 using System.Text.Json;
-using Rhombus.WinFormsMcp.Server.Utilities;
+using C5T8fBtWY.WinFormsMcp.Server.Utilities;
 
 /// <summary>
 /// Unit tests for the run_script MCP tool functionality.

@@ -1,6 +1,6 @@
-using Rhombus.WinFormsMcp.Server.Automation;
+using C5T8fBtWY.WinFormsMcp.Server.Automation;
 
-namespace Rhombus.WinFormsMcp.Server.Input;
+namespace C5T8fBtWY.WinFormsMcp.Server.Input;
 
 /// <summary>
 /// Touch input injection using Windows Synthetic Pointer API.

@@ -1,8 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
-using static Rhombus.WinFormsMcp.Server.Interop.Win32Types;
+using static C5T8fBtWY.WinFormsMcp.Server.Interop.Win32Types;
 
-namespace Rhombus.WinFormsMcp.Server.Interop;
+namespace C5T8fBtWY.WinFormsMcp.Server.Interop;
 
 /// <summary>
 /// P/Invoke declarations for input injection APIs.
@@ -28,7 +28,7 @@ public static class InputInterop
     /// <param name="contacts">Array of touch contacts.</param>
     /// <returns>True if successful.</returns>
     [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool InjectTouchInput(uint count, [MarshalAs(UnmanagedType.LPArray)] POINTER_TOUCH_INFO[] contacts);
+    public static extern bool InjectTouchInput(uint count, [MarshalAs(UnmanagedType.LPArray)] Win32Types.POINTER_TOUCH_INFO[] contacts);
 
     #endregion
 
@@ -48,13 +48,13 @@ public static class InputInterop
     /// Inject pen input using synthetic pointer device.
     /// </summary>
     [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool InjectSyntheticPointerInput(IntPtr device, [MarshalAs(UnmanagedType.LPArray)] POINTER_TYPE_INFO_PEN[] pointerInfo, uint count);
+    public static extern bool InjectSyntheticPointerInput(IntPtr device, [MarshalAs(UnmanagedType.LPArray)] Win32Types.POINTER_TYPE_INFO_PEN[] pointerInfo, uint count);
 
     /// <summary>
     /// Inject touch input using synthetic pointer device.
     /// </summary>
     [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool InjectSyntheticPointerInput(IntPtr device, [MarshalAs(UnmanagedType.LPArray)] POINTER_TYPE_INFO_TOUCH[] pointerInfo, uint count);
+    public static extern bool InjectSyntheticPointerInput(IntPtr device, [MarshalAs(UnmanagedType.LPArray)] Win32Types.POINTER_TYPE_INFO_TOUCH[] pointerInfo, uint count);
 
     /// <summary>
     /// Destroy a synthetic pointer device.
@@ -66,13 +66,13 @@ public static class InputInterop
     /// Get the coordinate rectangles for a pointer device.
     /// </summary>
     [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool GetPointerDeviceRects(IntPtr device, out RECT pointerDeviceRect, out RECT displayRect);
+    public static extern bool GetPointerDeviceRects(IntPtr device, out Win32Types.RECT pointerDeviceRect, out Win32Types.RECT displayRect);
 
     /// <summary>
     /// Enumerate all pointer devices.
     /// </summary>
     [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool GetPointerDevices(ref uint deviceCount, [Out] POINTER_DEVICE_INFO[]? pointerDevices);
+    public static extern bool GetPointerDevices(ref uint deviceCount, [Out] Win32Types.POINTER_DEVICE_INFO[]? pointerDevices);
 
     #endregion
 

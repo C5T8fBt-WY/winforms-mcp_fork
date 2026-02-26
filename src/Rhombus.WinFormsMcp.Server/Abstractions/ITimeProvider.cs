@@ -1,6 +1,6 @@
 using System;
 
-namespace Rhombus.WinFormsMcp.Server.Abstractions;
+namespace C5T8fBtWY.WinFormsMcp.Server.Abstractions;
 
 /// <summary>
 /// Abstraction for time-related operations to enable testing.

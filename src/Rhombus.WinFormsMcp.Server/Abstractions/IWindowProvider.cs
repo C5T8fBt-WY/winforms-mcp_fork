@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Rhombus.WinFormsMcp.Server.Models;
+using C5T8fBtWY.WinFormsMcp.Server.Models;
 
-namespace Rhombus.WinFormsMcp.Server.Abstractions;
+namespace C5T8fBtWY.WinFormsMcp.Server.Abstractions;
 
 /// <summary>
 /// Abstraction for window enumeration to enable testing.

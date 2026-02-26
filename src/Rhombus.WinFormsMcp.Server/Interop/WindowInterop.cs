@@ -1,9 +1,9 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using static Rhombus.WinFormsMcp.Server.Interop.Win32Types;
+using static C5T8fBtWY.WinFormsMcp.Server.Interop.Win32Types;
 
-namespace Rhombus.WinFormsMcp.Server.Interop;
+namespace C5T8fBtWY.WinFormsMcp.Server.Interop;
 
 /// <summary>
 /// P/Invoke declarations for window management APIs.
@@ -43,7 +43,7 @@ public static class WindowInterop
     /// Get the rectangle of a window.
     /// </summary>
     [DllImport("user32.dll")]
-    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+    public static extern bool GetWindowRect(IntPtr hWnd, out Win32Types.RECT lpRect);
 
     /// <summary>
     /// Check if a window is visible.
@@ -108,25 +108,25 @@ public static class WindowInterop
     /// Get the window at a specific point.
     /// </summary>
     [DllImport("user32.dll")]
-    public static extern IntPtr WindowFromPoint(POINT point);
+    public static extern IntPtr WindowFromPoint(Win32Types.POINT point);
 
     /// <summary>
     /// Convert client coordinates to screen coordinates.
     /// </summary>
     [DllImport("user32.dll")]
-    public static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+    public static extern bool ClientToScreen(IntPtr hWnd, ref Win32Types.POINT lpPoint);
 
     /// <summary>
     /// Convert screen coordinates to client coordinates.
     /// </summary>
     [DllImport("user32.dll")]
-    public static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
+    public static extern bool ScreenToClient(IntPtr hWnd, ref Win32Types.POINT lpPoint);
 
     /// <summary>
     /// Get the client area rectangle of a window.
     /// </summary>
     [DllImport("user32.dll")]
-    public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+    public static extern bool GetClientRect(IntPtr hWnd, out Win32Types.RECT lpRect);
 
     /// <summary>
     /// Post a message to a window's message queue (non-blocking, safe for background use).
@@ -153,7 +153,7 @@ public static class WindowInterop
     /// CWP_SKIPINVISIBLE (0x01) | CWP_SKIPDISABLED (0x02) — only enabled, visible children.
     /// </summary>
     [DllImport("user32.dll")]
-    public static extern IntPtr ChildWindowFromPointEx(IntPtr hWndParent, POINT Point, uint uFlags);
+    public static extern IntPtr ChildWindowFromPointEx(IntPtr hWndParent, Win32Types.POINT Point, uint uFlags);
 
     public const uint CWP_SKIPINVISIBLE = 0x01;
     public const uint CWP_SKIPDISABLED = 0x02;
@@ -162,7 +162,7 @@ public static class WindowInterop
     /// Recursively find the deepest visible child HWND at a given client-relative point.
     /// Falls back to parent if no child is found at the point.
     /// </summary>
-    public static IntPtr DeepChildFromClientPoint(IntPtr parent, POINT clientPt)
+    public static IntPtr DeepChildFromClientPoint(IntPtr parent, Win32Types.POINT clientPt)
     {
         var child = ChildWindowFromPointEx(parent, clientPt, CWP_SKIPINVISIBLE | CWP_SKIPDISABLED);
         if (child == IntPtr.Zero || child == parent) return parent;

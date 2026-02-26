@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Rhombus.WinFormsMcp.Server.Services;
+namespace C5T8fBtWY.WinFormsMcp.Server.Services;
 
 /// <summary>
 /// Interface for managing pending confirmations for destructive actions.

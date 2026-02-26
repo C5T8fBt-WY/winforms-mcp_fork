@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-namespace Rhombus.WinFormsMcp.Server.Utilities;
+namespace C5T8fBtWY.WinFormsMcp.Server.Utilities;
 
 /// <summary>
 /// Type-preserving variable interpolation for script execution.

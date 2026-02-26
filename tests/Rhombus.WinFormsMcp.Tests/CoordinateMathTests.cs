@@ -1,6 +1,6 @@
-using Rhombus.WinFormsMcp.Server.Utilities;
+using C5T8fBtWY.WinFormsMcp.Server.Utilities;
 
-namespace Rhombus.WinFormsMcp.Tests;
+namespace C5T8fBtWY.WinFormsMcp.Tests;
 
 /// <summary>
 /// Unit tests for CoordinateMath utility class.

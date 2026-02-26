@@ -1,4 +1,4 @@
-namespace Rhombus.WinFormsMcp.Server.Services;
+namespace C5T8fBtWY.WinFormsMcp.Server.Services;
 
 /// <summary>
 /// Interface for tracking which elements are marked for expansion in the UI tree.

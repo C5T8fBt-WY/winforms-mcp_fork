@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Rhombus.WinFormsMcp.Server.Handlers;
+namespace C5T8fBtWY.WinFormsMcp.Server.Handlers;
 
 /// <summary>
 /// Interface for tool handlers that process MCP tool calls.
