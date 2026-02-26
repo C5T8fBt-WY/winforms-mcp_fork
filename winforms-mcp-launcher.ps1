@@ -6,7 +6,7 @@
 #
 # VS Code MCP restart = always picks up the latest build automatically.
 
-$buildDir = "C:\Users\Astrsk\Documents\GitHub\winforms-mcp\src\Rhombus.WinFormsMcp.Server\bin\Release\net8.0-windows"
+$buildDir = Join-Path $PSScriptRoot "src\Rhombus.WinFormsMcp.Server\bin\Release\net8.0-windows"
 $tempDir  = [System.IO.Path]::Combine($env:TEMP, "winforms-mcp-server")
 
 if (Test-Path $tempDir) {
@@ -16,10 +16,10 @@ if (Test-Path $tempDir) {
 # Mirror build output to temp (fast local copy, no locks acquired on source)
 $null = robocopy $buildDir $tempDir /E /NJH /NJS /NFL /NDL
 
-if (-not (Test-Path "$tempDir\Rhombus.WinFormsMcp.Server.dll")) {
-    Write-Error "Shadow copy failed: $tempDir\Rhombus.WinFormsMcp.Server.dll not found. Build the server first (dotnet build -c Release)."
+if (-not (Test-Path "$tempDir\C5T8fBtWY.WinFormsMcp.Server.dll")) {
+    Write-Error "Shadow copy failed: $tempDir\C5T8fBtWY.WinFormsMcp.Server.dll not found. Build the server first (dotnet build -c Release)."
     exit 1
 }
 
 # Pipe stdin/stdout through to VS Code (MCP JSON-RPC over stdio)
-& dotnet "$tempDir\Rhombus.WinFormsMcp.Server.dll"
+& dotnet "$tempDir\C5T8fBtWY.WinFormsMcp.Server.dll"
