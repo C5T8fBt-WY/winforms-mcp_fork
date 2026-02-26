@@ -273,13 +273,14 @@ public static class ToolDefinitions
             new
             {
                 name = "screenshot",
-                description = "Capture screenshot of window or element",
+                description = "Capture screenshot of window or element. Use handle to capture a specific window by HWND without bringing it to the foreground (works even when behind other windows).",
                 inputSchema = new
                 {
                     type = "object",
                     properties = new
                     {
                         target = new { type = "string", description = "Element ID or window title" },
+                        handle = new { type = "string", description = "Window HWND (e.g. '0x1A2B3C') — captures the window content even if behind other windows (no focus stealing). Get from snapshot output." },
                         file = new { type = "string", description = "Save to file path" }
                     }
                 }

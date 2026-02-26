@@ -29,11 +29,20 @@ internal class ScreenshotHandler : HandlerBase
         try
         {
             var target = GetStringArg(args, "target");
+            var handleStr = GetStringArg(args, "handle");
             var file = GetStringArg(args, "file");
 
             string base64;
 
-            if (string.IsNullOrEmpty(target))
+            if (!string.IsNullOrEmpty(handleStr))
+            {
+                // Capture by HWND using PrintWindow — works even when behind other windows
+                var hwnd = new IntPtr(Convert.ToInt64(handleStr, 16));
+                if (!Interop.WindowInterop.IsWindowVisible(hwnd))
+                    return Error($"Window 0x{hwnd:X} is not visible or does not exist.");
+                base64 = CaptureWindowByHwndToBase64(hwnd);
+            }
+            else if (string.IsNullOrEmpty(target))
             {
                 // Capture active window or desktop
                 base64 = CaptureDesktopToBase64();

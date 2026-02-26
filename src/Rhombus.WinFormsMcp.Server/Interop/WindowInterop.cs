@@ -184,7 +184,7 @@ public static class WindowInterop
     // Text control messages (for WinForms controls that don't support UIA ValuePattern)
     public const uint WM_SETTEXT = 0x000C;  // Replace control text directly (synchronous)
     public const uint WM_GETTEXT = 0x000D;  // Read control text (synchronous)
-    public const uint WM_CLOSE  = 0x0010;  // Request window close (safe for modal dialogs)
+    public const uint WM_CLOSE = 0x0010;  // Request window close (safe for modal dialogs)
 
     // Standard mouse messages
     public const uint WM_LBUTTONDOWN = 0x0201;
@@ -230,6 +230,16 @@ public static class WindowInterop
     /// </summary>
     [DllImport("user32.dll")]
     public static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    /// <summary>
+    /// Capture a window's content into a device context, even if the window is occluded or off-screen.
+    /// nFlags: 0 = WM_PRINT, 2 = PW_RENDERFULLCONTENT (composited/DWM-aware).
+    /// </summary>
+    [DllImport("user32.dll")]
+    public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
+
+    /// <summary>PW_RENDERFULLCONTENT — render the full window including DirectComposition content.</summary>
+    public const uint PW_RENDERFULLCONTENT = 2;
 
     /// <summary>
     /// Attaches or detaches the input processing mechanism of one thread to another.

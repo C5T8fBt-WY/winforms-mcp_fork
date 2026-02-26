@@ -50,6 +50,12 @@ internal class ClickHandler : HandlerBase
                 var hwnd = new IntPtr(Convert.ToInt64(windowHandleStr, 16));
                 var cancel = GetBoolArg(args, "cancel", false);
 
+                // Warn about ignored parameters
+                bool hasCoords = args.TryGetProperty("x", out _) || args.TryGetProperty("y", out _);
+                string? warning = hasCoords
+                    ? "x/y coordinates are ignored when using window_handle — this sends OK/Cancel to the dialog, not a positional click."
+                    : null;
+
                 // Find the button child by text (most reliable across Win32 and TaskDialog).
                 var btnHwnd = FindDialogButton(hwnd, cancel);
                 if (btnHwnd != IntPtr.Zero)
@@ -76,7 +82,8 @@ internal class ClickHandler : HandlerBase
                     clicked = true,
                     input = "postmessage:dialog",
                     window_handle = windowHandleStr,
-                    button = cancel ? "cancel" : "ok"
+                    button = cancel ? "cancel" : "ok",
+                    warning
                 });
             }
 

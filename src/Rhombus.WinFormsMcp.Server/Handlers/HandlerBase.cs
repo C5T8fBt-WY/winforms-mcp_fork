@@ -208,6 +208,37 @@ internal abstract class HandlerBase : IToolHandler
     }
 
     /// <summary>
+    /// Capture a window by HWND using PrintWindow API — works even when the window is
+    /// behind other windows (no focus stealing, no Z-order changes).
+    /// </summary>
+    protected string CaptureWindowByHwndToBase64(IntPtr hwnd)
+    {
+        Interop.WindowInterop.GetWindowRect(hwnd, out var rect);
+        int w = rect.Width;
+        int h = rect.Height;
+        if (w <= 0 || h <= 0)
+            throw new InvalidOperationException($"Window 0x{hwnd:X} has no visible area ({w}x{h}).");
+
+        using var bitmap = new System.Drawing.Bitmap(w, h);
+        using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
+        {
+            var hdc = graphics.GetHdc();
+            try
+            {
+                Interop.WindowInterop.PrintWindow(hwnd, hdc, Interop.WindowInterop.PW_RENDERFULLCONTENT);
+            }
+            finally
+            {
+                graphics.ReleaseHdc(hdc);
+            }
+        }
+
+        using var ms = new MemoryStream();
+        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+        return Convert.ToBase64String(ms.ToArray());
+    }
+
+    /// <summary>
     /// Capture the full desktop to base64-encoded PNG.
     /// </summary>
     protected string CaptureDesktopToBase64()
