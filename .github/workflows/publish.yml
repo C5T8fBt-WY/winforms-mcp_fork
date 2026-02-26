@@ -91,13 +91,6 @@ jobs:
           echo "New version will be: $NEW_VERSION"
         shell: bash
 
-      - name: Restore, Build, Test
-        run: |
-          dotnet restore Rhombus.WinFormsMcp.sln
-          dotnet build Rhombus.WinFormsMcp.sln --configuration Release --no-restore
-          dotnet test Rhombus.WinFormsMcp.sln --configuration Release --no-build --logger "console;verbosity=minimal"
-        shell: pwsh
-
       - name: Update VERSION file and npm/package.json
         if: steps.get_version.outputs.tag_exists == 'false'
         run: |
@@ -112,6 +105,13 @@ jobs:
           $pkg | ConvertTo-Json -Depth 10 | Set-Content "npm/package.json"
 
           Write-Host "Updated VERSION and npm/package.json to $newVersion"
+        shell: pwsh
+
+      - name: Restore, Build, Test
+        run: |
+          dotnet restore Rhombus.WinFormsMcp.sln
+          dotnet build Rhombus.WinFormsMcp.sln --configuration Release --no-restore
+          dotnet test Rhombus.WinFormsMcp.sln --configuration Release --no-build --logger "console;verbosity=minimal"
         shell: pwsh
 
       - name: Copy binaries to npm/dist
