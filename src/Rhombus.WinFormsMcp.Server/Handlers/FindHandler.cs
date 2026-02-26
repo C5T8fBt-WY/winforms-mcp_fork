@@ -707,7 +707,12 @@ internal class FindHandler : HandlerBase
             string disabledPart = !enabled ? " [disabled]" : "";
             string refPart = $" [ref={ref_id}]";
 
-            sb.AppendLine($"{prefix}- {typeLower} \"{name}\"{refPart}{valuePart}{disabledPart}");
+            // Show automationId when it's a meaningful code name (not a numeric Win32 control ID).
+            // WinForms .Name property → UIA AutomationId is the most reliable agent identifier.
+            bool hasCodeId = !string.IsNullOrEmpty(autoId) && !int.TryParse(autoId, out _);
+            string idPart = hasCodeId ? $" [id={autoId}]" : "";
+
+            sb.AppendLine($"{prefix}- {typeLower} \"{name}\"{idPart}{refPart}{valuePart}{disabledPart}");
         }
 
         if (depth < maxDepth)
