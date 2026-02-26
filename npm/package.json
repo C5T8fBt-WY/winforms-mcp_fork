@@ -1,6 +1,6 @@
 {
   "name": "@c5t8fbt-wy/winforms-mcp",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "WinForms automation MCP server with headless UI automation capabilities",
   "main": "index.js",
   "files": [
