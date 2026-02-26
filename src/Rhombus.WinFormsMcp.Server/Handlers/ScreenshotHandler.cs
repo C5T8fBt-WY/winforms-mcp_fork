@@ -72,10 +72,10 @@ internal class ScreenshotHandler : HandlerBase
             {
                 var bytes = Convert.FromBase64String(base64);
                 File.WriteAllBytes(file, bytes);
-                return Success(new { saved = true, path = file });
+                return ScopedSuccess(args, new { saved = true, path = file });
             }
 
-            return Success(new { image = base64, format = "png", encoding = "base64" });
+            return ScopedSuccess(args, new { image = base64, format = "png", encoding = "base64" });
         }
         catch (UnauthorizedAccessException)
         {

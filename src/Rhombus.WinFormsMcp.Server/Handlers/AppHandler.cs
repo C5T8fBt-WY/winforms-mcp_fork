@@ -233,7 +233,7 @@ internal class AppHandler : HandlerBase
 
             var process = Process.GetProcessById(pid);
 
-            return Success(new
+            return ScopedSuccess(args, new
             {
                 pid = process.Id,
                 processName = process.ProcessName,
