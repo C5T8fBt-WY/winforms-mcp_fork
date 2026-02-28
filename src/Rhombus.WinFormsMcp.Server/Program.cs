@@ -89,11 +89,6 @@ class Program
             return null; // Let default resolution continue
         };
 
-        AppDomain.CurrentDomain.AssemblyLoad += (sender, e) =>
-        {
-            Log($"ASSEMBLY LOADED: {e.LoadedAssembly.FullName} from {e.LoadedAssembly.Location}");
-        };
-
         try
         {
             Log($"winforms-mcp v{Constants.Protocol.ServerVersion} started");
