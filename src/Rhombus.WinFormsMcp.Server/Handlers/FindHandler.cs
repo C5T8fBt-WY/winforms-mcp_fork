@@ -269,8 +269,18 @@ internal class FindHandler : HandlerBase
 
         AutomationElement? found = null;
 
+        // Wrap FindAllChildren in a timeout task - a modal dialog (ShowDialog/MessageBox)
+        // blocks its parent window's UI thread, causing FindAllChildren to hang indefinitely.
+        AutomationElement[]? children = null;
+        var childTask = Task.Run(() => searchRoot.FindAllChildren());
+        if (childTask.Wait(TimeSpan.FromMilliseconds(1000)))
+            children = childTask.Result;
+
+        if (children == null)
+            return Error("Find timed out: target window may be blocked by a modal dialog. " +
+                         "Use snapshot to see the current state — modal dialogs appear as hwnd= stubs.");
+
         // Search direct children first (fast path).
-        var children = searchRoot.FindAllChildren();
         foreach (var child in children)
         {
             if (MatchesSelector(child, controlType, name, automationId, className))
@@ -487,7 +497,14 @@ internal class FindHandler : HandlerBase
 
         try
         {
-            var children = root.FindAllChildren();
+            // Use a timeout per level — a window blocked in ShowDialog will hang FindAllChildren.
+            AutomationElement[]? children = null;
+            var childTask = Task.Run(() => root.FindAllChildren());
+            if (childTask.Wait(TimeSpan.FromMilliseconds(1000)))
+                children = childTask.Result;
+
+            if (children == null) return null; // timed out — skip this branch
+
             foreach (var child in children)
             {
                 if (MatchesSelector(child, controlType, name, automationId, className))
