@@ -167,16 +167,16 @@ public static class ToolDefinitions
             new
             {
                 name = "type",
-                description = "Type text into element or send keystrokes globally (UIA ValuePattern + PostMessage WM_CHAR, never uses physical keyboard input)",
+                description = "Type text into an element or send keystrokes to the tracked app. Always specify 'target' (element ID from find). Without target, sends to the tracked app's main window — NEVER to the host foreground window. Uses UIA ValuePattern first, then PostMessage WM_CHAR (no physical keyboard input).",
                 inputSchema = new
                 {
                     type = "object",
                     properties = new
                     {
                         text = new { type = "string", description = "Text or key sequence" },
-                        target = new { type = "string", description = "Element ID (omit for global)" },
+                        target = new { type = "string", description = "Element ID from find (strongly recommended — omit only for app-level key sequences like {ENTER}, ^Z)" },
                         clear = new { type = "boolean", description = "Clear field first" },
-                        keys = new { type = "boolean", description = "Interpret as key codes" }
+                        keys = new { type = "boolean", description = "Interpret as key codes (e.g. '~' for Enter, '^Z' for Ctrl+Z, '{TAB}')" }
                     },
                     required = new[] { "text" }
                 }

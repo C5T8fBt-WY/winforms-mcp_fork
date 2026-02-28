@@ -15,7 +15,8 @@ namespace C5T8fBtWY.WinFormsMcp.Server.Handlers;
 /// Unified handler for text input and keyboard operations.
 /// Replaces: type_text, set_value, send_keys
 /// All input is programmatic — UIA ValuePattern first, PostMessage WM_CHAR/WM_KEYDOWN fallback.
-/// Physical keyboard input (SendKeys/SendInput) is never used to prevent interfering with the user.
+/// Keystrokes are ALWAYS sent to the tracked app's window, never to the host foreground window,
+/// to prevent interfering with the user's other applications.
 /// </summary>
 internal class TypeHandler : HandlerBase
 {
@@ -154,19 +155,38 @@ internal class TypeHandler : HandlerBase
 
     private Task<JsonElement> SendKeys(string keySequence)
     {
-        // Send key sequence to foreground window via PostMessage (no physical keyboard).
-        var hwnd = WindowInterop.GetForegroundWindow();
+        var hwnd = GetTrackedWindowHwnd();
+        if (hwnd == IntPtr.Zero)
+            return Error("No target element specified and no tracked app window found. " +
+                         "Use 'find' to locate an element, then specify it as 'target'. " +
+                         "Alternatively, launch an app first with the 'app' tool.");
         PostKeySequence(hwnd, keySequence);
         return ScopedSuccess(default, new { sent = true, keys = keySequence });
     }
 
     private Task<JsonElement> SendText(string text)
     {
-        // Send text to foreground window via PostMessage WM_CHAR (no physical keyboard).
-        var hwnd = WindowInterop.GetForegroundWindow();
+        var hwnd = GetTrackedWindowHwnd();
+        if (hwnd == IntPtr.Zero)
+            return Error("No target element specified and no tracked app window found. " +
+                         "Use 'find' to locate an element, then specify it as 'target'. " +
+                         "Alternatively, launch an app first with the 'app' tool.");
         foreach (char c in text)
             WindowInterop.PostMessage(hwnd, WindowInterop.WM_CHAR, new IntPtr(c), IntPtr.Zero);
         return ScopedSuccess(default, new { typed = true, length = text.Length });
+    }
+
+    /// <summary>
+    /// Returns the HWND of the first window belonging to a tracked process.
+    /// This ensures keystrokes sent without an explicit target go to the
+    /// agent's app, never to the host machine's foreground window.
+    /// </summary>
+    private IntPtr GetTrackedWindowHwnd()
+    {
+        var pids = Session.GetTrackedProcessIds();
+        if (pids.Count == 0) return IntPtr.Zero;
+        var windows = Windows.GetWindowsByPids(pids);
+        return windows.Count > 0 ? windows[0].HandlePtr : IntPtr.Zero;
     }
 
     /// <summary>Get the HWND for a UI element (for PostMessage fallback).</summary>
