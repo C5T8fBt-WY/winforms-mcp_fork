@@ -15,8 +15,8 @@ namespace C5T8fBtWY.WinFormsMcp.Server.Handlers;
 /// Unified handler for text input and keyboard operations.
 /// Replaces: type_text, set_value, send_keys
 /// All input is programmatic — UIA ValuePattern first, PostMessage WM_CHAR/WM_KEYDOWN fallback.
-/// Keystrokes are ALWAYS sent to the tracked app's window, never to the host foreground window,
-/// to prevent interfering with the user's other applications.
+/// target is always required: element ID (elem_N) or raw HWND (0xHHHH).
+/// This prevents keystrokes from accidentally targeting the host machine's focused window.
 /// </summary>
 internal class TypeHandler : HandlerBase
 {
@@ -36,32 +36,34 @@ internal class TypeHandler : HandlerBase
                 return Error("text is required. Example: {\"text\": \"Hello\", \"target\": \"elem_1\"}");
 
             var target = GetStringArg(args, "target");
+            if (string.IsNullOrEmpty(target))
+                return Error("target is required. Specify an element ID from find (e.g. \"elem_1\") " +
+                             "or a raw HWND string (e.g. \"0x920972\" from the windows list in any response). " +
+                             "Use find to locate the element first, then pass its ID as target.");
+
             var clear = GetBoolArg(args, "clear", false);
             var keys = GetBoolArg(args, "keys", false);
 
-            if (!string.IsNullOrEmpty(target))
+            // Raw HWND format (e.g., "0x007C1A7E") — bypass UIA, use Win32 directly.
+            // Used for controls inside modal dialogs where UIA returns empty trees
+            // (e.g., WinForms PropertyGrid inline editor during ShowDialog), or to send
+            // key sequences directly to a window (e.g., {ENTER} to close a dialog).
+            if (target.StartsWith("0x", StringComparison.OrdinalIgnoreCase) &&
+                long.TryParse(target.AsSpan(2), System.Globalization.NumberStyles.HexNumber, null, out long hval))
             {
-                // Raw HWND format (e.g., "0x007C1A7E") — bypass UIA, use Win32 WM_SETTEXT directly.
-                // Used for controls inside modal dialogs where UIA returns empty trees
-                // (e.g., WinForms PropertyGrid inline editor during ShowDialog).
-                if (target.StartsWith("0x", StringComparison.OrdinalIgnoreCase) &&
-                    long.TryParse(target.AsSpan(2), System.Globalization.NumberStyles.HexNumber, null, out long hval))
+                var hwnd = new IntPtr(hval);
+                if (keys)
                 {
-                    return TypeIntoHwnd(new IntPtr(hval), text, clear);
+                    PostKeySequence(hwnd, text);
+                    return ScopedSuccess(default, new { sent = true, target, keys = text });
                 }
-                // Type into specific element (elem_N cache)
-                return TypeIntoElement(target, text, clear);
+                return TypeIntoHwnd(hwnd, text, clear);
             }
-            else if (keys)
-            {
-                // Send key codes globally
-                return SendKeys(text);
-            }
-            else
-            {
-                // Send text globally (less reliable, use element targeting when possible)
-                return SendText(text);
-            }
+
+            // Element ID (elem_N cache)
+            return keys
+                ? SendKeysToElement(target, text)
+                : TypeIntoElement(target, text, clear);
         }
         catch (Exception ex)
         {
@@ -153,40 +155,25 @@ internal class TypeHandler : HandlerBase
         return ScopedSuccess(default, new { typed = true, target = elementId, length = text.Length, method = "PostMessage" });
     }
 
-    private Task<JsonElement> SendKeys(string keySequence)
-    {
-        var hwnd = GetTrackedWindowHwnd();
-        if (hwnd == IntPtr.Zero)
-            return Error("No target element specified and no tracked app window found. " +
-                         "Use 'find' to locate an element, then specify it as 'target'. " +
-                         "Alternatively, launch an app first with the 'app' tool.");
-        PostKeySequence(hwnd, keySequence);
-        return ScopedSuccess(default, new { sent = true, keys = keySequence });
-    }
-
-    private Task<JsonElement> SendText(string text)
-    {
-        var hwnd = GetTrackedWindowHwnd();
-        if (hwnd == IntPtr.Zero)
-            return Error("No target element specified and no tracked app window found. " +
-                         "Use 'find' to locate an element, then specify it as 'target'. " +
-                         "Alternatively, launch an app first with the 'app' tool.");
-        foreach (char c in text)
-            WindowInterop.PostMessage(hwnd, WindowInterop.WM_CHAR, new IntPtr(c), IntPtr.Zero);
-        return ScopedSuccess(default, new { typed = true, length = text.Length });
-    }
-
     /// <summary>
-    /// Returns the HWND of the first window belonging to a tracked process.
-    /// This ensures keystrokes sent without an explicit target go to the
-    /// agent's app, never to the host machine's foreground window.
+    /// Send a key sequence to the element's window HWND via PostMessage WM_KEYDOWN/WM_KEYUP.
+    /// Use when keys=true with a target element or window HWND.
     /// </summary>
-    private IntPtr GetTrackedWindowHwnd()
+    private Task<JsonElement> SendKeysToElement(string elementId, string keySequence)
     {
-        var pids = Session.GetTrackedProcessIds();
-        if (pids.Count == 0) return IntPtr.Zero;
-        var windows = Windows.GetWindowsByPids(pids);
-        return windows.Count > 0 ? windows[0].HandlePtr : IntPtr.Zero;
+        var element = Session.GetElement(elementId);
+        if (element == null)
+            return Error($"Element not found: {elementId}");
+
+        if (Session.IsElementStale(elementId))
+            return Error($"Element is stale: {elementId}. Use find to locate it again.");
+
+        var hwnd = GetElementHwnd(element);
+        if (hwnd == IntPtr.Zero)
+            return Error($"Cannot send keys to element: {elementId}. No window handle found.");
+
+        PostKeySequence(hwnd, keySequence);
+        return ScopedSuccess(default, new { sent = true, target = elementId, keys = keySequence });
     }
 
     /// <summary>Get the HWND for a UI element (for PostMessage fallback).</summary>

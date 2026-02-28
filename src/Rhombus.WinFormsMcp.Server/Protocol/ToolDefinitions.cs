@@ -167,18 +167,18 @@ public static class ToolDefinitions
             new
             {
                 name = "type",
-                description = "Type text into an element or send keystrokes to the tracked app. Always specify 'target' (element ID from find). Without target, sends to the tracked app's main window — NEVER to the host foreground window. Uses UIA ValuePattern first, then PostMessage WM_CHAR (no physical keyboard input).",
+                description = "Type text or send keystrokes to a specific element or window. target is required: use element ID from find (e.g. 'elem_1'), or raw HWND string (e.g. '0x920972') from the windows list. Uses UIA ValuePattern first, then PostMessage WM_CHAR/WM_KEYDOWN. Never uses physical keyboard input.",
                 inputSchema = new
                 {
                     type = "object",
                     properties = new
                     {
-                        text = new { type = "string", description = "Text or key sequence" },
-                        target = new { type = "string", description = "Element ID from find (strongly recommended — omit only for app-level key sequences like {ENTER}, ^Z)" },
+                        text = new { type = "string", description = "Text to type, or key sequence when keys=true (e.g. '~' for Enter, '^Z' for Ctrl+Z, '{TAB}', '{ESC}')" },
+                        target = new { type = "string", description = "Element ID from find (e.g. 'elem_1'), or raw HWND string (e.g. '0x920972') from the windows list in any response" },
                         clear = new { type = "boolean", description = "Clear field first" },
-                        keys = new { type = "boolean", description = "Interpret as key codes (e.g. '~' for Enter, '^Z' for Ctrl+Z, '{TAB}')" }
+                        keys = new { type = "boolean", description = "Interpret text as key codes. Supports: ^X (Ctrl), +X (Shift), %X (Alt), ~ (Enter), {TAB}, {ESC}, {F1}-{F12}, etc." }
                     },
-                    required = new[] { "text" }
+                    required = new[] { "text", "target" }
                 }
             },
 
