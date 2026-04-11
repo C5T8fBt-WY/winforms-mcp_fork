@@ -46,6 +46,12 @@ public static class WindowInterop
     public static extern bool GetWindowRect(IntPtr hWnd, out Win32Types.RECT lpRect);
 
     /// <summary>
+    /// Check if a window handle is valid.
+    /// </summary>
+    [DllImport("user32.dll")]
+    public static extern bool IsWindow(IntPtr hWnd);
+
+    /// <summary>
     /// Check if a window is visible.
     /// </summary>
     [DllImport("user32.dll")]

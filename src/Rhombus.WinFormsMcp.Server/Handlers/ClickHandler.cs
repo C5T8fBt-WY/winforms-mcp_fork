@@ -120,9 +120,44 @@ internal class ClickHandler : HandlerBase
 
             if (hasElement)
             {
+                // Raw HWND format (e.g., "0x007C1A7E") from snapshot [hwnd=] refs.
+                // Bypass UIA and send BM_CLICK (for buttons) or WM_LBUTTON directly.
+                if (target!.StartsWith("0x", StringComparison.OrdinalIgnoreCase) &&
+                    long.TryParse(target.AsSpan(2), System.Globalization.NumberStyles.HexNumber, null, out long hval))
+                {
+                    var hwnd = new IntPtr(hval);
+                    if (!WindowInterop.IsWindow(hwnd))
+                        return Error($"HWND {target} is not a valid window handle.");
+
+                    var cls = new System.Text.StringBuilder(256);
+                    WindowInterop.GetClassName(hwnd, cls, cls.Capacity);
+                    var clsName = cls.ToString();
+
+                    if (clsName.Contains("BUTTON", StringComparison.OrdinalIgnoreCase))
+                    {
+                        WindowInterop.PostMessage(hwnd, WindowInterop.BM_CLICK, IntPtr.Zero, IntPtr.Zero);
+                    }
+                    else
+                    {
+                        // Generic click via WM_LBUTTONDOWN/UP at center of control
+                        WindowInterop.GetClientRect(hwnd, out var rect);
+                        var lParam = WindowInterop.MakeLParam(rect.Width / 2, rect.Height / 2);
+                        WindowInterop.PostMessage(hwnd, WindowInterop.WM_LBUTTONDOWN, (IntPtr)WindowInterop.MK_LBUTTON, lParam);
+                        WindowInterop.PostMessage(hwnd, WindowInterop.WM_LBUTTONUP, IntPtr.Zero, lParam);
+                    }
+
+                    return ScopedSuccess(args, new
+                    {
+                        clicked = true,
+                        input = "postmessage:hwnd",
+                        target,
+                        className = clsName
+                    });
+                }
+
                 element = Session.GetElement(target!);
                 if (element == null)
-                    return Error($"Element not found: {target}. If a modal dialog is blocking, use snapshot to find hwnd= refs, then click(window_handle:).");
+                    return Error($"Element not found: {target}. If a modal dialog is blocking, use snapshot to find hwnd= refs, then click(target:'0xHWND').");
 
                 if (Session.IsElementStale(target!))
                     return Error($"Element is stale: {target}. Use find to locate it again.");
@@ -188,7 +223,10 @@ internal class ClickHandler : HandlerBase
         {
             var cls = new System.Text.StringBuilder(64);
             WindowInterop.GetClassName(child, cls, cls.Capacity);
-            if (cls.ToString().Equals("Button", StringComparison.OrdinalIgnoreCase))
+            var clsName = cls.ToString();
+            // Match native "Button" and WinForms "WindowsForms10.BUTTON.*" class names
+            if (clsName.Equals("Button", StringComparison.OrdinalIgnoreCase) ||
+                clsName.StartsWith("WindowsForms10.BUTTON", StringComparison.OrdinalIgnoreCase))
                 buttons.Add(child);
             return true; // continue enumeration
         }, IntPtr.Zero);

@@ -149,7 +149,7 @@ public static class ToolDefinitions
                     type = "object",
                     properties = new
                     {
-                        target = new { type = "string", description = "Element ID to click" },
+                        target = new { type = "string", description = "Element ID to click (e.g. 'elem_1'), or raw HWND string (e.g. '0x920972') from snapshot [hwnd=] output. Raw HWND sends BM_CLICK for buttons, WM_LBUTTON for other controls." },
                         automationId = new { type = "string", description = "AutomationId of element to click directly (no prior find needed)" },
                         name = new { type = "string", description = "Element name to click directly (no prior find needed)" },
                         x = new { type = "integer", description = "Screen X (if no target)" },
