@@ -138,13 +138,11 @@ internal class TypeHandler : HandlerBase
         if (hwnd == IntPtr.Zero)
             return Error($"Cannot send input to element: {elementId}. No window handle and ValuePattern not supported.");
 
-        // Focus only needed for PostMessage path — some controls need focus to process WM_CHAR
-        try { element.Focus(); Thread.Sleep(50); }
-        catch
-        {
-            try { element.Click(); Thread.Sleep(50); }
-            catch { /* Continue anyway */ }
-        }
+        // Focus only needed for PostMessage path — some controls need focus to process WM_CHAR.
+        // Use PostMessage WM_SETFOCUS instead of UIA element.Focus() to avoid bringing the
+        // target window to the foreground (UIA SetFocus activates the window).
+        WindowInterop.PostMessage(hwnd, WindowInterop.WM_SETFOCUS, IntPtr.Zero, IntPtr.Zero);
+        Thread.Sleep(50);
 
         if (clear)
             PostSelectAllDelete(hwnd);

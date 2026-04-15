@@ -187,6 +187,9 @@ public static class WindowInterop
     /// </summary>
     public static IntPtr MakeLParam(int x, int y) => (IntPtr)((y << 16) | (x & 0xFFFF));
 
+    // Focus message — sent to a control to give it logical focus without activating its window
+    public const uint WM_SETFOCUS = 0x0007;
+
     // Text control messages (for WinForms controls that don't support UIA ValuePattern)
     public const uint WM_SETTEXT = 0x000C;  // Replace control text directly (synchronous)
     public const uint WM_GETTEXT = 0x000D;  // Read control text (synchronous)
